@@ -56,7 +56,6 @@ serve(async (req) => {
     const formData = new FormData();
     formData.append('model', 'gpt-image-1');
     formData.append('size', size || '1024x1024');
-    formData.append('response_format', 'b64_json');
     formData.append('n', '1');
     formData.append('image', new File([imageBlob], filename, { type: 'image/png' }));
 
