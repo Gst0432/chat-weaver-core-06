@@ -45,7 +45,7 @@ interface ModelSelectorProps {
   onTtsProviderChange: (p: 'openai' | 'google') => void;
 }
 
-export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange }: ModelSelectorProps) => {
+export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange, ttsVoice, onTtsVoiceChange }: ModelSelectorProps & { ttsVoice: string; onTtsVoiceChange: (v: string) => void; }) => {
   const currentModel = models.find(m => m.id === selectedModel) || models[0];
 
   return (
@@ -103,7 +103,7 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
       </Select>
 
       {/* Providers */}
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">STT</span>
           <Select value={sttProvider} onValueChange={(v) => onSttProviderChange(v as 'openai' | 'google')}>
@@ -125,6 +125,35 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
             <SelectContent>
               <SelectItem value="openai">OpenAI TTS</SelectItem>
               <SelectItem value="google">Google TTS</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Voix</span>
+          <Select value={ttsVoice} onValueChange={(v) => onTtsVoiceChange(v)}>
+            <SelectTrigger className="w-[200px] bg-secondary border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ttsProvider === 'openai' ? (
+                <>
+                  <SelectItem value="alloy">alloy</SelectItem>
+                  <SelectItem value="ash">ash</SelectItem>
+                  <SelectItem value="ballad">ballad</SelectItem>
+                  <SelectItem value="coral">coral</SelectItem>
+                  <SelectItem value="echo">echo</SelectItem>
+                  <SelectItem value="sage">sage</SelectItem>
+                  <SelectItem value="shimmer">shimmer</SelectItem>
+                  <SelectItem value="verse">verse</SelectItem>
+                </>
+              ) : (
+                <>
+                  <SelectItem value="fr-FR-Standard-A">fr-FR-Standard-A</SelectItem>
+                  <SelectItem value="fr-FR-Wavenet-D">fr-FR-Wavenet-D</SelectItem>
+                  <SelectItem value="en-US-Standard-C">en-US-Standard-C</SelectItem>
+                  <SelectItem value="en-US-Wavenet-D">en-US-Wavenet-D</SelectItem>
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>

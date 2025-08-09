@@ -88,6 +88,9 @@ export const ChatInput = ({ onSendMessage, disabled, sttProvider = 'openai' }: C
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const arrayBuffer = await blob.arrayBuffer();
         const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        
+        // Ajouter l'audio au chat pour aperçu/téléchargement
+        onSendMessage(`data:audio/webm;base64,${base64}`);
 
         try {
           const fn = sttProvider === 'google' ? 'google-stt' : 'voice-to-text';

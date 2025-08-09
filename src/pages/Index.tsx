@@ -10,6 +10,7 @@ const Index = () => {
   const [authReady, setAuthReady] = useState(false);
   const [sttProvider, setSttProvider] = useState<'openai' | 'google'>("openai");
   const [ttsProvider, setTtsProvider] = useState<'openai' | 'google'>("openai");
+  const [ttsVoice, setTtsVoice] = useState<string>("alloy");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,8 +41,10 @@ const Index = () => {
         onSttProviderChange={setSttProvider}
         ttsProvider={ttsProvider}
         onTtsProviderChange={setTtsProvider}
+        ttsVoice={ttsVoice}
+        onTtsVoiceChange={setTtsVoice}
       />
-      <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} />
+      <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} ttsVoice={ttsVoice} />
     </ChatLayout>
   );
 };

@@ -80,9 +80,10 @@ interface ChatAreaProps {
   selectedModel: string;
   sttProvider: 'openai' | 'google';
   ttsProvider: 'openai' | 'google';
+  ttsVoice: string;
 }
 
-export const ChatArea = ({ selectedModel, sttProvider, ttsProvider }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -92,9 +93,10 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider }: ChatAreaPr
     try {
       if (!text || /^data:/.test(text)) return; // éviter les images/documents
       const fn = ttsProvider === 'google' ? 'google-tts' : 'text-to-voice';
+      const lang = (ttsVoice && ttsVoice.includes('-')) ? ttsVoice.split('-').slice(0,2).join('-') : 'fr-FR';
       const body = ttsProvider === 'google'
-        ? { text, languageCode: 'fr-FR', ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
-        : { text, voice: 'alloy', format: 'mp3' };
+        ? { text, languageCode: lang, voiceName: ttsVoice || undefined, ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
+        : { text, voice: ttsVoice || 'alloy', format: 'mp3' };
       const { data, error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
       const mime = data?.mime || 'audio/mpeg';
@@ -262,7 +264,36 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider }: ChatAreaPr
           return;
         }
       }
-
+      // Commandes TTS: /tts <texte>
+      const ttsMatch = content.trim().match(/^\/tts\s+([\s\S]+)/i);
+      if (ttsMatch) {
+        const textToSpeak = ttsMatch[1].trim();
+        const fn = ttsProvider === 'google' ? 'google-tts' : 'text-to-voice';
+        const lang = (ttsVoice && ttsVoice.includes('-')) ? ttsVoice.split('-').slice(0,2).join('-') : 'fr-FR';
+        const body = ttsProvider === 'google'
+          ? { text: textToSpeak, languageCode: lang, voiceName: ttsVoice || undefined, ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
+          : { text: textToSpeak, voice: ttsVoice || 'alloy', format: 'mp3' };
+        const { data, error } = await supabase.functions.invoke(fn, { body });
+        if (error) throw error;
+        const mime = data?.mime || 'audio/mpeg';
+        const base64 = data?.audio as string;
+        const dataUrl = `data:${mime};base64,${base64}`;
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: dataUrl,
+          role: 'assistant',
+          timestamp: new Date(),
+          model: selectedModel
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        await supabase.from('messages').insert({
+          conversation_id: convoId,
+          role: 'assistant',
+          content: assistantMessage.content,
+          model: selectedModel
+        });
+        return;
+      }
 
       // Commandes de génération de documents: /pdf, /docx, /pptx, /slide
       const cmdMatch = content.trim().match(/^\/(pdf|docx|pptx|slide)\s*(.*)$/i);
