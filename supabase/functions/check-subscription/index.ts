@@ -42,7 +42,7 @@ serve(async (req) => {
     const nowIso = new Date().toISOString();
     const { data: existing } = await supabaseService
       .from('subscribers')
-      .select('email,user_id,subscription_tier,subscription_end,subscribed')
+      .select('email,user_id,subscription_tier,subscription_end,subscribed,minutes_balance,total_minutes_purchased')
       .eq('email', user.email)
       .maybeSingle();
 
@@ -72,6 +72,8 @@ serve(async (req) => {
       subscribed: active,
       subscription_tier: tier,
       subscription_end: endAt,
+      minutes_balance: existing?.minutes_balance || 0,
+      total_minutes_purchased: existing?.total_minutes_purchased || 0,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
