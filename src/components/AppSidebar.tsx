@@ -154,37 +154,104 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
             <SidebarGroupContent>
               <div className="space-y-2">
                 {loading ? (
-                  <div className="text-sm text-muted-foreground text-center py-4">
-                    Chargement...
+                  <div className="flex items-center justify-center py-8">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-xs text-muted-foreground">Chargement...</span>
+                    </div>
                   </div>
                 ) : items.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center py-4">
-                    Aucune conversation récente
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <MessageSquare className="w-12 h-12 text-muted-foreground/30 mb-3" />
+                    <p className="text-sm text-muted-foreground mb-1">Aucune conversation récente</p>
+                    <p className="text-xs text-muted-foreground/70">Commencez une nouvelle discussion</p>
                   </div>
                 ) : (
-                  items.map((c) => (
-                    <Card
-                      key={c.id}
-                      onClick={() => selectConversation(c.id)}
-                      className={`p-3 border cursor-pointer transition-colors ${
-                        activeId === c.id 
-                          ? 'border-primary bg-primary/10' 
-                          : 'bg-secondary/50 border-secondary hover:bg-secondary/70'
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        {!isCollapsed && (
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-foreground truncate">{c.title || 'Sans titre'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: fr })}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))
+                  <>
+                    {/* Header de l'historique */}
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Récent
+                      </span>
+                      <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full">
+                        {items.length}
+                      </span>
+                    </div>
+                    
+                    {/* Liste des conversations */}
+                    <div className="space-y-1">
+                      {items.map((c, index) => (
+                        <div
+                          key={c.id}
+                          className="animate-fade-in"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <Card
+                            onClick={() => selectConversation(c.id)}
+                            className={`group relative p-3 border cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-sm ${
+                              activeId === c.id 
+                                ? 'border-primary bg-gradient-to-r from-primary/10 to-primary/5 shadow-sm' 
+                                : 'bg-card/50 border-border/50 hover:bg-card/80 hover:border-border'
+                            }`}
+                          >
+                            {/* Indicateur de conversation active */}
+                            {activeId === c.id && (
+                              <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full"></div>
+                            )}
+                            
+                            <div className="flex items-start gap-3 pl-1">
+                              {/* Icône avec animation */}
+                              <div className={`relative flex-shrink-0 mt-0.5 transition-all duration-200 ${
+                                activeId === c.id ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                              }`}>
+                                <MessageSquare className="w-4 h-4" />
+                                {activeId === c.id && (
+                                  <div className="absolute -inset-1 bg-primary/20 rounded-full animate-pulse"></div>
+                                )}
+                              </div>
+                              
+                              {!isCollapsed && (
+                                <div className="flex-1 min-w-0">
+                                  {/* Titre avec meilleur contraste */}
+                                  <p className={`text-sm font-medium truncate transition-colors duration-200 ${
+                                    activeId === c.id 
+                                      ? 'text-primary' 
+                                      : 'text-foreground group-hover:text-foreground'
+                                  }`}>
+                                    {c.title || 'Sans titre'}
+                                  </p>
+                                  
+                                  {/* Date améliorée avec badge */}
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full transition-colors duration-200 ${
+                                      activeId === c.id
+                                        ? 'bg-primary/10 text-primary/80'
+                                        : 'bg-secondary/50 text-muted-foreground group-hover:bg-secondary/70'
+                                    }`}>
+                                      {formatDistanceToNow(new Date(c.created_at), { 
+                                        addSuffix: true, 
+                                        locale: fr 
+                                      })}
+                                    </span>
+                                    
+                                    {/* Indicateur "nouveau" pour les conversations récentes */}
+                                    {new Date(c.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000) && (
+                                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                        Nouveau
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Effet de survol subtil */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg pointer-events-none"></div>
+                          </Card>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </SidebarGroupContent>
