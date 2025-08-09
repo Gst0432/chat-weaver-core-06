@@ -5,6 +5,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
@@ -343,6 +344,57 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
       setIsLoading(false);
     }
   };
+  
+  const exportDocument = async (type: 'pdf' | 'docx' | 'pptx') => {
+    try {
+      let bodyText = '';
+      const fallback = [...messages].reverse().find(m => typeof m.content === 'string' && !m.content.startsWith('data:') && !m.content.startsWith('http'));
+      bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
+
+      let dataUrl = '';
+      if (type === 'pdf') dataUrl = await createPdfDataUrl(bodyText);
+      else if (type === 'docx') dataUrl = await createDocxDataUrl(bodyText);
+      else dataUrl = await createPptxDataUrl(bodyText);
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: dataUrl,
+        role: 'assistant',
+        timestamp: new Date(),
+        model: selectedModel
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      let convoId = currentConversationId;
+      if (!convoId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Non authentifié');
+        const { data: conv, error: convError } = await supabase
+          .from('conversations')
+          .insert({ title: 'Documents générés', user_id: user.id })
+          .select('id')
+          .maybeSingle();
+        if (convError) throw convError;
+        convoId = conv?.id as string;
+        setCurrentConversationId(convoId);
+      }
+
+      await supabase.from('messages').insert({
+        conversation_id: convoId,
+        role: 'assistant',
+        content: assistantMessage.content,
+        model: selectedModel
+      });
+    } catch (e: any) {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 2).toString(),
+        content: `Erreur export: ${e?.message || 'échec'}`,
+        role: 'assistant',
+        timestamp: new Date(),
+        model: selectedModel
+      }]);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -365,6 +417,14 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           )}
         </div>
       </ScrollArea>
+      <div className="border-t border-border bg-card/30">
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Exporter le dernier contenu:</span>
+          <Button variant="secondary" size="sm" onClick={() => exportDocument('pdf')}>PDF</Button>
+          <Button variant="secondary" size="sm" onClick={() => exportDocument('docx')}>DOCX</Button>
+          <Button variant="secondary" size="sm" onClick={() => exportDocument('pptx')}>PPTX</Button>
+        </div>
+      </div>
       <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
     </div>
   );
