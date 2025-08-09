@@ -42,6 +42,25 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
     setIsLoading(true);
 
     try {
+      // Image generation flow
+      if (selectedModel === 'gpt-image-1') {
+        const { data, error } = await supabase.functions.invoke('openai-image', {
+          body: { prompt: content }
+        });
+        if (error) throw error;
+
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data?.image || "Échec de génération d'image.",
+          role: "assistant",
+          timestamp: new Date(),
+          model: selectedModel
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+        return;
+      }
+
       // Map existing messages to provider format
       const history = messages.map(m => ({ role: m.role, content: m.content }));
       const chatMessages = [
@@ -52,7 +71,9 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
 
       let functionName = 'openai-chat';
       let model = 'gpt-4o-mini';
-      if (selectedModel.includes('perplexity')) {
+      if (selectedModel === 'gpt-4.1') {
+        model = 'gpt-4.1-2025-04-14';
+      } else if (selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
         model = 'llama-3.1-sonar-small-128k-online';
       } else if (selectedModel.includes('deepseek')) {

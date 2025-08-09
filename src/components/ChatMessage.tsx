@@ -65,9 +65,18 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
               : "bg-card border-border"
           } ${isLoading ? "animate-pulse" : ""}`}
         >
-          <div className="text-sm leading-relaxed whitespace-pre-wrap">
-            {message.content}
-          </div>
+          {typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
+            <img
+              src={message.content}
+              alt={`Image générée par ${modelInfo.name}`}
+              loading="lazy"
+              className="max-w-full h-auto rounded-md shadow-md"
+            />
+          ) : (
+            <div className="text-sm leading-relaxed whitespace-pre-wrap">
+              {message.content}
+            </div>
+          )}
         </Card>
 
         <div className={`text-xs text-muted-foreground mt-2 ${isUser ? "text-right" : "text-left"}`}>

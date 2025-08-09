@@ -42,6 +42,22 @@ const models = [
     icon: Cpu,
     color: "openai",
     description: "Généraliste hautes performances (128k contexte)"
+  },
+  {
+    id: "gpt-4.1",
+    name: "GPT-4.1",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "Modèle généraliste de pointe"
+  },
+  {
+    id: "gpt-image-1",
+    name: "GPT-Image-1",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "Génération d'images (1024x1024)"
   }
 ];
 interface ModelSelectorProps {
