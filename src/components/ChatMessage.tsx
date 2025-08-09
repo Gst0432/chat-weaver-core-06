@@ -1,7 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { User, Bot, Sparkles, Cpu, Zap, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { User, Bot, Sparkles, Cpu, Zap, Search, Download } from "lucide-react";
 
 interface Message {
   id: string;
@@ -66,12 +67,40 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
           } ${isLoading ? "animate-pulse" : ""}`}
         >
           {typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
-            <img
-              src={message.content}
-              alt={`Image générée par ${modelInfo.name}`}
-              loading="lazy"
-              className="max-w-full h-auto rounded-md shadow-md"
-            />
+            <div className="relative group">
+              <img
+                src={message.content}
+                alt={`Image générée par ${modelInfo.name}`}
+                loading="lazy"
+                className="max-w-full h-auto rounded-md shadow-md"
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant={isUser ? "secondary" : "outline"}
+                aria-label="Télécharger l'image"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(message.content);
+                    const blob = await response.blob();
+                    const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `image-${message.id || message.timestamp.getTime()}.${ext}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                  } catch (e) {
+                    window.open(message.content, "_blank");
+                  }
+                }}
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
           ) : (
             <div className="text-sm leading-relaxed whitespace-pre-wrap">
               {message.content}
