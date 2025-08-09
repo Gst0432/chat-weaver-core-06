@@ -17,6 +17,7 @@ export const ChatInput = ({ onSendMessage, disabled, sttProvider = 'openai' }: C
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showPasteActions, setShowPasteActions] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
