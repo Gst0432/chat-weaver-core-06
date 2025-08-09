@@ -1,13 +1,19 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { ChatLayout } from "@/components/ChatLayout";
+import { ModelSelector } from "@/components/ModelSelector";
+import { ChatArea } from "@/components/ChatArea";
 
 const Index = () => {
+  const [selectedModel, setSelectedModel] = useState("gpt-4-turbo");
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <ChatLayout>
+      <ModelSelector 
+        selectedModel={selectedModel} 
+        onModelChange={setSelectedModel} 
+      />
+      <ChatArea selectedModel={selectedModel} />
+    </ChatLayout>
   );
 };
 
