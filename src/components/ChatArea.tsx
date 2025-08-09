@@ -41,6 +41,14 @@ const wrapText = (text: string, max = 90) =>
       return chunks;
     });
 
+const cleanDocText = (text: string) => {
+  return text
+    .split(/\r?\n/)
+    .filter(line => !/^#{1,6}\s*Stratégies de vente\s*:?\s*$/i.test(line))
+    .map(l => l.replace(/^\-\s*\*\*\s*/g, '- ').replace(/\*\*/g, ''))
+    .join('\n');
+};
+
 const createPdfDataUrl = async (text: string) => {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage();
@@ -254,6 +262,7 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
         }
 
+        bodyText = cleanDocText(bodyText);
         let dataUrl = '';
         if (cmd === 'pdf') dataUrl = await createPdfDataUrl(bodyText);
         else if (cmd === 'docx') dataUrl = await createDocxDataUrl(bodyText);
@@ -358,6 +367,8 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
       let bodyText = '';
       const fallback = [...messages].reverse().find(m => typeof m.content === 'string' && !m.content.startsWith('data:') && !m.content.startsWith('http'));
       bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
+
+      bodyText = cleanDocText(bodyText);
 
       let dataUrl = '';
       if (type === 'pdf') dataUrl = await createPdfDataUrl(bodyText);

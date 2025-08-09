@@ -119,20 +119,18 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
               </Button>
             </div>
           ) : (typeof message.content === 'string' && message.content.startsWith('data:application/pdf')) ? (
-            <div className="relative group">
-              <object
-                data={message.content}
-                type="application/pdf"
-                className="w-full h-[420px] rounded-md border border-border"
-              >
-                <p className="text-sm">Aperçu PDF non disponible. Utilisez le bouton pour télécharger.</p>
-              </object>
+            <div className="flex items-center justify-between gap-3 p-3 rounded-md border border-border bg-secondary/30">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                <div className="text-sm">
+                  <div className="font-medium">Document PDF</div>
+                  <div className="text-xs text-muted-foreground">Cliquez pour télécharger</div>
+                </div>
+              </div>
               <Button
                 type="button"
-                size="icon"
+                size="sm"
                 variant={isUser ? "secondary" : "outline"}
-                aria-label="Télécharger le PDF"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={async () => {
                   try {
                     const response = await fetch(message.content);
