@@ -121,47 +121,17 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                   aria-label="Télécharger l'image"
                   onClick={async () => {
                     try {
-                      // Détection mobile
-                      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                      
-                      if (isMobile) {
-                        // Sur mobile, ouvrir l'image dans un nouvel onglet pour permettre à l'utilisateur de la sauvegarder manuellement
-                        const newWindow = window.open();
-                        if (newWindow) {
-                          newWindow.document.write(`
-                            <html>
-                              <head><title>Image - Appui long pour sauvegarder</title></head>
-                              <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f0f0f0;">
-                                <img src="${message.content}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                              </body>
-                            </html>
-                          `);
-                          newWindow.document.close();
-                          toast({
-                            title: "Image ouverte",
-                            description: "Appui long sur l'image pour la sauvegarder.",
-                          });
-                        } else {
-                          throw new Error("Impossible d'ouvrir l'image");
-                        }
-                      } else {
-                        // Sur desktop, téléchargement direct
-                        const response = await fetch(message.content);
-                        const blob = await response.blob();
-                        const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `image-${message.id || message.timestamp.getTime()}.${ext}`;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        URL.revokeObjectURL(url);
-                        toast({
-                          title: "Image téléchargée",
-                          description: "L'image a été sauvegardée.",
-                        });
-                      }
+                      const response = await fetch(message.content);
+                      const blob = await response.blob();
+                      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `image-${message.id || message.timestamp.getTime()}.${ext}`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
                     } catch (e) {
                       toast({
                         title: "Téléchargement impossible",
