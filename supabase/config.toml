@@ -1,1 +1,10 @@
 project_id = "jeurznrjcohqbevrzses"
+
+[functions.text-to-voice]
+verify_jwt = false
+
+[functions.google-stt]
+verify_jwt = false
+
+[functions.google-tts]
+verify_jwt = false

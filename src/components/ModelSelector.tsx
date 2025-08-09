@@ -39,13 +39,17 @@ const models = [
 interface ModelSelectorProps {
   selectedModel: string;
   onModelChange: (modelId: string) => void;
+  sttProvider: 'openai' | 'google';
+  onSttProviderChange: (p: 'openai' | 'google') => void;
+  ttsProvider: 'openai' | 'google';
+  onTtsProviderChange: (p: 'openai' | 'google') => void;
 }
 
-export const ModelSelector = ({ selectedModel, onModelChange }: ModelSelectorProps) => {
+export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange }: ModelSelectorProps) => {
   const currentModel = models.find(m => m.id === selectedModel) || models[0];
 
   return (
-    <div className="flex items-center gap-3 p-4 border-b border-border bg-card/50">
+    <div className="flex flex-wrap items-center gap-3 p-4 border-b border-border bg-card/50">
       <div className="flex items-center gap-2">
         <currentModel.icon className="w-4 h-4 text-foreground" />
         <span className="text-sm font-medium text-foreground">Modèle :</span>
@@ -97,6 +101,34 @@ export const ModelSelector = ({ selectedModel, onModelChange }: ModelSelectorPro
           ))}
         </SelectContent>
       </Select>
+
+      {/* Providers */}
+      <div className="ml-auto flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">STT</span>
+          <Select value={sttProvider} onValueChange={(v) => onSttProviderChange(v as 'openai' | 'google')}>
+            <SelectTrigger className="w-[140px] bg-secondary border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="openai">OpenAI Whisper</SelectItem>
+              <SelectItem value="google">Google STT</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">TTS</span>
+          <Select value={ttsProvider} onValueChange={(v) => onTtsProviderChange(v as 'openai' | 'google')}>
+            <SelectTrigger className="w-[140px] bg-secondary border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="openai">OpenAI TTS</SelectItem>
+              <SelectItem value="google">Google TTS</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
     </div>
   );
 };

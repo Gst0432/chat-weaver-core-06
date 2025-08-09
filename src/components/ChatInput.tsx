@@ -8,9 +8,10 @@ import { toast } from "@/hooks/use-toast";
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
+  sttProvider?: 'openai' | 'google';
 }
 
-export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
+export const ChatInput = ({ onSendMessage, disabled, sttProvider = 'openai' }: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -88,9 +89,11 @@ export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
         const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
         try {
-          const { data, error } = await supabase.functions.invoke("voice-to-text", {
-            body: { audio: base64 },
-          });
+          const fn = sttProvider === 'google' ? 'google-stt' : 'voice-to-text';
+          const body = sttProvider === 'google'
+            ? { audio: base64, languageCode: 'fr-FR', sampleRateHertz: 48000 }
+            : { audio: base64 };
+          const { data, error } = await supabase.functions.invoke(fn, { body });
           if (error) throw error;
           const text = data?.text?.trim();
           if (text) {

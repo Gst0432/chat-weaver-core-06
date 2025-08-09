@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 const Index = () => {
   const [selectedModel, setSelectedModel] = useState("gpt-4-turbo");
   const [authReady, setAuthReady] = useState(false);
+  const [sttProvider, setSttProvider] = useState<'openai' | 'google'>("openai");
+  const [ttsProvider, setTtsProvider] = useState<'openai' | 'google'>("openai");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,9 +35,13 @@ const Index = () => {
     <ChatLayout>
       <ModelSelector 
         selectedModel={selectedModel} 
-        onModelChange={setSelectedModel} 
+        onModelChange={setSelectedModel}
+        sttProvider={sttProvider}
+        onSttProviderChange={setSttProvider}
+        ttsProvider={ttsProvider}
+        onTtsProviderChange={setTtsProvider}
       />
-      <ChatArea selectedModel={selectedModel} />
+      <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} />
     </ChatLayout>
   );
 };

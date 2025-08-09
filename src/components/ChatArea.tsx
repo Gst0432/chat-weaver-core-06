@@ -78,12 +78,34 @@ const createPptxDataUrl = async (text: string) => {
 
 interface ChatAreaProps {
   selectedModel: string;
+  sttProvider: 'openai' | 'google';
+  ttsProvider: 'openai' | 'google';
 }
 
-export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, sttProvider, ttsProvider }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+
+  // TTS: synthétiser et lire la réponse via OpenAI ou Google
+  const synthesizeAndPlay = async (text: string) => {
+    try {
+      if (!text || /^data:/.test(text)) return; // éviter les images/documents
+      const fn = ttsProvider === 'google' ? 'google-tts' : 'text-to-voice';
+      const body = ttsProvider === 'google'
+        ? { text, languageCode: 'fr-FR', ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
+        : { text, voice: 'alloy', format: 'mp3' };
+      const { data, error } = await supabase.functions.invoke(fn, { body });
+      if (error) throw error;
+      const mime = data?.mime || 'audio/mpeg';
+      const base64 = data?.audio as string;
+      if (!base64) return;
+      const audio = new Audio(`data:${mime};base64,${base64}`);
+      await audio.play().catch(() => console.warn('Lecture auto bloquée par le navigateur'));
+    } catch (err) {
+      console.error('TTS playback error', err);
+    }
+  };
 
   // Charger la dernière conversation (30 jours)
   useEffect(() => {
@@ -431,7 +453,7 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           <Button variant="secondary" size="sm" onClick={() => exportDocument('pptx')}>PPTX</Button>
         </div>
       </div>
-      <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
+      <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} sttProvider={sttProvider} />
     </div>
   );
 };
