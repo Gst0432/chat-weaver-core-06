@@ -18,6 +18,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
+import geminiLogo from "@/assets/gemini-logo.png";
 
 const NewLanding = () => {
   const navigate = useNavigate();
@@ -216,7 +217,7 @@ const NewLanding = () => {
             </div>
 
             {/* Right Column - Logos */}
-            <div className="flex flex-col items-center justify-center gap-8">
+            <div className="flex flex-col items-center justify-center gap-6">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-full"></div>
                 <img 
@@ -230,6 +231,14 @@ const NewLanding = () => {
                 <img 
                   src="/lovable-uploads/18559761-9d7a-4f88-b792-3c402d548818.png"
                   alt="ChatGPT Logo"
+                  className="relative w-48 h-auto object-contain"
+                />
+              </div>
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-primary opacity-10 blur-xl rounded-full"></div>
+                <img 
+                  src={geminiLogo}
+                  alt="Google Gemini AI Logo"
                   className="relative w-48 h-auto object-contain"
                 />
               </div>
