@@ -78,14 +78,14 @@ const Billing = () => {
   const startCheckout = async (planKey: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { plan: planKey, currency: 'xof' }
+      const { data, error } = await supabase.functions.invoke('moneroo-init', {
+        body: { plan: planKey }
       });
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.open(data.url as string, '_blank');
       } else {
-        toast({ title: 'Lien indisponible', description: 'Impossible d\'ouvrir le paiement.' });
+        toast({ title: 'Lien indisponible', description: 'Impossible d’ouvrir le paiement.' });
       }
     } catch (e: any) {
       toast({ title: 'Paiement indisponible', description: e?.message || 'Réessayez plus tard.', variant: 'destructive' });
@@ -95,16 +95,7 @@ const Billing = () => {
   };
 
   const openPortal = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.functions.invoke('customer-portal');
-      if (error) throw error;
-      if (data?.url) window.open(data.url, '_blank');
-    } catch (e: any) {
-      toast({ title: 'Portail indisponible', description: e?.message || 'Réessayez plus tard.', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
+    toast({ title: 'Portail non disponible', description: 'Avec Moneroo, gérez votre abonnement via un nouvel achat ou une mise à niveau.' });
   };
 
   useEffect(() => {
@@ -112,14 +103,23 @@ const Billing = () => {
     setMeta('description', 'Choisissez un abonnement Starter, Pro ou Business pour Chatelix. Paiement mensuel, TTS inclus.');
 
     const params = new URLSearchParams(window.location.search);
-    if (params.get('success')) {
-      toast({ title: 'Paiement réussi', description: 'Votre abonnement a été mis à jour.' });
-      refresh();
-    }
-    if (params.get('canceled')) {
-      toast({ title: 'Paiement annulé', description: 'Vous pouvez réessayer quand vous voulez.' });
-    }
+    const ref = params.get('ref') || params.get('reference') || params.get('moneroo_ref');
+    const plan = params.get('plan');
 
+    const verifyIfNeeded = async () => {
+      if (ref && plan) {
+        const { error } = await supabase.functions.invoke('moneroo-verify', {
+          body: { reference: ref, plan }
+        });
+        if (error) {
+          toast({ title: 'Vérification échouée', description: error.message, variant: 'destructive' });
+        } else {
+          toast({ title: 'Paiement confirmé', description: 'Votre abonnement a été activé.' });
+        }
+      }
+    };
+
+    verifyIfNeeded();
     refresh();
     const id = setInterval(refresh, 10000);
     return () => clearInterval(id);
