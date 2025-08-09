@@ -23,8 +23,15 @@ serve(async (req) => {
 
     const { messages, model, temperature = 0.2, max_tokens = 1000 } = await req.json();
 
+    const modelMap: Record<string, string> = {
+      "llama-3.1-sonar-small-128k-online": "sonar-small-online",
+      "llama-3.1-sonar-large-128k-online": "sonar-large-online",
+      "llama-3.1-sonar-huge-128k-online": "sonar-huge-online",
+    };
+    const resolvedModel = modelMap[model] || model || "sonar-small-online";
+
     const payload = {
-      model: model || "llama-3.1-sonar-small-128k-online",
+      model: resolvedModel,
       messages: Array.isArray(messages) ? messages : [],
       temperature,
       top_p: 0.9,

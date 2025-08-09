@@ -155,7 +155,7 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         model = 'gpt-4.1-2025-04-14';
       } else if (selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
-        model = 'llama-3.1-sonar-small-128k-online';
+        model = 'sonar-small-online';
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
