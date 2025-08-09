@@ -111,15 +111,53 @@ export type Database = {
           },
         ]
       }
+      minute_purchases: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          email: string
+          id: string
+          minutes: number
+          payment_reference: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          email: string
+          id?: string
+          minutes: number
+          payment_reference: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          email?: string
+          id?: string
+          minutes?: number
+          payment_reference?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscribers: {
         Row: {
           created_at: string
           email: string
           id: string
+          minutes_balance: number | null
           stripe_customer_id: string | null
           subscribed: boolean
           subscription_end: string | null
           subscription_tier: string | null
+          total_minutes_purchased: number | null
           updated_at: string
           user_id: string | null
         }
@@ -127,10 +165,12 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          minutes_balance?: number | null
           stripe_customer_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null
           subscription_tier?: string | null
+          total_minutes_purchased?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -138,10 +178,12 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          minutes_balance?: number | null
           stripe_customer_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null
           subscription_tier?: string | null
+          total_minutes_purchased?: number | null
           updated_at?: string
           user_id?: string | null
         }
