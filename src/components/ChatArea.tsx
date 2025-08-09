@@ -155,6 +155,48 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         model: selectedModel
       });
 
+      // Si upload (data URL), gérer image/PDF
+      if (typeof content === 'string' && content.startsWith('data:')) {
+        const mime = content.slice(5, content.indexOf(';'));
+        if (mime.startsWith('image/')) {
+          const { data, error } = await supabase.functions.invoke('vision-analyze', {
+            body: { image: content, prompt: 'Analyse l’image: décris la scène, extrais le texte (OCR), liste les éléments clés et propose un résumé concis.' }
+          });
+          if (error) throw error;
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: data?.generatedText || 'Analyse indisponible.',
+            role: 'assistant',
+            timestamp: new Date(),
+            model: selectedModel
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: assistantMessage.content,
+            model: selectedModel
+          });
+          return;
+        } else if (mime === 'application/pdf') {
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: "PDF reçu. L’analyse automatique des PDF arrive bientôt. En attendant, envoyez du TXT/CSV ou précisez le résumé souhaité.",
+            role: 'assistant',
+            timestamp: new Date(),
+            model: selectedModel
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: assistantMessage.content,
+            model: selectedModel
+          });
+          return;
+        }
+      }
+
       // Génération d'image via DALL·E si demandé
       const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
       const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);

@@ -48,8 +48,15 @@ export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
     if (!file) return;
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      onSendMessage(dataUrl);
+      if (file.type.startsWith('text/') || file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv') {
+        const text = await file.text();
+        const header = `Fichier: ${file.name}\n\n`;
+        const max = 60000;
+        onSendMessage(header + (text.length > max ? text.slice(0, max) + `\n\n[Tronqué, taille ${text.length} caractères]` : text));
+      } else {
+        const dataUrl = await readFileAsDataUrl(file);
+        onSendMessage(dataUrl);
+      }
       toast({ title: "Fichier ajouté", description: `${file.name} a été ajouté au chat.` });
     } catch (err) {
       toast({ title: "Erreur", description: "Impossible de lire le fichier.", variant: "destructive" });
@@ -124,7 +131,7 @@ export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv"
                 className="hidden"
                 onChange={handleFileChange}
               />
