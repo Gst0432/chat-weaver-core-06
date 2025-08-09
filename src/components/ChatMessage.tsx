@@ -66,12 +66,19 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
           } ${isLoading ? "animate-pulse" : ""}`}
         >
           {typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
-            <img
-              src={message.content}
-              alt={`Image générée par ${modelInfo.name}`}
-              loading="lazy"
-              className="max-w-full h-auto rounded-md shadow-md"
-            />
+            <a
+              href={message.content}
+              download={`image-${message.id}.png`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src={message.content}
+                alt={`Image générée par ${modelInfo.name}`}
+                loading="lazy"
+                className="max-w-full h-auto rounded-md shadow-md"
+              />
+            </a>
           ) : (
             <div className="text-sm leading-relaxed whitespace-pre-wrap">
               {message.content}

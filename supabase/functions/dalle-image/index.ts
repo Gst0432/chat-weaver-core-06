@@ -45,8 +45,21 @@ serve(async (req) => {
       });
     }
 
+    // Fetch the image bytes and return as base64 PNG data URL for easy download/display
+    const imgResp = await fetch(url);
+    if (!imgResp.ok) {
+      const err = await imgResp.text();
+      return new Response(JSON.stringify({ error: `Failed to fetch image: ${err}` }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const arrayBuffer = await imgResp.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const dataUrl = `data:image/png;base64,${base64}`;
+
     return new Response(
-      JSON.stringify({ image: url }),
+      JSON.stringify({ image: dataUrl }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
