@@ -10,6 +10,7 @@ import Settings from "./pages/Settings";
 import Team from "./pages/Team";
 import Billing from "./pages/Billing";
 import Landing from "./pages/Landing";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 
 const App = () => (
   <TooltipProvider>
@@ -23,6 +24,7 @@ const App = () => (
         <Route path="/settings" element={<Settings />} />
         <Route path="/team" element={<Team />} />
         <Route path="/billing" element={<Billing />} />
+        <Route path="/super-admin" element={<SuperAdminDashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

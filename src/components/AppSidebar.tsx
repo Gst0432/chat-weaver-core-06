@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -36,6 +36,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
   const [loading, setLoading] = useState(!isLandingMode);
   const [items, setItems] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const loadConversations = async () => {
     if (isLandingMode) return;
@@ -43,6 +44,16 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      
+      // Check if user is super admin
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'super_admin');
+      
+      setIsSuperAdmin(roles && roles.length > 0);
+      
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('conversations')
@@ -199,6 +210,15 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                   {!isCollapsed && <span className="ml-2">Paramètres</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              
+              {isSuperAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={() => handleNavigation('/super-admin')} className="w-full justify-start text-orange-600 hover:text-orange-700">
+                    <Shield className="w-4 h-4" />
+                    {!isCollapsed && <span className="ml-2">Super Admin</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               
               {!isLandingMode && (
                 <SidebarMenuItem>
