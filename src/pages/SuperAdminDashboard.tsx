@@ -38,7 +38,8 @@ import {
   Crown,
   Shield,
   Menu,
-  LogOut
+  LogOut,
+  MessageSquare
 } from "lucide-react";
 
 interface User {
@@ -811,6 +812,15 @@ export default function SuperAdminDashboard() {
                   </Badge>
                 </div>
               </div>
+              
+              <Button
+                onClick={() => window.location.href = '/'}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Retour au Chat</span>
+              </Button>
             </div>
           </header>
 
