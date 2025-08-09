@@ -15,7 +15,8 @@ import {
   ArrowRight,
   Sparkles,
   CreditCard,
-  Shield
+  Shield,
+  Heart
 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -307,6 +308,23 @@ const Landing = () => {
             </div>
           </div>
         </div>
+        
+        {/* Footer */}
+        <footer className="absolute bottom-0 left-0 right-0 py-4 bg-background/80 backdrop-blur-sm border-t border-border">
+          <div className="text-center text-xs text-muted-foreground">
+            <span>Conçu avec </span>
+            <Heart className="w-3 h-3 inline text-red-500 mx-1" />
+            <span> par </span>
+            <a 
+              href="https://gstartup.pro" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              G-STARTUP
+            </a>
+          </div>
+        </footer>
       </div>
     </SidebarProvider>
   );
