@@ -85,6 +85,16 @@ const Auth = () => {
               <Label htmlFor="password-login">Mot de passe</Label>
               <Input id="password-login" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
+            <div className="flex justify-end">
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={() => navigate("/reset-password")}
+              >
+                Mot de passe oublié ?
+              </Button>
+            </div>
             <Button className="w-full" onClick={signIn} disabled={loading || !email || !password}>Se connecter</Button>
           </TabsContent>
 

@@ -11,6 +11,8 @@ import Team from "./pages/Team";
 import Billing from "./pages/Billing";
 import Landing from "./pages/Landing";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import ResetPassword from "./pages/ResetPassword";
+import UpdatePassword from "./pages/UpdatePassword";
 
 const App = () => (
   <TooltipProvider>
@@ -21,6 +23,8 @@ const App = () => (
         <Route path="/" element={<Landing />} />
         <Route path="/app" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/team" element={<Team />} />
         <Route path="/billing" element={<Billing />} />
