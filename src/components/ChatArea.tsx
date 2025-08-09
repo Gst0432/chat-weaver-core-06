@@ -6,6 +6,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
@@ -778,15 +779,69 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           )}
         </div>
       </ScrollArea>
-      <div className="border-t border-border bg-card/30">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center gap-2">
-          <Button size="sm" onClick={createNewConversation}>Nouveau chat</Button>
-          <span className="text-xs text-muted-foreground ml-2">Exporter le dernier contenu:</span>
-          <Button variant="secondary" size="sm" onClick={() => exportDocument('pdf')}>PDF</Button>
-          <Button variant="secondary" size="sm" onClick={() => exportDocument('docx')}>DOCX</Button>
-          <Button variant="secondary" size="sm" onClick={() => exportDocument('pptx')}>PPTX</Button>
+      
+      {/* Barre d'actions avec boutons optimisés mobile */}
+      <div className="border-t border-border bg-card/50 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-3 py-3">
+          {/* Ligne principale : Nouveau chat + Export */}
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={createNewConversation}
+              className="flex-shrink-0 bg-gradient-primary hover:shadow-glow transition-all"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Nouveau chat</span>
+              <span className="sm:hidden">Nouveau</span>
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden md:inline">
+                Exporter le dernier contenu:
+              </span>
+              <span className="text-xs text-muted-foreground md:hidden">
+                Export:
+              </span>
+              
+              <div className="flex gap-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => exportDocument('pdf')}
+                  className="text-xs px-2 py-1 h-7 hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-colors"
+                >
+                  PDF
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => exportDocument('docx')}
+                  className="text-xs px-2 py-1 h-7 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                >
+                  DOCX
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => exportDocument('pptx')}
+                  className="text-xs px-2 py-1 h-7 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 transition-colors"
+                >
+                  PPTX
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Indicateur du nombre de messages */}
+          {messages.length > 0 && (
+            <div className="text-xs text-muted-foreground text-center">
+              {messages.length} message{messages.length > 1 ? 's' : ''} dans cette conversation
+            </div>
+          )}
         </div>
       </div>
+      
       <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} sttProvider={sttProvider} />
     </div>
   );
