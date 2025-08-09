@@ -68,6 +68,10 @@ interface Stats {
   totalConversations: number;
 }
 
+interface SystemSettings {
+  free_trial_enabled: boolean;
+}
+
 export default function SuperAdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -75,6 +79,7 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [activeView, setActiveView] = useState('dashboard');
+  const [freeTrialEnabled, setFreeTrialEnabled] = useState(false);
   const [newPlan, setNewPlan] = useState({
     name: "",
     description: "",
@@ -256,6 +261,7 @@ export default function SuperAdminDashboard() {
     { id: 'users', label: 'Utilisateurs', icon: Users },
     { id: 'plans', label: 'Plans', icon: CreditCard },
     { id: 'promotions', label: 'Promotions', icon: Crown },
+    { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
 
   const renderContent = () => {
@@ -644,6 +650,75 @@ export default function SuperAdminDashboard() {
                       Aucun utilisateur premium
                     </p>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Paramètres Système</CardTitle>
+                <CardDescription>
+                  Configuration générale de l'application
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                    <div>
+                      <h4 className="font-medium">Essai Gratuit</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Permet aux utilisateurs de continuer sans abonnement
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={freeTrialEnabled ? "default" : "destructive"}>
+                        {freeTrialEnabled ? "Activé" : "Désactivé"}
+                      </Badge>
+                      <Switch
+                        checked={freeTrialEnabled}
+                        onCheckedChange={setFreeTrialEnabled}
+                        disabled
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                    <div className="flex items-center space-x-2">
+                      <Shield className="h-4 w-4 text-green-600" />
+                      <p className="text-sm font-medium text-green-800">
+                        Essai gratuit désactivé
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-600 mt-1">
+                      Les utilisateurs doivent maintenant obligatoirement s'abonner pour accéder à l'application. 
+                      Cette modification a été appliquée dans le code de l'application.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="font-medium">Autres Paramètres</h4>
+                    
+                    <div className="flex items-center justify-between p-3 border rounded">
+                      <div>
+                        <p className="text-sm font-medium">Maintenance Mode</p>
+                        <p className="text-xs text-muted-foreground">Mettre l'application en maintenance</p>
+                      </div>
+                      <Switch disabled />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 border rounded">
+                      <div>
+                        <p className="text-sm font-medium">Nouvelles Inscriptions</p>
+                        <p className="text-xs text-muted-foreground">Autoriser les nouvelles inscriptions</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

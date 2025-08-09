@@ -133,6 +133,7 @@ const Index = () => {
                   >
                     Voir les forfaits
                   </Button>
+                  {/* Essai gratuit désactivé par l'administrateur
                   <Button 
                     variant="ghost" 
                     size="sm"
@@ -140,6 +141,7 @@ const Index = () => {
                   >
                     Continuer avec la version gratuite
                   </Button>
+                  */}
                 </div>
               </CardContent>
             </Card>
