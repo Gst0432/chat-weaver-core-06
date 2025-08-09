@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -40,19 +41,57 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Simulation d'une réponse de l'IA
-    setTimeout(() => {
+    try {
+      // Map existing messages to provider format
+      const history = messages.map(m => ({ role: m.role, content: m.content }));
+      const chatMessages = [
+        { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
+        ...history,
+        { role: 'user', content }
+      ];
+
+      let functionName = 'openai-chat';
+      let model = 'gpt-4o-mini';
+      if (selectedModel.includes('perplexity')) {
+        functionName = 'perplexity-chat';
+        model = 'llama-3.1-sonar-small-128k-online';
+      } else if (selectedModel.includes('deepseek')) {
+        functionName = 'deepseek-chat';
+        model = 'deepseek-chat';
+      }
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: {
+          messages: chatMessages,
+          model,
+          temperature: 0.7,
+          max_tokens: 800
+        }
+      });
+
+      if (error) throw error;
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: `Voici une réponse simulée du modèle ${selectedModel}. Dans une vraie implémentation, ceci serait la réponse de l'API sélectionnée.`,
+        content: data?.generatedText || 'Aucune réponse.',
         role: "assistant",
         timestamp: new Date(),
         model: selectedModel
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (e: any) {
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        content: `Erreur: ${e?.message || 'Impossible d\'obtenir une réponse'}`,
+        role: "assistant",
+        timestamp: new Date(),
+        model: selectedModel
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

@@ -21,8 +21,8 @@ const getModelInfo = (modelId?: string) => {
     "gpt-4-turbo": { name: "GPT-4 Turbo", provider: "OpenAI", icon: Sparkles, color: "openai" },
     "claude-3-sonnet": { name: "Claude 3 Sonnet", provider: "Anthropic", icon: Cpu, color: "claude" },
     "gemini-pro": { name: "Gemini Pro", provider: "Google", icon: Zap, color: "gemini" },
-    "perplexity-pro": { name: "Perplexity Pro", provider: "Perplexity", icon: Search, color: "perplexity" }
-  };
+    "perplexity-pro": { name: "Perplexity Pro", provider: "Perplexity", icon: Search, color: "perplexity" },
+    "deepseek-v3": { name: "DeepSeek V3", provider: "DeepSeek", icon: Cpu, color: "openai" }
   
   return models[modelId as keyof typeof models] || models["gpt-4-turbo"];
 };

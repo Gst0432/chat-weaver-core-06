@@ -34,8 +34,15 @@ const models = [
     icon: Search,
     color: "perplexity",
     description: "Recherche web en temps réel"
+  },
+  {
+    id: "deepseek-v3",
+    name: "DeepSeek V3",
+    provider: "DeepSeek",
+    icon: Cpu,
+    color: "openai",
+    description: "Généraliste hautes performances (128k contexte)"
   }
-];
 
 interface ModelSelectorProps {
   selectedModel: string;
