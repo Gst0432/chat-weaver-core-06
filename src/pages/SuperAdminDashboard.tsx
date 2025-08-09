@@ -37,7 +37,8 @@ import {
   UserCheck, 
   Crown,
   Shield,
-  Menu
+  Menu,
+  LogOut
 } from "lucide-react";
 
 interface User {
@@ -88,6 +89,25 @@ export default function SuperAdminDashboard() {
     is_active: true
   });
   const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Déconnexion réussie",
+        description: "Vous avez été déconnecté avec succès",
+      });
+      // Rediriger vers la page de connexion ou d'accueil
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      toast({
+        title: "Erreur de déconnexion",
+        description: "Une erreur est survenue lors de la déconnexion",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -762,6 +782,17 @@ export default function SuperAdminDashboard() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
+            <div className="mt-auto p-4">
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Déconnexion
+              </Button>
+            </div>
           </SidebarContent>
         </Sidebar>
 
