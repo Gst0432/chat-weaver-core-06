@@ -14,60 +14,39 @@ serve(async (req) => {
   try {
     const { prompt, size } = await req.json();
 
-    // Use gpt-image-1 which returns base64 by default
-    const imgRes = await fetch('https://api.openai.com/v1/images/generations', {
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-image-1',
+        model: 'dall-e-3',
         prompt,
-        size: size || '1024x1024',
-        n: 1,
+        size: size || '1024x1024'
       }),
     });
 
-    if (!imgRes.ok) {
-      const errText = await imgRes.text();
+    if (!response.ok) {
+      const errText = await response.text();
       console.error('dalle-image error:', errText);
       return new Response(JSON.stringify({ error: errText }), {
-        status: imgRes.status,
+        status: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const data = await imgRes.json();
-    const b64 = data?.data?.[0]?.b64_json;
-    let dataUrl: string | null = null;
-
-    if (b64) {
-      dataUrl = `data:image/png;base64,${b64}`;
-    } else if (data?.data?.[0]?.url) {
-      // Rare case: if a URL is returned, fetch and convert to base64 PNG
-      const imgResp = await fetch(data.data[0].url);
-      if (!imgResp.ok) {
-        const err = await imgResp.text();
-        return new Response(JSON.stringify({ error: `Failed to fetch image: ${err}` }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      const arrayBuffer = await imgResp.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-      dataUrl = `data:image/png;base64,${base64}`;
-    }
-
-    if (!dataUrl) {
-      return new Response(JSON.stringify({ error: 'No image returned' }), {
+    const data = await response.json();
+    const url = data?.data?.[0]?.url;
+    if (!url) {
+      return new Response(JSON.stringify({ error: 'No image URL returned' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     return new Response(
-      JSON.stringify({ image: dataUrl }),
+      JSON.stringify({ image: url }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
