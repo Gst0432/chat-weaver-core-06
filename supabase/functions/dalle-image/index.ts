@@ -21,9 +21,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'dall-e-3',
+        model: 'gpt-image-1',
         prompt,
-        size: size || '1024x1024'
+        size: size || '1024x1024',
+        quality: 'high',
+        output_format: 'webp'
       }),
     });
 
@@ -37,16 +39,18 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const url = data?.data?.[0]?.url;
-    if (!url) {
-      return new Response(JSON.stringify({ error: 'No image URL returned' }), {
+    const b64 = data?.data?.[0]?.b64_json;
+    if (!b64) {
+      return new Response(JSON.stringify({ error: 'No image returned' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const image = `data:image/webp;base64,${b64}`;
+
     return new Response(
-      JSON.stringify({ image: url }),
+      JSON.stringify({ image }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
