@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import professionalAiHero from "@/assets/professional-ai-hero.png";
 
 interface ConversationRow {
   id: string;
@@ -86,8 +87,8 @@ export const Sidebar = () => {
         <div className="flex items-center gap-2 mb-4">
           <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
-              src="/lovable-uploads/ff955a65-24d1-4da4-a5d3-7e518af6492b.png" 
-              alt="Chatelix Logo" 
+              src={professionalAiHero}
+              alt="Intelligence Artificielle Avancée - Chatelix" 
               className="w-full h-full object-contain"
             />
           </div>
