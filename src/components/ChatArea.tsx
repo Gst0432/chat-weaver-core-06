@@ -220,12 +220,33 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       }
 
       // Sauvegarder le message utilisateur
-      await supabase.from('messages').insert({
+      const { data: inserted, error: insertErr } = await supabase.from('messages').insert({
         conversation_id: convoId,
         role: 'user',
         content,
         model: selectedModel
-      });
+      }).select('id').maybeSingle();
+      if (insertErr) throw insertErr;
+      const insertedMessageId = inserted?.id as string | undefined;
+
+      // Embed and store user message for retrieval
+      try {
+        const { data: embedRes, error: embedErr } = await supabase.functions.invoke('openai-embed', { body: { input: [content] } });
+        if (embedErr) throw embedErr;
+        const vec = embedRes?.embeddings?.[0];
+        const { data: { user } } = await supabase.auth.getUser();
+        if (Array.isArray(vec) && user?.id) {
+          await (supabase as any).from('embeddings').insert({
+            conversation_id: convoId,
+            message_id: insertedMessageId,
+            user_id: user.id,
+            content,
+            embedding: vec as any,
+          });
+        }
+      } catch (e) {
+        console.warn('Embedding store failed', e);
+      }
 
       // Mettre à jour le titre de la conversation si vide / placeholder
       try {
@@ -395,7 +416,26 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
 
       // Historique de messages pour le provider
       const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
-      const baseSystem = systemPrompt || 'You are Chatelix, a helpful multilingual assistant.';
+
+      // RAG: récupérer du contexte pertinent via embeddings
+      let retrieved = '';
+      try {
+        const { data: qemb } = await supabase.functions.invoke('openai-embed', { body: { input: [content] } });
+        const qvec = qemb?.embeddings?.[0];
+        if (Array.isArray(qvec)) {
+          const { data: hits } = await (supabase as any).rpc('match_embeddings', {
+            query_embedding: qvec,
+            conv_id: convoId,
+            match_count: 5,
+          });
+          if (Array.isArray(hits) && hits.length) {
+            retrieved = hits.map((h: any) => h.content).join('\n---\n');
+          }
+        }
+      } catch (e) { console.warn('RAG retrieval failed', e); }
+
+      const baseSystemCore = systemPrompt || 'You are Chatelix, a helpful multilingual assistant.';
+      const baseSystem = retrieved ? `${baseSystemCore}\n\nContexte pertinent:\n${retrieved}` : baseSystemCore;
       const safeAddendum = ' Réponds avec prudence, vérifie les faits, cite tes limites et si tu n\'es pas sûr, dis que tu ne sais pas.';
       const sys = safeMode ? (baseSystem + safeAddendum) : baseSystem;
       const chatMessages = [

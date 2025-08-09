@@ -184,6 +184,11 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
             </SelectContent>
           </Select>
         </div>
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4" />
+          <span className="text-sm text-muted-foreground">Safe</span>
+          <Switch checked={safeMode} onCheckedChange={onSafeModeChange} />
+        </div>
       </div>
     </div>
   );
