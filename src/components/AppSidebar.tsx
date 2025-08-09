@@ -120,7 +120,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
       {/* Header */}
       <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
               src="/lovable-uploads/ff955a65-24d1-4da4-a5d3-7e518af6492b.png" 
               alt="Chatelix Logo" 
