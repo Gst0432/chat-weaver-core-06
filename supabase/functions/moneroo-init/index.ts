@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const log = (step: string, details?: unknown) => console.log(`[MONEROO-INIT] ${step}`, details ?? "");
@@ -19,10 +20,11 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
-  try {
-    log("Start");
+    try {
+      log("Start");
+      log("Headers", Object.fromEntries(req.headers.entries()));
 
-    // Require auth
+      // Require auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
     const token = authHeader.replace("Bearer ", "");

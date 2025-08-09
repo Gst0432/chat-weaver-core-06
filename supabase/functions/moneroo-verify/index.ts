@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const log = (step: string, details?: unknown) => console.log(`[MONEROO-VERIFY] ${step}`, details ?? "");
@@ -52,9 +53,25 @@ serve(async (req) => {
     // For now we assume success if reference is provided (sandbox mode)
     const tier = planRaw === 'starter' ? 'Starter' : planRaw === 'pro' ? 'Pro' : 'Business';
 
-    // Calculate subscription end (default 30 days)
+    // Calculate subscription end (stack 30 days on existing if active)
     const now = new Date();
-    const end = new Date(now);
+
+    const { data: existing, error: existingErr } = await supabaseService
+      .from('subscribers')
+      .select('subscription_end, subscribed, subscription_tier')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (existingErr) log('Fetch existing subscriber error', existingErr);
+
+    let base = now;
+    if (existing?.subscription_end) {
+      const prevEnd = new Date(existing.subscription_end);
+      if (!isNaN(prevEnd.getTime()) && prevEnd > now) {
+        base = prevEnd;
+      }
+    }
+    const end = new Date(base);
     end.setDate(end.getDate() + 30);
 
     await supabaseService.from('subscribers').upsert({
@@ -66,7 +83,7 @@ serve(async (req) => {
       updated_at: now.toISOString(),
     }, { onConflict: 'email' });
 
-    log("Premium activated", { email: user.email, tier, end: end.toISOString() });
+    log("Premium activated", { email: user.email, tier, end: end.toISOString(), reference });
 
     return new Response(JSON.stringify({
       ok: true,

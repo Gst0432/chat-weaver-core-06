@@ -24,33 +24,47 @@ interface SubState {
 const plans = [
   {
     id: 'Starter',
-    price: 5000,
+    price: 7500,
     users: '1',
-    ttsOpenAI: 'Limitée (100 min)',
-    ttsGoogle: 'Non',
+    models: 'GPT-4 Turbo',
+    images: '10 images / mois',
+    tts: 'OpenAI Standard TTS uniquement',
     minutes: '100 min inclus',
-    overage: '50 FCFA / min',
+    limits: '+50 FCFA/min TTS au-delà, +500 FCFA/image',
     key: 'starter'
   },
   {
     id: 'Pro',
-    price: 15000,
-    users: 'Jusqu\'à 5',
-    ttsOpenAI: 'Illimité',
-    ttsGoogle: 'Illimité',
-    minutes: 'Illimité',
-    overage: '-',
+    price: 22000,
+    users: 'Jusqu’à 5',
+    models: 'GPT-4 Turbo + GPT-5 + Deepseek V3',
+    images: '50 images / mois',
+    tts: 'OpenAI HD TTS + Google WaveNet',
+    minutes: '500 min inclus',
+    limits: 'Forfait illimité au-delà, images illimitées',
     key: 'pro'
   },
   {
     id: 'Business',
-    price: 40000,
-    users: 'Jusqu\'à 20',
-    ttsOpenAI: 'Illimité',
-    ttsGoogle: 'Illimité',
+    price: 55000,
+    users: 'Jusqu’à 20',
+    models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+    images: 'Illimité',
+    tts: 'OpenAI HD + Google WaveNet + voix premium',
     minutes: 'Illimité',
-    overage: '-',
+    limits: 'Support prioritaire, gestion équipes',
     key: 'business'
+  },
+  {
+    id: 'Enterprise',
+    price: 0,
+    users: 'Illimité',
+    models: 'Tous modèles + intégrations custom',
+    images: 'Illimité',
+    tts: 'Voix personnalisées + options avancées',
+    minutes: 'Illimité',
+    limits: 'SLA, support dédié, API complet',
+    key: 'enterprise'
   },
 ] as const;
 
@@ -77,13 +91,20 @@ const Billing = () => {
 
   const startCheckout = async (planKey: string) => {
     try {
+      if (planKey === 'enterprise') {
+        window.location.href = 'mailto:contact@chatelix.app?subject=Demande%20Enterprise%20(Devis)';
+        return;
+      }
       setLoading(true);
       const { data, error } = await supabase.functions.invoke('moneroo-init', {
         body: { plan: planKey }
       });
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url as string, '_blank');
+        const w = window.open(data.url as string, '_blank');
+        if (!w) {
+          window.location.href = data.url as string;
+        }
       } else {
         toast({ title: 'Lien indisponible', description: 'Impossible d’ouvrir le paiement.' });
       }
@@ -115,6 +136,13 @@ const Billing = () => {
           toast({ title: 'Vérification échouée', description: error.message, variant: 'destructive' });
         } else {
           toast({ title: 'Paiement confirmé', description: 'Votre abonnement a été activé.' });
+          // Nettoyer les paramètres pour éviter une re-vérification
+          const url = new URL(window.location.href);
+          url.searchParams.delete('ref');
+          url.searchParams.delete('reference');
+          url.searchParams.delete('moneroo_ref');
+          url.searchParams.delete('plan');
+          window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams.toString()}` : ''));
         }
       }
     };
@@ -150,13 +178,23 @@ const Billing = () => {
                 <h2 className="text-xl font-semibold text-foreground">{p.id}</h2>
                 {isCurrent && <Badge variant="secondary">Votre plan</Badge>}
               </div>
-              <div className="mt-2 text-3xl font-bold">{p.price.toLocaleString()} FCFA<span className="text-base font-normal text-muted-foreground">/mois</span></div>
+              <div className="mt-2 text-3xl font-bold">
+                {p.key === 'enterprise' ? (
+                  'Sur devis'
+                ) : (
+                  <>
+                    {p.price.toLocaleString()} FCFA
+                    <span className="text-base font-normal text-muted-foreground">/mois</span>
+                  </>
+                )}
+              </div>
               <ul className="mt-4 space-y-2 text-sm text-foreground">
                 <li>Utilisateurs: {p.users}</li>
-                <li>Accès TTS OpenAI: {p.ttsOpenAI}</li>
-                <li>Accès TTS Google: {p.ttsGoogle}</li>
+                <li>Modèles IA: {p.models}</li>
+                <li>Images DALL·E 3: {p.images}</li>
+                <li>Text-to-Voice: {p.tts}</li>
                 <li>Minutes TTS incluses: {p.minutes}</li>
-                <li>Au-delà: {p.overage}</li>
+                <li>Limites: {p.limits}</li>
               </ul>
               <div className="mt-6 flex-1" />
               <Button
@@ -164,7 +202,7 @@ const Billing = () => {
                 onClick={() => startCheckout(p.key)}
                 className="w-full"
               >
-                {isCurrent ? 'Plan actif' : sub.subscribed ? 'Mettre à niveau' : 'Choisir ce plan'}
+                {p.key === 'enterprise' ? 'Nous contacter' : (isCurrent ? 'Plan actif' : sub.subscribed ? 'Mettre à niveau' : 'Choisir ce plan')}
               </Button>
             </Card>
           );
