@@ -10,6 +10,7 @@ import Settings from "./pages/Settings";
 import Team from "./pages/Team";
 import Billing from "./pages/Billing";
 import Landing from "./pages/Landing";
+import NewLanding from "./pages/NewLanding";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import ResetPassword from "./pages/ResetPassword";
 import UpdatePassword from "./pages/UpdatePassword";
@@ -20,7 +21,8 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<NewLanding />} />
+        <Route path="/old-landing" element={<Landing />} />
         <Route path="/app" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/reset-password" element={<ResetPassword />} />
