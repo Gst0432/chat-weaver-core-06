@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { Document as DocxDocument, Packer, Paragraph } from "docx";
+import PptxGenJS from "pptxgenjs";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ScrollArea } from "@/components/ui/scroll-area";

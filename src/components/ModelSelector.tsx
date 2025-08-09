@@ -12,14 +12,6 @@ const models = [
     description: "Le plus capable pour les tâches complexes"
   },
   {
-    id: "claude-3-sonnet",
-    name: "Claude 3 Sonnet",
-    provider: "Anthropic",
-    icon: Cpu,
-    color: "claude",
-    description: "Excellent équilibre performance/vitesse"
-  },
-  {
     id: "gemini-pro",
     name: "Gemini Pro",
     provider: "Google",
@@ -45,7 +37,7 @@ const models = [
   },
   {
     id: "gpt-4.1",
-    name: "GPT-4.1",
+    name: "GTP-5",
     provider: "OpenAI",
     icon: Sparkles,
     color: "openai",
