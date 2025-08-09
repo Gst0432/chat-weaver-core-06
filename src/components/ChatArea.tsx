@@ -120,36 +120,33 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
 
   // Charger la dernière conversation (30 jours)
   useEffect(() => {
-    const loadLatest = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: convs } = await supabase
-        .from('conversations')
-        .select('id')
-        .gte('created_at', thirtyDaysAgo)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (!convs || convs.length === 0) return;
-      const convoId = convs[0].id as string;
-      setCurrentConversationId(convoId);
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('id, content, role, created_at, model')
-        .eq('conversation_id', convoId)
-        .order('created_at', { ascending: true });
-      if (msgs && msgs.length) {
-        setMessages(msgs.map((m: any) => ({
-          id: m.id as string,
-          content: m.content as string,
-          role: m.role as 'user' | 'assistant',
-          timestamp: new Date(m.created_at as string),
-          model: m.model as string | undefined,
-        })));
-      }
+    const handler = (e: any) => {
+      const id = e?.detail?.id as string;
+      if (!id) return;
+      setCurrentConversationId(id);
+      // Charger messages pour cette conversation
+      (async () => {
+        const { data: msgs } = await supabase
+          .from('messages')
+          .select('id, content, role, created_at, model')
+          .eq('conversation_id', id)
+          .order('created_at', { ascending: true });
+        if (msgs) {
+          setMessages(msgs.map((m: any) => ({
+            id: m.id as string,
+            content: m.content as string,
+            role: m.role as 'user' | 'assistant',
+            timestamp: new Date(m.created_at as string),
+            model: m.model as string | undefined,
+          }))
+          );
+        } else {
+          setMessages([]);
+        }
+      })();
     };
-    loadLatest();
+    window.addEventListener('chat:select-conversation', handler);
+    return () => window.removeEventListener('chat:select-conversation', handler);
   }, []);
 
   const handleSendMessage = async (content: string) => {
