@@ -92,6 +92,10 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+
+    const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
+    if (isUpload) return;
+
     setIsLoading(true);
 
     try {
