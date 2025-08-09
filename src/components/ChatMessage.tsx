@@ -143,51 +143,18 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-          ) : (typeof message.content === 'string' && message.content.startsWith('data:application/pdf')) ? (
-            <div className="relative group">
-              <object
-                data={message.content}
-                type="application/pdf"
-                className="w-full h-[420px] rounded-md border border-border"
-              >
-                <p className="text-sm">Aperçu PDF non disponible. Utilisez le bouton pour télécharger.</p>
-              </object>
-              <Button
-                type="button"
-                size="icon"
-                variant={isUser ? "secondary" : "outline"}
-                aria-label="Télécharger le PDF"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={async () => {
-                  try {
-                    const response = await fetch(message.content);
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `document-${message.id || message.timestamp.getTime()}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    URL.revokeObjectURL(url);
-                  } catch (e) {
-                    toast({ title: "Téléchargement impossible", description: "Échec du téléchargement du PDF.", variant: "destructive" });
-                  }
-                }}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : (typeof message.content === 'string' && message.content.startsWith('data:application/vnd.openxmlformats-officedocument')) ? (
+) : (typeof message.content === 'string' && (message.content.startsWith('data:application/pdf') || message.content.startsWith('data:application/vnd.openxmlformats-officedocument'))) ? (
             <div className="flex items-center justify-between gap-3 p-3 rounded-md border border-border bg-secondary/30">
               <div className="flex items-center gap-2">
-                {message.content.includes('wordprocessingml.document') ? (
-                  <FileText className="w-5 h-5" />
-                ) : (
+                {message.content.includes('presentationml.presentation') ? (
                   <FileIcon className="w-5 h-5" />
+                ) : (
+                  <FileText className="w-5 h-5" />
                 )}
                 <div className="text-sm">
-                  <div className="font-medium">{message.content.includes('wordprocessingml.document') ? 'Document DOCX' : 'Présentation PPTX'}</div>
+                  <div className="font-medium">
+                    {message.content.startsWith('data:application/pdf') ? 'Document PDF' : (message.content.includes('wordprocessingml.document') ? 'Document DOCX' : 'Présentation PPTX')}
+                  </div>
                   <div className="text-xs text-muted-foreground">Cliquez pour télécharger</div>
                 </div>
               </div>
@@ -202,7 +169,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `${message.content.includes('wordprocessingml.document') ? 'document' : 'presentation'}-${message.id || message.timestamp.getTime()}.${message.content.includes('wordprocessingml.document') ? 'docx' : 'pptx'}`;
+                    a.download = `${message.content.startsWith('data:application/pdf') ? 'document' : (message.content.includes('wordprocessingml.document') ? 'document' : 'presentation')}-${message.id || message.timestamp.getTime()}.${message.content.startsWith('data:application/pdf') ? 'pdf' : (message.content.includes('wordprocessingml.document') ? 'docx' : 'pptx')}`;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
