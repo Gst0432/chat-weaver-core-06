@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Document as DocxDocument, Packer, Paragraph } from "docx";
 import PptxGenJS from "pptxgenjs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
@@ -82,6 +82,41 @@ interface ChatAreaProps {
 export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+
+  // Charger la dernière conversation (30 jours)
+  useEffect(() => {
+    const loadLatest = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('id')
+        .gte('created_at', thirtyDaysAgo)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (!convs || convs.length === 0) return;
+      const convoId = convs[0].id as string;
+      setCurrentConversationId(convoId);
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('id, content, role, created_at, model')
+        .eq('conversation_id', convoId)
+        .order('created_at', { ascending: true });
+      if (msgs && msgs.length) {
+        setMessages(msgs.map((m: any) => ({
+          id: m.id as string,
+          content: m.content as string,
+          role: m.role as 'user' | 'assistant',
+          timestamp: new Date(m.created_at as string),
+          model: m.model as string | undefined,
+        })));
+      }
+    };
+    loadLatest();
+  }, []);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -95,7 +130,32 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
     setIsLoading(true);
 
     try {
-      // Image generation via DALL·E when the user asks for an image using any OpenAI model
+      // Assurer l'existence d'une conversation
+      let convoId = currentConversationId;
+      if (!convoId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Non authentifié');
+        const title = (content.split('\n')[0] || 'Nouvelle conversation').slice(0, 80);
+        const { data: conv, error: convError } = await supabase
+          .from('conversations')
+          .insert({ title, user_id: user.id })
+          .select('id')
+          .maybeSingle();
+        if (convError) throw convError;
+        if (!conv) throw new Error('Conversation non créée');
+        convoId = conv.id as string;
+        setCurrentConversationId(convoId);
+      }
+
+      // Sauvegarder le message utilisateur
+      await supabase.from('messages').insert({
+        conversation_id: convoId,
+        role: 'user',
+        content,
+        model: selectedModel
+      });
+
+      // Génération d'image via DALL·E si demandé
       const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
       const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
       if (selectedModel.includes('gpt') && (wantsImage || selectedModel === 'gpt-image-1')) {
@@ -113,10 +173,17 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         };
 
         setMessages(prev => [...prev, assistantMessage]);
+
+        await supabase.from('messages').insert({
+          conversation_id: convoId,
+          role: 'assistant',
+          content: assistantMessage.content,
+          model: selectedModel
+        });
         return;
       }
 
-      // Document generation commands: /pdf, /docx, /pptx, /slide
+      // Commandes de génération de documents: /pdf, /docx, /pptx, /slide
       const cmdMatch = content.trim().match(/^\/(pdf|docx|pptx|slide)\s*(.*)$/i);
       if (cmdMatch) {
         const cmd = cmdMatch[1].toLowerCase();
@@ -139,10 +206,17 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           model: selectedModel
         };
         setMessages(prev => [...prev, assistantMessage]);
+
+        await supabase.from('messages').insert({
+          conversation_id: convoId,
+          role: 'assistant',
+          content: assistantMessage.content,
+          model: selectedModel
+        });
         return;
       }
 
-      // Map existing messages to provider format
+      // Historique de messages pour le provider
       const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
       const chatMessages = [
         { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
@@ -182,15 +256,32 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      await supabase.from('messages').insert({
+        conversation_id: convoId,
+        role: 'assistant',
+        content: assistantMessage.content,
+        model: selectedModel
+      });
     } catch (e: any) {
-      const errorMessage: Message = {
+      const assistantMessage: Message = {
         id: (Date.now() + 2).toString(),
-        content: `Erreur: ${e?.message || 'Impossible d\'obtenir une réponse'}`,
+        content: `Erreur: ${e?.message || "Impossible d'obtenir une réponse"}`,
         role: "assistant",
         timestamp: new Date(),
         model: selectedModel
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, assistantMessage]);
+
+      // Sauvegarde aussi l'erreur comme message assistant
+      if (currentConversationId) {
+        await supabase.from('messages').insert({
+          conversation_id: currentConversationId,
+          role: 'assistant',
+          content: assistantMessage.content,
+          model: selectedModel
+        });
+      }
     } finally {
       setIsLoading(false);
     }

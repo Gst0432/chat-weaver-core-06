@@ -8,6 +8,68 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Light modern theme (default) */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    /* Primary brand colors - Blue-violet gradient */
+    --primary: 233 84% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 250 84% 75%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 233 84% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    /* API-specific colors */
+    --openai: 157 93% 40%;
+    --claude: 33 100% 52%;
+    --gemini: 220 91% 50%;
+    --perplexity: 280 100% 60%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 233 84% 60%;
+
+    /* Custom design tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(233 84% 60%), hsl(250 84% 75%));
+    --gradient-secondary: linear-gradient(135deg, hsl(240 4.8% 95.9%), hsl(240 4.8% 92%));
+    --shadow-elegant: 0 10px 30px -10px hsl(233 84% 60% / 0.25);
+    --shadow-glow: 0 0 40px hsl(233 84% 60% / 0.2);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Chat specific */
+    --message-user: 233 84% 60%;
+    --message-assistant: 240 4.8% 95.9%;
+    --message-system: 157 93% 40%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
     /* Dark modern theme */
     --background: 223 39% 7%;
     --foreground: 210 20% 95%;
@@ -60,23 +122,16 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-
 }
+
 
 @layer base {
   * {
