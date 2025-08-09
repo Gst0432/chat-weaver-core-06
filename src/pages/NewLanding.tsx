@@ -117,8 +117,12 @@ const NewLanding = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-                <MessageSquare className="w-6 h-6 text-primary-foreground" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+                <img 
+                  src="/lovable-uploads/bb8847f5-56f9-4e8b-b9f0-67b8a41e9639.png"
+                  alt="Chatelix Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <span className="text-xl font-bold text-foreground">Chatelix</span>
             </div>
@@ -425,8 +429,12 @@ const NewLanding = () => {
             {/* Logo & Description */}
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6 text-primary-foreground" />
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+                  <img 
+                    src="/lovable-uploads/bb8847f5-56f9-4e8b-b9f0-67b8a41e9639.png"
+                    alt="Chatelix Logo"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <span className="text-xl font-bold">Chatelix</span>
               </div>

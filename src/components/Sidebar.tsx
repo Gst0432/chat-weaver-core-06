@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import chatelixIcon from "@/assets/chatelix-icon.png";
 
 interface ConversationRow {
   id: string;
@@ -87,7 +86,7 @@ export const Sidebar = () => {
         <div className="flex items-center gap-2 mb-4">
           <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
-              src={chatelixIcon}
+              src="/lovable-uploads/bb8847f5-56f9-4e8b-b9f0-67b8a41e9639.png"
               alt="Chatelix Logo" 
               className="w-full h-full object-contain"
             />
