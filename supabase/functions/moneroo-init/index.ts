@@ -39,14 +39,61 @@ serve(async (req) => {
     const allowed = ["starter", "pro", "business"] as const;
     if (!allowed.includes(planRaw as any)) throw new Error("Invalid plan");
 
-    // Generate a reference (in real integration, call Moneroo API here)
-    const ref = `mnr_${crypto.randomUUID()}`;
+    const monerooKey = Deno.env.get("MONEROO_SECRET_KEY");
+    if (!monerooKey) throw new Error("MONEROO_SECRET_KEY is not set");
+
+    // Get plan pricing
+    const planPricing = {
+      starter: { amount: 7500, currency: "XOF" },
+      pro: { amount: 22000, currency: "XOF" },
+      business: { amount: 55000, currency: "XOF" }
+    };
+
+    const plan = planPricing[planRaw as keyof typeof planPricing];
+    if (!plan) throw new Error("Invalid plan selected");
+
     const origin = req.headers.get("origin") || "http://localhost:3000";
+    const returnUrl = `${origin}/billing`;
 
-    // In sandbox mode, we just send user back to /billing with ref & plan
-    const url = `${origin}/billing?ref=${encodeURIComponent(ref)}&plan=${encodeURIComponent(planRaw)}`;
+    // Call Moneroo API to initialize payment
+    const monerooResponse = await fetch("https://api.moneroo.io/v1/payments/initialize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${monerooKey}`,
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        amount: plan.amount,
+        currency: plan.currency,
+        description: `Abonnement ${planRaw.charAt(0).toUpperCase() + planRaw.slice(1)} - Chatelix`,
+        customer: {
+          email: user.email,
+          first_name: user.user_metadata?.first_name || "User",
+          last_name: user.user_metadata?.last_name || "Chatelix"
+        },
+        return_url: returnUrl,
+        metadata: {
+          user_id: user.id,
+          plan: planRaw,
+          email: user.email
+        }
+      })
+    });
 
-    return new Response(JSON.stringify({ url, reference: ref }), {
+    if (!monerooResponse.ok) {
+      const errorText = await monerooResponse.text();
+      log("Moneroo API Error", { status: monerooResponse.status, error: errorText });
+      throw new Error(`Payment initialization failed: ${errorText}`);
+    }
+
+    const monerooData = await monerooResponse.json();
+    log("Payment initialized", { paymentId: monerooData.data?.id, plan: planRaw });
+
+    return new Response(JSON.stringify({ 
+      url: monerooData.data?.checkout_url,
+      reference: monerooData.data?.id 
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

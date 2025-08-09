@@ -128,7 +128,43 @@ const Billing = () => {
     const plan = params.get('plan');
 
     const verifyIfNeeded = async () => {
-      if (ref && plan) {
+      // Handle new Moneroo parameters: status, paymentId, paymentStatus
+      const status = params.get('status');
+      const paymentId = params.get('paymentId');
+      const paymentStatus = params.get('paymentStatus');
+      
+      if (paymentId && paymentStatus) {
+        if (paymentStatus === 'success' || status === 'success') {
+          // Extract plan from URL or prompt user (since Moneroo doesn't return plan directly)
+          const planFromUrl = params.get('plan') || 'starter'; // fallback to starter
+          
+          const { error } = await supabase.functions.invoke('moneroo-verify', {
+            body: { reference: paymentId, plan: planFromUrl }
+          });
+          if (error) {
+            toast({ title: 'Vérification échouée', description: error.message, variant: 'destructive' });
+          } else {
+            toast({ title: 'Paiement confirmé', description: 'Votre abonnement a été activé.' });
+          }
+        } else {
+          toast({ 
+            title: 'Paiement échoué', 
+            description: 'Le paiement n\'a pas été complété avec succès.',
+            variant: 'destructive' 
+          });
+        }
+        
+        // Nettoyer les paramètres pour éviter une re-vérification
+        const url = new URL(window.location.href);
+        url.searchParams.delete('status');
+        url.searchParams.delete('paymentId');
+        url.searchParams.delete('paymentStatus');
+        url.searchParams.delete('plan');
+        window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams.toString()}` : ''));
+      }
+      
+      // Keep backward compatibility with old ref/plan parameters
+      else if (ref && plan) {
         const { error } = await supabase.functions.invoke('moneroo-verify', {
           body: { reference: ref, plan }
         });
@@ -136,14 +172,15 @@ const Billing = () => {
           toast({ title: 'Vérification échouée', description: error.message, variant: 'destructive' });
         } else {
           toast({ title: 'Paiement confirmé', description: 'Votre abonnement a été activé.' });
-          // Nettoyer les paramètres pour éviter une re-vérification
-          const url = new URL(window.location.href);
-          url.searchParams.delete('ref');
-          url.searchParams.delete('reference');
-          url.searchParams.delete('moneroo_ref');
-          url.searchParams.delete('plan');
-          window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams.toString()}` : ''));
         }
+        
+        // Nettoyer les paramètres pour éviter une re-vérification
+        const url = new URL(window.location.href);
+        url.searchParams.delete('ref');
+        url.searchParams.delete('reference');
+        url.searchParams.delete('moneroo_ref');
+        url.searchParams.delete('plan');
+        window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams.toString()}` : ''));
       }
     };
 

@@ -49,8 +49,38 @@ serve(async (req) => {
     const allowed = ["starter", "pro", "business"] as const;
     if (!allowed.includes(planRaw as any)) throw new Error("Invalid plan");
 
-    // TODO: Call Moneroo API to verify payment status using reference + monerooKey
-    // For now we assume success if reference is provided (sandbox mode)
+    // Verify payment with Moneroo API
+    const monerooResponse = await fetch(`https://api.moneroo.io/v1/payments/${reference}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${monerooKey}`,
+        "Accept": "application/json"
+      }
+    });
+
+    if (!monerooResponse.ok) {
+      const errorText = await monerooResponse.text();
+      log("Moneroo API Error", { status: monerooResponse.status, error: errorText });
+      throw new Error(`Payment verification failed: ${errorText}`);
+    }
+
+    const paymentData = await monerooResponse.json();
+    log("Payment data retrieved", paymentData);
+
+    // Check if payment was successful
+    if (paymentData.data?.status !== 'success') {
+      throw new Error(`Payment not successful. Status: ${paymentData.data?.status || 'unknown'}`);
+    }
+
+    // Verify payment matches expected plan and user
+    const metadata = paymentData.data?.metadata || {};
+    if (metadata.user_id !== user.id) {
+      throw new Error("Payment user mismatch");
+    }
+    if (metadata.plan !== planRaw) {
+      throw new Error("Payment plan mismatch");
+    }
+
     const tier = planRaw === 'starter' ? 'Starter' : planRaw === 'pro' ? 'Pro' : 'Business';
 
     // Calculate subscription end (stack 30 days on existing if active)
