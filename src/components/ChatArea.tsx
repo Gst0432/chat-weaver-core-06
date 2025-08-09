@@ -219,7 +219,7 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
       // Génération d'image via DALL·E si demandé
       const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
       const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
-      if (selectedModel.includes('gpt') && (wantsImage || selectedModel === 'gpt-image-1')) {
+      if (wantsImage) {
         const { data, error } = await supabase.functions.invoke('dalle-image', {
           body: { prompt: content, size: '1024x1024' }
         });
