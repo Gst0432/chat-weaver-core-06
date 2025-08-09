@@ -162,6 +162,31 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         return;
       }
 
+      // Déclenchement prioritaire: génération d'image si le message le demande
+      const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
+      const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
+      if (wantsImage) {
+        const { data, error } = await supabase.functions.invoke('dalle-image', {
+          body: { prompt: content, size: '1024x1024' }
+        });
+        if (error) throw error;
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data?.image || "Échec de génération d'image.",
+          role: 'assistant',
+          timestamp: new Date(),
+          model: selectedModel
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        await supabase.from('messages').insert({
+          conversation_id: convoId,
+          role: 'assistant',
+          content: assistantMessage.content,
+          model: selectedModel
+        });
+        return;
+      }
+
       // Si un fichier a été ajouté récemment, utiliser le prompt textuel pour l'analyser maintenant
       const attachment = [...messages].reverse().find(m => typeof m.content === 'string' && (m.content as string).startsWith('data:'));
       if (attachment && typeof content === 'string' && !content.startsWith('data:')) {
@@ -216,33 +241,6 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         }
       }
 
-      // Génération d'image via DALL·E si demandé
-      const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
-      const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
-      if (wantsImage) {
-        const { data, error } = await supabase.functions.invoke('dalle-image', {
-          body: { prompt: content, size: '1024x1024' }
-        });
-        if (error) throw error;
-
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: data?.image || "Échec de génération d'image.",
-          role: "assistant",
-          timestamp: new Date(),
-          model: selectedModel
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-
-        await supabase.from('messages').insert({
-          conversation_id: convoId,
-          role: 'assistant',
-          content: assistantMessage.content,
-          model: selectedModel
-        });
-        return;
-      }
 
       // Commandes de génération de documents: /pdf, /docx, /pptx, /slide
       const cmdMatch = content.trim().match(/^\/(pdf|docx|pptx|slide)\s*(.*)$/i);
