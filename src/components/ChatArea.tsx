@@ -41,14 +41,6 @@ const wrapText = (text: string, max = 90) =>
       return chunks;
     });
 
-const cleanDocText = (text: string) => {
-  return text
-    .split(/\r?\n/)
-    .filter(line => !/^#{1,6}\s*Stratégies de vente\s*:?\s*$/i.test(line))
-    .map(l => l.replace(/^\-\s*\*\*\s*/g, '- ').replace(/\*\*/g, ''))
-    .join('\n');
-};
-
 const createPdfDataUrl = async (text: string) => {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage();
@@ -170,16 +162,12 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         return;
       }
 
-      // Si un fichier a été ajouté récemment, décider: analyse (vision/file) OU génération d'image selon le prompt
-      const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
-      const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
-
+      // Si un fichier a été ajouté récemment, utiliser le prompt textuel pour l'analyser maintenant
       const attachment = [...messages].reverse().find(m => typeof m.content === 'string' && (m.content as string).startsWith('data:'));
       if (attachment && typeof content === 'string' && !content.startsWith('data:')) {
         const att = attachment.content as string;
         const mimeAtt = att.slice(5, att.indexOf(';'));
-        // Si le prompt demande une image, on ne fait PAS l'analyse : on laissera la branche génération gérer plus bas
-        if (!wantsImage && mimeAtt.startsWith('image/')) {
+        if (mimeAtt.startsWith('image/')) {
           const { data, error } = await supabase.functions.invoke('vision-analyze', {
             body: { image: att, prompt: content }
           });
@@ -199,7 +187,7 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
             model: selectedModel
           });
           return;
-        } else if (!wantsImage && (mimeAtt === 'application/pdf' || mimeAtt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+        } else if (mimeAtt === 'application/pdf' || mimeAtt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
           const base64 = att.split(',')[1] || '';
           const { data, error } = await supabase.functions.invoke('file-analyze', {
             body: {
@@ -228,38 +216,19 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         }
       }
 
-      // Génération d'image (DALL·E) si demandé
+      // Génération d'image via DALL·E si demandé
+      const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
+      const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
       if (selectedModel.includes('gpt') && (wantsImage || selectedModel === 'gpt-image-1')) {
-        // Si une image est jointe récemment, utiliser la variation/édition basée sur cette image
-        const imageAttachment = [...messages].reverse().find(m => typeof m.content === 'string' && (m.content as string).startsWith('data:'));
-        let genData: any | null = null;
-        let genError: any | null = null;
-
-        if (imageAttachment) {
-          const att = imageAttachment.content as string;
-          const mimeAtt = att.slice(5, att.indexOf(';'));
-          if (mimeAtt.startsWith('image/')) {
-            const { data, error } = await supabase.functions.invoke('dalle-variation', {
-              body: { image: att, prompt: content, size: '1024x1024' }
-            });
-            genData = data; genError = error;
-          }
-        }
-
-        // Si pas d'image jointe ou pas d'image valide, fallback à génération par prompt seul
-        if (!genData && !genError) {
-          const { data, error } = await supabase.functions.invoke('dalle-image', {
-            body: { prompt: content, size: '1024x1024' }
-          });
-          genData = data; genError = error;
-        }
-
-        if (genError) throw genError;
+        const { data, error } = await supabase.functions.invoke('dalle-image', {
+          body: { prompt: content, size: '1024x1024' }
+        });
+        if (error) throw error;
 
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: genData?.image || "Échec de génération d'image.",
-          role: 'assistant',
+          content: data?.image || "Échec de génération d'image.",
+          role: "assistant",
           timestamp: new Date(),
           model: selectedModel
         };
@@ -285,7 +254,6 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
         }
 
-        bodyText = cleanDocText(bodyText);
         let dataUrl = '';
         if (cmd === 'pdf') dataUrl = await createPdfDataUrl(bodyText);
         else if (cmd === 'docx') dataUrl = await createDocxDataUrl(bodyText);
@@ -390,8 +358,6 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
       let bodyText = '';
       const fallback = [...messages].reverse().find(m => typeof m.content === 'string' && !m.content.startsWith('data:') && !m.content.startsWith('http'));
       bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
-
-      bodyText = cleanDocText(bodyText);
 
       let dataUrl = '';
       if (type === 'pdf') dataUrl = await createPdfDataUrl(bodyText);
