@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -118,8 +118,16 @@ export const Sidebar = () => {
         </div>
       </div>
 
-      {/* Settings */}
+      {/* Navigation */}
       <div className="mt-4 pt-4 border-t border-border">
+        <Button variant="ghost" onClick={() => navigate('/team')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+          <Users className="w-4 h-4 mr-2" />
+          Équipe
+        </Button>
+        <Button variant="ghost" onClick={() => navigate('/billing')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+          <CreditCard className="w-4 h-4 mr-2" />
+          Abonnement & Tokens
+        </Button>
         <Button variant="ghost" onClick={() => navigate('/settings')} className="w-full justify-start text-muted-foreground hover:text-foreground">
           <Settings className="w-4 h-4 mr-2" />
           Paramètres
