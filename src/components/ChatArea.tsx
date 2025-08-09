@@ -225,6 +225,24 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
         model: selectedModel
       });
 
+      // Mettre à jour le titre de la conversation si vide / placeholder
+      try {
+        const firstLine = String(content).split('\n')[0].trim();
+        const candidate = firstLine ? firstLine.slice(0, 80) : 'Conversation';
+        const { data: convRow } = await supabase
+          .from('conversations')
+          .select('id, title')
+          .eq('id', convoId)
+          .maybeSingle();
+        const needsTitle = !convRow?.title || convRow.title === 'Nouvelle conversation';
+        if (needsTitle && candidate) {
+          await supabase.from('conversations').update({ title: candidate }).eq('id', convoId);
+          window.dispatchEvent(new CustomEvent('chat:reload-conversations'));
+        }
+      } catch (e) {
+        console.warn('Maj titre conversation échouée', e);
+      }
+
       // Si upload (data URL), gérer image/PDF
       if (typeof content === 'string' && content.startsWith('data:')) {
         // Fichier attaché: on attend une instruction utilisateur avant d'analyser

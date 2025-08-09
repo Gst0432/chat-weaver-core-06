@@ -40,6 +40,9 @@ export const Sidebar = () => {
 
   useEffect(() => {
     loadConversations();
+    const onReload = () => loadConversations();
+    window.addEventListener('chat:reload-conversations', onReload);
+    return () => window.removeEventListener('chat:reload-conversations', onReload);
   }, []);
 
   const selectConversation = (id: string) => {
