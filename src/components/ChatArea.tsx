@@ -35,25 +35,49 @@ const wrapText = (text: string, max = 90) =>
 
 const createPdfDataUrl = async (text: string) => {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontSize = 12;
-  const { width, height } = page.getSize();
-  const margin = 50;
-  let y = height - margin;
   const lineHeight = fontSize * 1.2;
-  const lines = wrapText(text, 90);
+  const margin = 50;
+  
+  let currentPage = pdfDoc.addPage();
+  const { width, height } = currentPage.getSize();
+  let y = height - margin;
+  
+  const lines = wrapText(text, Math.floor((width - 2 * margin) / (fontSize * 0.6)));
+  
   lines.forEach((line) => {
-    page.drawText(line, { x: margin, y, size: fontSize, font });
+    // Si on n'a plus de place sur la page, créer une nouvelle page
+    if (y < margin + lineHeight) {
+      currentPage = pdfDoc.addPage();
+      y = height - margin;
+    }
+    
+    currentPage.drawText(line || " ", { 
+      x: margin, 
+      y, 
+      size: fontSize, 
+      font,
+      color: rgb(0, 0, 0)
+    });
     y -= lineHeight;
   });
+  
   return await pdfDoc.saveAsBase64({ dataUri: true });
 };
 
 const createDocxDataUrl = async (text: string) => {
   const doc = new DocxDocument({
     sections: [
-      { properties: {}, children: text.split(/\r?\n/).map((l) => new Paragraph(l || " ")) },
+      { 
+        properties: {}, 
+        children: text.split(/\r?\n/).map((line) => new Paragraph({
+          text: line || " ",
+          spacing: {
+            after: 120,
+          }
+        }))
+      },
     ],
   });
   const base64 = await Packer.toBase64String(doc);
@@ -62,8 +86,58 @@ const createDocxDataUrl = async (text: string) => {
 
 const createPptxDataUrl = async (text: string) => {
   const pptx = new PptxGenJS();
-  const slide = pptx.addSlide();
-  slide.addText(text, { x: 0.5, y: 0.5, w: 9, h: 5, fontSize: 18 });
+  pptx.defineLayout({ name: 'A4', width: 10, height: 7.5 });
+  
+  // Diviser le texte en slides si trop long
+  const maxCharsPerSlide = 800;
+  const textChunks = [];
+  
+  if (text.length <= maxCharsPerSlide) {
+    textChunks.push(text);
+  } else {
+    const paragraphs = text.split('\n');
+    let currentChunk = '';
+    
+    for (const paragraph of paragraphs) {
+      if ((currentChunk + paragraph).length > maxCharsPerSlide && currentChunk) {
+        textChunks.push(currentChunk.trim());
+        currentChunk = paragraph + '\n';
+      } else {
+        currentChunk += paragraph + '\n';
+      }
+    }
+    
+    if (currentChunk.trim()) {
+      textChunks.push(currentChunk.trim());
+    }
+  }
+  
+  textChunks.forEach((chunk, index) => {
+    const slide = pptx.addSlide();
+    slide.addText(chunk, { 
+      x: 0.5, 
+      y: 1, 
+      w: 9, 
+      h: 5.5, 
+      fontSize: 16,
+      color: '000000',
+      align: 'left',
+      valign: 'top',
+      wrap: true
+    });
+    
+    if (textChunks.length > 1) {
+      slide.addText(`${index + 1} / ${textChunks.length}`, {
+        x: 8.5,
+        y: 6.5,
+        w: 1,
+        h: 0.5,
+        fontSize: 12,
+        color: '666666'
+      });
+    }
+  });
+  
   const base64 = await pptx.write({ outputType: "base64" });
   return `data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,${base64}`;
 };
@@ -632,6 +706,17 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       else if (type === 'docx') dataUrl = await createDocxDataUrl(bodyText);
       else dataUrl = await createPptxDataUrl(bodyText);
 
+      // Téléchargement automatique
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      const timestamp = new Date().toISOString().slice(0, 16).replace(/[:-]/g, '');
+      const extensions = { pdf: 'pdf', docx: 'docx', pptx: 'pptx' };
+      link.download = `document-${timestamp}.${extensions[type]}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Optionnel : ajouter aussi le document dans le chat
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: dataUrl,
