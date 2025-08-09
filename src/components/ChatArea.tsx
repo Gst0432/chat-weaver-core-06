@@ -163,7 +163,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
 
   // Charger la dernière conversation (30 jours)
   useEffect(() => {
-    const handler = (e: any) => {
+    const handleSelectConversation = (e: any) => {
       const id = e?.detail?.id as string;
       if (!id) return;
       setCurrentConversationId(id);
@@ -188,8 +188,19 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         }
       })();
     };
-    window.addEventListener('chat:select-conversation', handler);
-    return () => window.removeEventListener('chat:select-conversation', handler);
+
+    const handleNewConversation = () => {
+      setCurrentConversationId(null);
+      setMessages([]);
+    };
+
+    window.addEventListener('chat:select-conversation', handleSelectConversation);
+    window.addEventListener('chat:new-conversation', handleNewConversation);
+    
+    return () => {
+      window.removeEventListener('chat:select-conversation', handleSelectConversation);
+      window.removeEventListener('chat:new-conversation', handleNewConversation);
+    };
   }, []);
 
   const handleSendMessage = async (content: string) => {

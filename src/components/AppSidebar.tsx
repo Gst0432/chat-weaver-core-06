@@ -84,7 +84,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
       return;
     }
     setActiveId(id);
-    window.dispatchEvent(new CustomEvent('chat:conversation-selected', { detail: { id } }));
+    window.dispatchEvent(new CustomEvent('chat:select-conversation', { detail: { id } }));
   };
 
   const createNewChat = () => {
@@ -92,6 +92,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
       onAuthRequired();
       return;
     }
+    setActiveId(null);
     window.dispatchEvent(new CustomEvent('chat:new-conversation'));
   };
 
