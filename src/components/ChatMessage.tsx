@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Bot, Sparkles, Cpu, Zap, Search, Download, FileText, File as FileIcon, Copy } from "lucide-react";
+import { User, Bot, Sparkles, Cpu, Zap, Search, Download, FileText, File as FileIcon, Copy, Volume2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Message {
@@ -16,6 +16,7 @@ interface Message {
 interface ChatMessageProps {
   message: Message;
   isLoading?: boolean;
+  onSpeak?: (text: string) => void;
 }
 
 const getModelInfo = (modelId?: string) => {
@@ -42,7 +43,7 @@ const sanitizeContent = (text: string) => {
   }
 };
 
-export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
+export const ChatMessage = ({ message, isLoading, onSpeak }: ChatMessageProps) => {
   const isUser = message.role === "user";
   const modelInfo = getModelInfo(message.model);
 
@@ -79,7 +80,30 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
               : "bg-card border-border"
           } ${isLoading ? "animate-pulse" : ""}`}
         >
-          {typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
+          {typeof message.content === 'string' && message.content.startsWith('data:audio') ? (
+            <div className="relative group">
+              <audio controls src={message.content} className="w-full" />
+              <Button
+                type="button"
+                size="icon"
+                variant={isUser ? "secondary" : "outline"}
+                aria-label="Télécharger l'audio"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => {
+                  const mime = message.content.slice(5, message.content.indexOf(';'));
+                  const ext = (mime.split('/')[1] || 'mp3').split(';')[0];
+                  const a = document.createElement('a');
+                  a.href = message.content;
+                  a.download = `audio-${message.id || message.timestamp.getTime()}.${ext}`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                }}
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
             <div className="relative group">
               <img
                 src={message.content}
@@ -192,26 +216,36 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
             </div>
           ) : (
             <div className="relative group">
-              <div className="text-sm leading-relaxed whitespace-pre-wrap pr-10">
+              <div className="text-sm leading-relaxed whitespace-pre-wrap pr-20">
                 {sanitizeContent(String(message.content))}
               </div>
-              <Button
-                type="button"
-                size="icon"
-                variant={isUser ? "secondary" : "outline"}
-                aria-label="Copier le message"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(sanitizeContent(String(message.content)));
-                    toast({ title: "Copié", description: "Le message a été copié dans le presse‑papiers." });
-                  } catch (e) {
-                    toast({ title: "Échec de copie", description: "Impossible de copier le message.", variant: "destructive" });
-                  }
-                }}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
+              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={isUser ? "secondary" : "outline"}
+                  aria-label="Lire (TTS)"
+                  onClick={() => onSpeak?.(sanitizeContent(String(message.content)))}
+                >
+                  <Volume2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={isUser ? "secondary" : "outline"}
+                  aria-label="Copier le message"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(sanitizeContent(String(message.content)));
+                      toast({ title: "Copié", description: "Le message a été copié dans le presse‑papiers." });
+                    } catch (e) {
+                      toast({ title: "Échec de copie", description: "Impossible de copier le message.", variant: "destructive" });
+                    }
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           )}
 

@@ -460,7 +460,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
       <ScrollArea className="flex-1 p-4">
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
+            <ChatMessage key={message.id} message={message} onSpeak={synthesizeAndPlay} />
           ))}
           {isLoading && (
             <ChatMessage 
