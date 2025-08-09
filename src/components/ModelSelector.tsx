@@ -43,9 +43,11 @@ interface ModelSelectorProps {
   onSttProviderChange: (p: 'openai' | 'google') => void;
   ttsProvider: 'openai' | 'google';
   onTtsProviderChange: (p: 'openai' | 'google') => void;
+  personality: string;
+  onPersonalityChange: (key: string) => void;
 }
 
-export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange, ttsVoice, onTtsVoiceChange }: ModelSelectorProps & { ttsVoice: string; onTtsVoiceChange: (v: string) => void; }) => {
+export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange, ttsVoice, onTtsVoiceChange, personality, onPersonalityChange }: ModelSelectorProps & { ttsVoice: string; onTtsVoiceChange: (v: string) => void; }) => {
   const currentModel = models.find(m => m.id === selectedModel) || models[0];
 
   return (
@@ -102,7 +104,7 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
         </SelectContent>
       </Select>
 
-      {/* Providers */}
+      {/* Providers & Voix & Personnalité */}
       <div className="ml-auto flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">STT</span>
@@ -154,6 +156,20 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
                   <SelectItem value="en-US-Wavenet-D">en-US-Wavenet-D</SelectItem>
                 </>
               )}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Personnalité</span>
+          <Select value={personality} onValueChange={onPersonalityChange}>
+            <SelectTrigger className="w-[180px] bg-secondary border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Neutre</SelectItem>
+              <SelectItem value="nerd">Nerd (très technique)</SelectItem>
+              <SelectItem value="listener">Écoute (empathique)</SelectItem>
+              <SelectItem value="cynic">Cynique (sarcastique)</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -11,6 +11,7 @@ const Index = () => {
   const [sttProvider, setSttProvider] = useState<'openai' | 'google'>("openai");
   const [ttsProvider, setTtsProvider] = useState<'openai' | 'google'>("openai");
   const [ttsVoice, setTtsVoice] = useState<string>("alloy");
+  const [personality, setPersonality] = useState<string>(localStorage.getItem('personality') || 'default');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,6 +60,13 @@ const Index = () => {
 
   if (!authReady) return null;
 
+  const personalities: Record<string, string> = {
+    default: "Tu es un assistant utile et concis.",
+    nerd: "Tu es très technique et fournis du code complet lorsque pertinent.",
+    listener: "Tu réponds brièvement avec empathie et clarifie les besoins.",
+    cynic: "Tu es sarcastique mais utile, en restant professionnel.",
+  };
+
   return (
     <ChatLayout>
       <ModelSelector 
@@ -70,8 +78,10 @@ const Index = () => {
         onTtsProviderChange={(v) => { setTtsProvider(v); localStorage.setItem('ttsProvider', v); }}
         ttsVoice={ttsVoice}
         onTtsVoiceChange={(v) => { setTtsVoice(v); localStorage.setItem('ttsVoice', v); }}
+        personality={personality}
+        onPersonalityChange={(k) => { setPersonality(k); localStorage.setItem('personality', k); }}
       />
-      <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} ttsVoice={ttsVoice} />
+      <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} ttsVoice={ttsVoice} systemPrompt={personalities[personality]} />
     </ChatLayout>
   );
 };

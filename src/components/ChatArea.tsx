@@ -73,9 +73,10 @@ interface ChatAreaProps {
   sttProvider: 'openai' | 'google';
   ttsProvider: 'openai' | 'google';
   ttsVoice: string;
+  systemPrompt?: string;
 }
 
-export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -394,7 +395,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
       // Historique de messages pour le provider
       const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
       const chatMessages = [
-        { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
+        { role: 'system', content: systemPrompt || 'You are Chatelix, a helpful multilingual assistant.' },
         ...history,
         { role: 'user', content }
       ];
@@ -405,7 +406,6 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
 
       // Adapter selon la sélection de l'utilisateur sans casser la compatibilité backend
       if (selectedModel === 'gpt-4.1') {
-        // gpt-4.1 est un modèle de l'API Responses: on mappe vers gpt-4o-mini pour chat
         model = 'gpt-4o-mini';
       } else if (selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
@@ -415,6 +415,79 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
         model = 'deepseek-chat';
       }
 
+      // Streaming pour OpenAI
+      if (functionName === 'openai-chat') {
+        const SUPABASE_URL = "https://jeurznrjcohqbevrzses.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI";
+        const url = `${SUPABASE_URL}/functions/v1/openai-chat-stream`;
+
+        // Message assistant provisoire pour le stream
+        let streamingId = `stream-${Date.now()}`;
+        setMessages(prev => [...prev, { id: streamingId, content: '', role: 'assistant', timestamp: new Date(), model: selectedModel }]);
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ messages: chatMessages, model, temperature: 0.5, max_tokens: 400 })
+        });
+
+        if (!res.ok || !res.body) throw new Error(`Stream init failed: ${res.status}`);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let acc = '';
+        setIsLoading(false);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n');
+          buffer = parts.pop() || '';
+          for (const line of parts) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            if (trimmed.startsWith('data:')) {
+              const json = trimmed.slice(5).trim();
+              if (json === '[DONE]') {
+                buffer = '';
+                break;
+              }
+              try {
+                const data = JSON.parse(json);
+                const delta = data?.choices?.[0]?.delta?.content || '';
+                if (delta) {
+                  acc += delta;
+                  setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: acc } : m));
+                }
+              } catch {}
+            }
+          }
+        }
+
+        // Final: insert et remplacement du message stream
+        const finalAssistant: Message = {
+          id: (Date.now() + 1).toString(),
+          content: acc || 'Aucune réponse.',
+          role: 'assistant',
+          timestamp: new Date(),
+          model: selectedModel,
+        };
+        setMessages(prev => prev.map(m => m.id === streamingId ? finalAssistant : m));
+        await supabase.from('messages').insert({
+          conversation_id: convoId,
+          role: 'assistant',
+          content: finalAssistant.content,
+          model: selectedModel
+        });
+        return;
+      }
 
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
