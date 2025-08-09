@@ -86,7 +86,7 @@ export const Sidebar = () => {
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
-              src="/lovable-uploads/eb4adb27-683e-42a7-ade3-aa8185079db6.png" 
+              src="/lovable-uploads/ff955a65-24d1-4da4-a5d3-7e518af6492b.png" 
               alt="Chatelix Logo" 
               className="w-full h-full object-contain"
             />
