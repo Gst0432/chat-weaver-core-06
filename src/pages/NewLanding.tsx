@@ -18,7 +18,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
-import geminiLogo from "@/assets/gemini-logo.png";
+import aiServicesLogo from "@/assets/ai-services-logo.png";
 
 const NewLanding = () => {
   const navigate = useNavigate();
@@ -216,30 +216,14 @@ const NewLanding = () => {
               </div>
             </div>
 
-            {/* Right Column - Logos */}
-            <div className="flex flex-col items-center justify-center gap-6">
+            {/* Right Column - Logo */}
+            <div className="flex items-center justify-center">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-full"></div>
+                <div className="absolute inset-0 bg-gradient-primary opacity-30 blur-3xl rounded-2xl"></div>
                 <img 
-                  src="/lovable-uploads/4d23475f-fa47-4f1b-bba0-5b597d4be24b.png"
-                  alt="Deepseek AI Logo"
-                  className="relative w-64 h-auto object-contain"
-                />
-              </div>
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-primary opacity-10 blur-xl rounded-full"></div>
-                <img 
-                  src="/lovable-uploads/18559761-9d7a-4f88-b792-3c402d548818.png"
-                  alt="ChatGPT Logo"
-                  className="relative w-48 h-auto object-contain"
-                />
-              </div>
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-primary opacity-10 blur-xl rounded-full"></div>
-                <img 
-                  src={geminiLogo}
-                  alt="Google Gemini AI Logo"
-                  className="relative w-48 h-auto object-contain"
+                  src={aiServicesLogo}
+                  alt="Services IA - ChatGPT, Deepseek, Gemini"
+                  className="relative w-full max-w-lg h-auto object-contain drop-shadow-2xl"
                 />
               </div>
             </div>
