@@ -12,7 +12,7 @@ export const ChatLayout = ({ children }: ChatLayoutProps) => {
   return (
     <div className="h-screen bg-background flex flex-col">
       <header className="h-14 border-b border-border flex items-center px-3">
-        <Sheet>
+        <Sheet defaultOpen>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="text-foreground">
               <Menu className="h-5 w-5" />
