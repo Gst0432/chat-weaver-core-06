@@ -25,6 +25,56 @@ const initialMessages: Message[] = [
   }
 ];
 
+// Helpers: generation of documents
+const wrapText = (text: string, max = 90) =>
+  text
+    .split(/\r?\n/)
+    .flatMap((line) => {
+      const chunks: string[] = [];
+      let current = line;
+      while (current.length > max) {
+        chunks.push(current.slice(0, max));
+        current = current.slice(max);
+      }
+      chunks.push(current);
+      return chunks;
+    });
+
+const createPdfDataUrl = async (text: string) => {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontSize = 12;
+  const { width, height } = page.getSize();
+  const margin = 50;
+  let y = height - margin;
+  const lineHeight = fontSize * 1.2;
+  const lines = wrapText(text, 90);
+  lines.forEach((line) => {
+    page.drawText(line, { x: margin, y, size: fontSize, font });
+    y -= lineHeight;
+  });
+  return await pdfDoc.saveAsBase64({ dataUri: true });
+};
+
+const createDocxDataUrl = async (text: string) => {
+  const doc = new DocxDocument({
+    sections: [
+      { properties: {}, children: text.split(/\r?\n/).map((l) => new Paragraph(l || " ")) },
+    ],
+  });
+  const base64 = await Packer.toBase64String(doc);
+  return `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${base64}`;
+};
+
+const createPptxDataUrl = async (text: string) => {
+  const pptx = new PptxGenJS();
+  const slide = pptx.addSlide();
+  slide.addText(text, { x: 0.5, y: 0.5, w: 9, h: 5, fontSize: 18 });
+  const base64 = await pptx.write({ outputType: "base64" });
+  return `data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,${base64}`;
+};
+
 interface ChatAreaProps {
   selectedModel: string;
 }
@@ -61,6 +111,32 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           model: selectedModel
         };
 
+        setMessages(prev => [...prev, assistantMessage]);
+        return;
+      }
+
+      // Document generation commands: /pdf, /docx, /pptx, /slide
+      const cmdMatch = content.trim().match(/^\/(pdf|docx|pptx|slide)\s*(.*)$/i);
+      if (cmdMatch) {
+        const cmd = cmdMatch[1].toLowerCase();
+        let bodyText = cmdMatch[2]?.trim();
+        if (!bodyText) {
+          const fallback = [...messages].reverse().find(m => typeof m.content === 'string' && !m.content.startsWith('data:') && !m.content.startsWith('http'));
+          bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
+        }
+
+        let dataUrl = '';
+        if (cmd === 'pdf') dataUrl = await createPdfDataUrl(bodyText);
+        else if (cmd === 'docx') dataUrl = await createDocxDataUrl(bodyText);
+        else dataUrl = await createPptxDataUrl(bodyText);
+
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: dataUrl,
+          role: 'assistant',
+          timestamp: new Date(),
+          model: selectedModel
+        };
         setMessages(prev => [...prev, assistantMessage]);
         return;
       }

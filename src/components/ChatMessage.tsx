@@ -33,7 +33,10 @@ const getModelInfo = (modelId?: string) => {
 
 const sanitizeContent = (text: string) => {
   try {
-    return text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*\*/g, '');
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*\*/g, '')
+      .replace(/(^|\n)#{1,6}\s*/g, '$1');
   } catch {
     return text;
   }
