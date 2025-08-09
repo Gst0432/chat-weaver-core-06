@@ -16,15 +16,7 @@ interface Message {
   model?: string;
 }
 
-const initialMessages: Message[] = [
-  {
-    id: "1",
-    content: "Bonjour ! Je suis votre assistant IA multi-plateforme. Je peux utiliser différents modèles pour répondre à vos questions. Comment puis-je vous aider aujourd'hui ?",
-    role: "assistant",
-    timestamp: new Date(),
-    model: "gpt-4-turbo"
-  }
-];
+const initialMessages: Message[] = [];
 
 // Helpers: generation of documents
 const wrapText = (text: string, max = 90) =>
@@ -87,6 +79,23 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+
+  const createNewConversation = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Non authentifié');
+      const { data: conv, error: convError } = await supabase
+        .from('conversations')
+        .insert({ title: 'Nouvelle conversation', user_id: user.id })
+        .select('id')
+        .maybeSingle();
+      if (convError) throw convError;
+      setCurrentConversationId(conv?.id as string);
+      setMessages([]);
+    } catch (e) {
+      console.error('Nouveau chat échoué', e);
+    }
+  };
 
   // TTS: synthétiser et lire la réponse via OpenAI ou Google
   const synthesizeAndPlay = async (text: string) => {
@@ -478,7 +487,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
       </ScrollArea>
       <div className="border-t border-border bg-card/30">
         <div className="max-w-4xl mx-auto px-4 py-2 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Exporter le dernier contenu:</span>
+          <Button size="sm" onClick={createNewConversation}>Nouveau chat</Button>
+          <span className="text-xs text-muted-foreground ml-2">Exporter le dernier contenu:</span>
           <Button variant="secondary" size="sm" onClick={() => exportDocument('pdf')}>PDF</Button>
           <Button variant="secondary" size="sm" onClick={() => exportDocument('docx')}>DOCX</Button>
           <Button variant="secondary" size="sm" onClick={() => exportDocument('pptx')}>PPTX</Button>
