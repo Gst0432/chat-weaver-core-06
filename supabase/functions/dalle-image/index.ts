@@ -13,6 +13,41 @@ serve(async (req) => {
 
   try {
     const { prompt, size } = await req.json();
+    
+    // Améliorer les prompts vagues pour éviter les rejets d'OpenAI
+    let enhancedPrompt = prompt;
+    
+    // Si le prompt est trop vague, l'améliorer
+    const vaguePrompts = [
+      'genere une image', 'génère une image', 'generate an image', 
+      'crée une image', 'create an image', 'fais une image',
+      'make an image', 'image', 'picture', 'photo'
+    ];
+    
+    if (vaguePrompts.some(vague => enhancedPrompt.toLowerCase().includes(vague.toLowerCase()))) {
+      enhancedPrompt = "A beautiful artistic illustration, creative and colorful, high quality digital art";
+    }
+    
+    // Traduire les mots-clés français courants vers l'anglais pour éviter les rejets
+    const translations = {
+      'chat': 'cat',
+      'chien': 'dog', 
+      'maison': 'house',
+      'paysage': 'landscape',
+      'montagne': 'mountain',
+      'océan': 'ocean',
+      'forêt': 'forest',
+      'ville': 'city',
+      'coucher de soleil': 'sunset',
+      'lever de soleil': 'sunrise'
+    };
+    
+    Object.entries(translations).forEach(([french, english]) => {
+      enhancedPrompt = enhancedPrompt.replace(new RegExp(`\\b${french}\\b`, 'gi'), english);
+    });
+
+    console.log('Original prompt:', prompt);
+    console.log('Enhanced prompt:', enhancedPrompt);
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -22,7 +57,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'dall-e-3',
-        prompt,
+        prompt: enhancedPrompt,
         size: size || '1024x1024'
       }),
     });
