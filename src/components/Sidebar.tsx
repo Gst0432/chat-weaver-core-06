@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -70,6 +70,15 @@ export const Sidebar = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('Erreur de déconnexion:', error);
+    }
+  };
+
   return (
     <aside className="w-80 bg-card border-r border-border p-4 flex flex-col">
       {/* Header */}
@@ -131,6 +140,10 @@ export const Sidebar = () => {
         <Button variant="ghost" onClick={() => navigate('/settings')} className="w-full justify-start text-muted-foreground hover:text-foreground">
           <Settings className="w-4 h-4 mr-2" />
           Paramètres
+        </Button>
+        <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start text-muted-foreground hover:text-foreground mt-2">
+          <LogOut className="w-4 h-4 mr-2" />
+          Se déconnecter
         </Button>
       </div>
     </aside>
