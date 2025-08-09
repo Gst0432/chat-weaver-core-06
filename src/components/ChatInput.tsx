@@ -43,6 +43,24 @@ export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
     });
   };
 
+  const toPngDataUrl = async (dataUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas context unavailable')); return; }
+        ctx.drawImage(img, 0, 0);
+        try { resolve(canvas.toDataURL('image/png')); } catch (err) { reject(err as any); }
+      };
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -53,6 +71,10 @@ export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
         const header = `Fichier: ${file.name}\n\n`;
         const max = 60000;
         onSendMessage(header + (text.length > max ? text.slice(0, max) + `\n\n[Tronqué, taille ${text.length} caractères]` : text));
+      } else if (file.type.startsWith('image/')) {
+        const rawDataUrl = await readFileAsDataUrl(file);
+        const pngDataUrl = rawDataUrl.startsWith('data:image/png') ? rawDataUrl : await toPngDataUrl(rawDataUrl);
+        onSendMessage(pngDataUrl);
       } else {
         const dataUrl = await readFileAsDataUrl(file);
         onSendMessage(dataUrl);
