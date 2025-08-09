@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import professionalAiHero from "@/assets/professional-ai-hero.png";
+import chatelixIcon from "@/assets/chatelix-icon.png";
 import {
   Sidebar,
   SidebarContent,
@@ -123,8 +123,8 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
         <div className="flex items-center space-x-2">
           <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
-              src={professionalAiHero}
-              alt="Intelligence Artificielle Avancée - Chatelix" 
+              src={chatelixIcon}
+              alt="Chatelix Logo" 
               className="w-full h-full object-contain"
             />
           </div>
