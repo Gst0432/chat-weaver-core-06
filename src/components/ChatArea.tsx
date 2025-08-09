@@ -258,8 +258,9 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           const mimeAtt = att.slice(5, att.indexOf(';'));
           if (mimeAtt.startsWith('image/')) {
             const imgToSend = att.startsWith('data:image/png') ? att : await dataUrlToPng(att);
+            const enhancedPrompt = `Modifie uniquement l’image fournie: ${content}. Conserve le style et la composition, ajoute précisément l’élément demandé sans altérer le reste.`;
             const { data, error } = await supabase.functions.invoke('dalle-variation', {
-              body: { image: imgToSend, prompt: content, size: '1024x1024' }
+              body: { image: imgToSend, prompt: enhancedPrompt, size: '1024x1024' }
             });
             genData = data; genError = error;
           }

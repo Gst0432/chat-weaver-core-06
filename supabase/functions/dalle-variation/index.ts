@@ -38,15 +38,14 @@ serve(async (req) => {
       const mime = image.slice(5, image.indexOf(';')) || 'image/png';
       const base64 = image.split(',')[1] || '';
       const bytes = b64ToUint8Array(base64);
-      imageBlob = new Blob([bytes], { type: mime });
-      filename = `upload.${mime.split('/')[1] || 'png'}`;
+      imageBlob = new Blob([bytes], { type: 'image/png' }); // force PNG for edits
+      filename = `upload.png`;
     } else if (typeof image === 'string' && (image.startsWith('http://') || image.startsWith('https://'))) {
       const resp = await fetch(image);
       if (!resp.ok) throw new Error(`Failed to fetch image URL: ${resp.status}`);
       const arrBuf = await resp.arrayBuffer();
-      const contentType = resp.headers.get('content-type') || 'image/png';
-      imageBlob = new Blob([arrBuf], { type: contentType });
-      filename = `remote.${contentType.split('/')[1] || 'png'}`;
+      imageBlob = new Blob([arrBuf], { type: 'image/png' }); // normalize to PNG
+      filename = `remote.png`;
     } else {
       return new Response(JSON.stringify({ error: 'Unsupported image format' }), {
         status: 400,
@@ -55,9 +54,11 @@ serve(async (req) => {
     }
 
     const formData = new FormData();
-    formData.append('model', 'dall-e-2');
+    formData.append('model', 'gpt-image-1');
     formData.append('size', size || '1024x1024');
-    formData.append('image', new File([imageBlob], filename, { type: imageBlob.type }));
+    formData.append('response_format', 'b64_json');
+    formData.append('n', '1');
+    formData.append('image', new File([imageBlob], filename, { type: 'image/png' }));
 
     const endpoint = prompt ? 'https://api.openai.com/v1/images/edits' : 'https://api.openai.com/v1/images/variations';
     if (prompt) formData.append('prompt', String(prompt));
@@ -66,7 +67,7 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        // DO NOT set Content-Type here; the browser/fetch will set proper multipart boundary
+        // Content-Type is set automatically for multipart form-data
       },
       body: formData,
     });
