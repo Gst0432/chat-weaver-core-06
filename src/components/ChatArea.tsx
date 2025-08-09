@@ -96,7 +96,8 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
 
     try {
       // Image generation via DALL·E when the user asks for an image using any OpenAI model
-      const wantsImage = /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
+      const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
+      const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
       if (selectedModel.includes('gpt') && (wantsImage || selectedModel === 'gpt-image-1')) {
         const { data, error } = await supabase.functions.invoke('dalle-image', {
           body: { prompt: content, size: '1024x1024' }
@@ -142,7 +143,7 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
       }
 
       // Map existing messages to provider format
-      const history = messages.map(m => ({ role: m.role, content: m.content }));
+      const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
       const chatMessages = [
         { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
         ...history,
@@ -165,8 +166,8 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         body: {
           messages: chatMessages,
           model,
-          temperature: 0.7,
-          max_tokens: 800
+          temperature: 0.5,
+          max_tokens: 400
         }
       });
 
