@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MessageSquare, Plus, Settings, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -13,6 +14,7 @@ interface ConversationRow {
 }
 
 export const Sidebar = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export const Sidebar = () => {
 
       {/* Settings */}
       <div className="mt-4 pt-4 border-t border-border">
-        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+        <Button variant="ghost" onClick={() => navigate('/settings')} className="w-full justify-start text-muted-foreground hover:text-foreground">
           <Settings className="w-4 h-4 mr-2" />
           Paramètres
         </Button>

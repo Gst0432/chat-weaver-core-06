@@ -14,6 +14,16 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Charger préférences locales d'abord
+    try {
+      const sp = localStorage.getItem('sttProvider') as 'openai' | 'google' | null;
+      const tp = localStorage.getItem('ttsProvider') as 'openai' | 'google' | null;
+      const tv = localStorage.getItem('ttsVoice');
+      if (sp) setSttProvider(sp);
+      if (tp) setTtsProvider(tp);
+      if (tv) setTtsVoice(tv);
+    } catch {}
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         navigate("/auth", { replace: true });
@@ -28,6 +38,23 @@ const Index = () => {
     });
 
     return () => subscription.unsubscribe();
+    // Écoute maj préférences depuis la page Paramètres
+    const onPrefs = () => {
+      try {
+        const sp = localStorage.getItem('sttProvider') as 'openai' | 'google' | null;
+        const tp = localStorage.getItem('ttsProvider') as 'openai' | 'google' | null;
+        const tv = localStorage.getItem('ttsVoice');
+        if (sp) setSttProvider(sp);
+        if (tp) setTtsProvider(tp);
+        if (tv) setTtsVoice(tv!);
+      } catch {}
+    };
+    window.addEventListener('chat:prefs-updated', onPrefs);
+
+    return () => {
+      window.removeEventListener('chat:prefs-updated', onPrefs);
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   if (!authReady) return null;
@@ -36,13 +63,13 @@ const Index = () => {
     <ChatLayout>
       <ModelSelector 
         selectedModel={selectedModel} 
-        onModelChange={setSelectedModel}
+        onModelChange={(m) => { setSelectedModel(m); localStorage.setItem('model', m); }}
         sttProvider={sttProvider}
-        onSttProviderChange={setSttProvider}
+        onSttProviderChange={(v) => { setSttProvider(v); localStorage.setItem('sttProvider', v); }}
         ttsProvider={ttsProvider}
-        onTtsProviderChange={setTtsProvider}
+        onTtsProviderChange={(v) => { setTtsProvider(v); localStorage.setItem('ttsProvider', v); }}
         ttsVoice={ttsVoice}
-        onTtsVoiceChange={setTtsVoice}
+        onTtsVoiceChange={(v) => { setTtsVoice(v); localStorage.setItem('ttsVoice', v); }}
       />
       <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} ttsVoice={ttsVoice} />
     </ChatLayout>
