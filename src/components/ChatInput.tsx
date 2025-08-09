@@ -132,7 +132,7 @@ export const ChatInput = ({ onSendMessage, disabled, sttProvider = 'openai' }: C
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Écrivez votre message... (Entrée pour envoyer, Shift+Entrée pour une nouvelle ligne)"
-                className="min-h-[60px] max-h-[200px] resize-none bg-background border-border pr-24 text-foreground placeholder:text-muted-foreground"
+                className="min-h-[80px] max-h-[250px] resize-none bg-background border-border pr-24 text-foreground placeholder:text-muted-foreground text-base"
                 disabled={disabled}
               />
               <input
@@ -168,7 +168,7 @@ export const ChatInput = ({ onSendMessage, disabled, sttProvider = 'openai' }: C
             <Button
               type="submit"
               disabled={!message.trim() || disabled}
-              className="h-[60px] px-6 bg-gradient-primary hover:opacity-90 transition-opacity shadow-elegant"
+              className="h-[44px] px-4 bg-gradient-primary hover:opacity-90 transition-opacity shadow-elegant"
             >
               <Send className="w-4 h-4" />
             </Button>
