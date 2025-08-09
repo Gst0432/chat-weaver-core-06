@@ -120,8 +120,12 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
       {/* Header */}
       <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+            <img 
+              src="/lovable-uploads/eb4adb27-683e-42a7-ade3-aa8185079db6.png" 
+              alt="Chatelix Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           {!isCollapsed && (
             <span className="text-xl font-bold text-foreground">Chatelix</span>

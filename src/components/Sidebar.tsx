@@ -84,8 +84,12 @@ export const Sidebar = () => {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <Zap className="w-4 h-4 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+            <img 
+              src="/lovable-uploads/eb4adb27-683e-42a7-ade3-aa8185079db6.png" 
+              alt="Chatelix Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-lg font-semibold text-foreground">Chatelix</h1>
         </div>
