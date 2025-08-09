@@ -1,1 +1,7 @@
 project_id = "jeurznrjcohqbevrzses"
+
+[functions.image-proxy]
+verify_jwt = false
+
+[functions.dalle-image]
+verify_jwt = false

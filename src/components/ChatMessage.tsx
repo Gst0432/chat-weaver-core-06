@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, Bot, Sparkles, Cpu, Zap, Search, Download, FileText, File as FileIcon, Copy, Volume2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -121,21 +122,75 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                   aria-label="Télécharger l'image"
                   onClick={async () => {
                     try {
-                      const response = await fetch(message.content);
-                      const blob = await response.blob();
-                      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+                      let blob: Blob;
+                      let fileName = `image-${message.id || message.timestamp.getTime()}`;
+                      
+                      if (message.content.startsWith('data:image/')) {
+                        // Image en base64 - conversion directe
+                        const base64Data = message.content.split(',')[1];
+                        const mimeType = message.content.split(';')[0].split(':')[1];
+                        const ext = mimeType.split('/')[1] || 'png';
+                        
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                          byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        blob = new Blob([byteArray], { type: mimeType });
+                        fileName += `.${ext}`;
+                      } else {
+                        // URL d'image - téléchargement direct ou via proxy
+                        try {
+                          const response = await fetch(message.content);
+                          if (!response.ok) throw new Error('Failed to fetch image');
+                          blob = await response.blob();
+                          const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+                          fileName += `.${ext}`;
+                        } catch (fetchError) {
+                          // Si le téléchargement direct échoue, utiliser le proxy Supabase
+                          const { data, error } = await supabase.functions.invoke('image-proxy', {
+                            body: { url: message.content }
+                          });
+                          
+                          if (error || !data.image) throw error || new Error('Proxy failed');
+                          
+                          // Traiter l'image du proxy (base64)
+                          const base64Data = data.image.split(',')[1];
+                          const mimeType = data.image.split(';')[0].split(':')[1];
+                          const ext = mimeType.split('/')[1] || 'png';
+                          
+                          const byteCharacters = atob(base64Data);
+                          const byteNumbers = new Array(byteCharacters.length);
+                          for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                          }
+                          const byteArray = new Uint8Array(byteNumbers);
+                          blob = new Blob([byteArray], { type: mimeType });
+                          fileName += `.${ext}`;
+                        }
+                      }
+                      
+                      // Télécharger le fichier
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
-                      a.download = `image-${message.id || message.timestamp.getTime()}.${ext}`;
+                      a.download = fileName;
                       document.body.appendChild(a);
                       a.click();
                       a.remove();
                       URL.revokeObjectURL(url);
+                      
+                      toast({
+                        title: "Image téléchargée",
+                        description: `L'image a été téléchargée avec succès : ${fileName}`,
+                      });
+                      
                     } catch (e) {
+                      console.error('Download error:', e);
                       toast({
                         title: "Téléchargement impossible",
-                        description: "Le téléchargement direct a échoué. Réessayez ou régénérez l'image.",
+                        description: "Le téléchargement a échoué. Veuillez réessayer ou régénérer l'image.",
                         variant: "destructive",
                       });
                     }
