@@ -100,8 +100,8 @@ const Index = () => {
     <>
       <MobileOptimizations />
       <SidebarProvider>
-        <div className="min-h-screen w-full flex flex-col lg:flex-row">
-        {/* Subscription Prompt Overlay */}
+        <div className="min-h-screen w-full flex flex-col lg:flex-row bg-background">
+          {/* Subscription Prompt Overlay */}
         {showSubscriptionPrompt && (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <Card className="max-w-md w-full border-primary shadow-elegant">
@@ -163,7 +163,7 @@ const Index = () => {
             </div>
           </header>
           
-          <main className="flex-1 flex flex-col">
+          <main className="flex-1 flex flex-col bg-background">
             <ModelSelector 
               selectedModel={selectedModel} 
               onModelChange={(m) => { setSelectedModel(m); localStorage.setItem('model', m); }}

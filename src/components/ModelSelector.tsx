@@ -64,7 +64,7 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
   const currentModel = models.find(m => m.id === selectedModel) || models[0];
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 sm:p-4 border-b border-border bg-card/50">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 sm:p-4 border-b border-border bg-background">
       {/* Modèle principal - toujours visible */}
       <div className="flex items-center gap-2 w-full sm:w-auto">
         <div className="flex items-center gap-2">

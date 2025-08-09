@@ -759,8 +759,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <ScrollArea className="flex-1 p-4">
+    <div className="flex-1 flex flex-col h-full bg-background">
+      <ScrollArea className="flex-1 p-4 bg-background">
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} onSpeak={synthesizeAndPlay} onDownloadTts={synthesizeAndDownload} />
@@ -781,7 +781,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       </ScrollArea>
       
       {/* Barre d'actions avec boutons optimisés mobile */}
-      <div className="border-t border-border bg-card/50 backdrop-blur-sm">
+      <div className="border-t border-border bg-background">
         <div className="max-w-4xl mx-auto px-3 py-3">
           {/* Ligne principale : Nouveau chat + Export */}
           <div className="flex items-center justify-between gap-3 mb-2">

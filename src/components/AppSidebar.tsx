@@ -116,9 +116,9 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
   const isCollapsed = state === "collapsed" && !isMobile;
 
   return (
-    <Sidebar className="border-r border-border">
+    <Sidebar className="border-r border-border bg-background">
       {/* Header */}
-      <SidebarHeader className="border-b border-border p-4">
+      <SidebarHeader className="border-b border-border p-4 bg-background">
         <div className="flex items-center space-x-2">
           <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
@@ -133,7 +133,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="p-4">
+      <SidebarContent className="p-4 bg-background">
         {/* New Chat Button */}
         <SidebarGroup>
           <SidebarGroupContent>
@@ -174,10 +174,10 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                         <div
                           key={c.id}
                           onClick={() => selectConversation(c.id)}
-                          className={`group cursor-pointer rounded-lg px-3 py-2 transition-all duration-150 ${
+                          className={`group cursor-pointer rounded-lg px-3 py-2.5 transition-all duration-150 ${
                             activeId === c.id 
-                              ? 'bg-white text-primary shadow-sm' 
-                              : 'hover:bg-white/50 text-foreground'
+                              ? 'bg-primary/10 text-primary border border-primary/20' 
+                              : 'hover:bg-secondary/50 text-foreground border border-transparent'
                           }`}
                         >
                           {!isCollapsed && (
@@ -200,7 +200,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
         )}
 
         {/* Navigation Menu */}
-        <SidebarGroup className="mt-auto pt-4 border-t border-border">
+        <SidebarGroup className="mt-auto pt-4 border-t border-border bg-background">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               <SidebarMenuItem>
