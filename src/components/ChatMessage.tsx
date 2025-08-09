@@ -17,6 +17,7 @@ interface ChatMessageProps {
   message: Message;
   isLoading?: boolean;
   onSpeak?: (text: string) => void;
+  onDownloadTts?: (text: string) => void;
 }
 
 const getModelInfo = (modelId?: string) => {
@@ -43,7 +44,7 @@ const sanitizeContent = (text: string) => {
   }
 };
 
-export const ChatMessage = ({ message, isLoading, onSpeak }: ChatMessageProps) => {
+export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: ChatMessageProps) => {
   const isUser = message.role === "user";
   const modelInfo = getModelInfo(message.model);
 
@@ -88,7 +89,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak }: ChatMessageProps) =
                 size="icon"
                 variant={isUser ? "secondary" : "outline"}
                 aria-label="Télécharger l'audio"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2"
                 onClick={() => {
                   const mime = message.content.slice(5, message.content.indexOf(';'));
                   const ext = (mime.split('/')[1] || 'mp3').split(';')[0];
@@ -219,7 +220,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak }: ChatMessageProps) =
               <div className="text-sm leading-relaxed whitespace-pre-wrap pr-20">
                 {sanitizeContent(String(message.content))}
               </div>
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-2 right-2 flex gap-1 z-10">
                 <Button
                   type="button"
                   size="icon"
@@ -228,6 +229,15 @@ export const ChatMessage = ({ message, isLoading, onSpeak }: ChatMessageProps) =
                   onClick={() => onSpeak?.(sanitizeContent(String(message.content)))}
                 >
                   <Volume2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={isUser ? "secondary" : "outline"}
+                  aria-label="Télécharger (TTS)"
+                  onClick={() => onDownloadTts?.(sanitizeContent(String(message.content)))}
+                >
+                  <Download className="w-4 h-4" />
                 </Button>
                 <Button
                   type="button"

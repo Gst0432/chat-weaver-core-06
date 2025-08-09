@@ -40,8 +40,15 @@ serve(async (req) => {
       throw new Error(`OpenAI TTS error: ${err}`)
     }
 
-    const arrayBuffer = await response.arrayBuffer()
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const buf = new Uint8Array(await response.arrayBuffer())
+    // Encode base64 in chunks to avoid call stack overflow
+    let binary = ''
+    const CHUNK = 0x8000
+    for (let i = 0; i < buf.length; i += CHUNK) {
+      const chunk = buf.subarray(i, Math.min(i + CHUNK, buf.length))
+      binary += String.fromCharCode(...chunk)
+    }
+    const base64Audio = btoa(binary)
     const mime = format.toLowerCase() === 'wav' ? 'audio/wav' : 'audio/mpeg'
 
     return new Response(

@@ -97,17 +97,24 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
     }
   };
 
-  // TTS: synthétiser et lire la réponse via OpenAI ou Google
+  // TTS: synthétiser et lire la réponse via OpenAI ou Google avec fallback
   const synthesizeAndPlay = async (text: string) => {
-    try {
-      if (!text || /^data:/.test(text)) return; // éviter les images/documents
-      const fn = ttsProvider === 'google' ? 'google-tts' : 'text-to-voice';
+    const tryInvoke = async (provider: 'openai' | 'google') => {
+      const fn = provider === 'google' ? 'google-tts' : 'text-to-voice';
       const lang = (ttsVoice && ttsVoice.includes('-')) ? ttsVoice.split('-').slice(0,2).join('-') : 'fr-FR';
-      const body = ttsProvider === 'google'
+      const body = provider === 'google'
         ? { text, languageCode: lang, voiceName: ttsVoice || undefined, ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
         : { text, voice: ttsVoice || 'alloy', format: 'mp3' };
-      const { data, error } = await supabase.functions.invoke(fn, { body });
-      if (error) throw error;
+      return await supabase.functions.invoke(fn, { body });
+    };
+    try {
+      if (!text || /^data:/.test(text)) return; // éviter les images/documents
+      let { data, error } = await tryInvoke(ttsProvider);
+      if (error) {
+        const fallbackProvider = ttsProvider === 'google' ? 'openai' : 'google';
+        ({ data, error } = await tryInvoke(fallbackProvider));
+        if (error) throw error;
+      }
       const mime = data?.mime || 'audio/mpeg';
       const base64 = data?.audio as string;
       if (!base64) return;
@@ -115,6 +122,38 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
       await audio.play().catch(() => console.warn('Lecture auto bloquée par le navigateur'));
     } catch (err) {
       console.error('TTS playback error', err);
+    }
+  };
+
+  // TTS: synthétiser et télécharger sans l’ajouter dans le flux
+  const synthesizeAndDownload = async (text: string) => {
+    const tryInvoke = async (provider: 'openai' | 'google') => {
+      const fn = provider === 'google' ? 'google-tts' : 'text-to-voice';
+      const lang = (ttsVoice && ttsVoice.includes('-')) ? ttsVoice.split('-').slice(0,2).join('-') : 'fr-FR';
+      const body = provider === 'google'
+        ? { text, languageCode: lang, voiceName: ttsVoice || undefined, ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
+        : { text, voice: ttsVoice || 'alloy', format: 'mp3' };
+      return await supabase.functions.invoke(fn, { body });
+    };
+    try {
+      if (!text || /^data:/.test(text)) return;
+      let { data, error } = await tryInvoke(ttsProvider);
+      if (error) {
+        const fallbackProvider = ttsProvider === 'google' ? 'openai' : 'google';
+        ({ data, error } = await tryInvoke(fallbackProvider));
+        if (error) throw error;
+      }
+      const mime = data?.mime || 'audio/mpeg';
+      const base64 = data?.audio as string;
+      if (!base64) return;
+      const a = document.createElement('a');
+      a.href = `data:${mime};base64,${base64}`;
+      a.download = `tts-${Date.now()}.${mime.includes('wav') ? 'wav' : 'mp3'}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error('TTS download error', err);
     }
   };
 
@@ -466,7 +505,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice }: 
       <ScrollArea className="flex-1 p-4">
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} onSpeak={synthesizeAndPlay} />
+            <ChatMessage key={message.id} message={message} onSpeak={synthesizeAndPlay} onDownloadTts={synthesizeAndDownload} />
           ))}
           {isLoading && (
             <ChatMessage 
