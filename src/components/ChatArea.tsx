@@ -75,9 +75,11 @@ interface ChatAreaProps {
   ttsVoice: string;
   systemPrompt?: string;
   safeMode?: boolean;
+  isLandingMode?: boolean;
+  onAuthRequired?: () => void;
 }
 
-export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt, safeMode }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt, safeMode, isLandingMode = false, onAuthRequired }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -206,7 +208,16 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       let convoId = currentConversationId;
       if (!convoId) {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Non authentifié');
+        if (!user) {
+          // En mode landing, déclencher le popup d'auth au lieu d'échouer
+          if (isLandingMode && onAuthRequired) {
+            setMessages(prev => prev.slice(0, -1)); // Retirer le message utilisateur ajouté
+            setIsLoading(false); // Réinitialiser le loading
+            onAuthRequired();
+            return;
+          }
+          throw new Error('Non authentifié');
+        }
         const title = (content.split('\n')[0] || 'Nouvelle conversation').slice(0, 80);
         const { data: conv, error: convError } = await supabase
           .from('conversations')

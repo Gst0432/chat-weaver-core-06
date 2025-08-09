@@ -15,11 +15,13 @@ import {
   Check,
   ArrowRight,
   Sparkles,
-  CreditCard
+  CreditCard,
+  Shield
 } from "lucide-react";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   
   // Chat state for demo
   const [selectedModel, setSelectedModel] = useState("gpt-4-turbo");
@@ -35,6 +37,62 @@ const Landing = () => {
     listener: "Tu réponds brièvement avec empathie et clarifie les besoins.",
     cynic: "Tu es sarcastique mais utile, en restant professionnel.",
   };
+
+  // Real subscription plans from Billing
+  const plans = [
+    {
+      id: 'Starter',
+      price: 7500,
+      users: '1',
+      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+      images: '10 images / mois',
+      tts: 'OpenAI Standard TTS uniquement',
+      minutes: '100 min inclus',
+      limits: '+50 FCFA/min TTS au-delà, +500 FCFA/image',
+      key: 'starter',
+      icon: Shield,
+      popular: false
+    },
+    {
+      id: 'Pro', 
+      price: 22000,
+      users: "Jusqu'à 5",
+      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+      images: '50 images / mois',
+      tts: 'OpenAI HD TTS + Google WaveNet',
+      minutes: '500 min inclus',
+      limits: 'Forfait illimité au-delà, images illimitées',
+      key: 'pro',
+      icon: Zap,
+      popular: true
+    },
+    {
+      id: 'Business',
+      price: 55000,
+      users: "Jusqu'à 20",
+      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+      images: 'Illimité',
+      tts: 'OpenAI HD + Google WaveNet + voix premium',
+      minutes: 'Illimité',
+      limits: 'Support prioritaire, gestion équipes',
+      key: 'business',
+      icon: Star,
+      popular: false
+    },
+    {
+      id: 'Enterprise',
+      price: 0,
+      users: 'Illimité',
+      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+      images: 'Illimité',
+      tts: 'Voix personnalisées + options avancées',
+      minutes: 'Illimité',
+      limits: 'SLA, support dédié, API complet',
+      key: 'enterprise',
+      icon: Star,
+      popular: false
+    },
+  ] as const;
 
   const features = [
     {
@@ -76,6 +134,39 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Auth Prompt Modal */}
+      {showAuthPrompt && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full border-primary shadow-elegant">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCard className="w-8 h-8 text-primary-foreground" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Connectez-vous pour continuer</h3>
+              <p className="text-muted-foreground mb-4">
+                Accédez aux meilleurs modèles IA : GPT-4 Turbo, GPT-5, Deepseek V3, Gemini
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button 
+                  onClick={() => navigate('/auth')}
+                  className="w-full bg-gradient-primary hover:shadow-glow"
+                >
+                  Se connecter
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowAuthPrompt(false)}
+                >
+                  Annuler
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Header */}
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -92,62 +183,39 @@ const Landing = () => {
       </header>
 
       <div className="flex flex-col lg:flex-row min-h-[calc(100vh-73px)]">
-        {/* Left side - Chat Demo */}
+        {/* Left side - Interactive Chat */}
         <div className="lg:w-2/3 border-r border-border">
-          <div className="h-full relative">
-            {/* Demo overlay */}
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
-              <Card className="max-w-md w-full mx-4 border-primary shadow-elegant">
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CreditCard className="w-8 h-8 text-primary-foreground" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">Connectez-vous pour commencer</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Accédez aux meilleurs modèles IA : GPT-4 Turbo, GPT-5, Deepseek V3, Gemini
-                  </p>
-                  <Button 
-                    onClick={() => navigate('/auth')}
-                    className="w-full bg-gradient-primary hover:shadow-glow"
-                  >
-                    Se connecter
-                    <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Chat interface (blurred demo) */}
-            <div className="filter blur-sm pointer-events-none">
-              <ChatLayout>
-                <ModelSelector 
-                  selectedModel={selectedModel} 
-                  onModelChange={setSelectedModel}
-                  sttProvider={sttProvider}
-                  onSttProviderChange={setSttProvider}
-                  ttsProvider={ttsProvider}
-                  onTtsProviderChange={setTtsProvider}
-                  ttsVoice={ttsVoice}
-                  onTtsVoiceChange={setTtsVoice}
-                  personality={personality}
-                  onPersonalityChange={setPersonality}
-                  safeMode={safeMode}
-                  onSafeModeChange={setSafeMode}
-                />
-                <ChatArea 
-                  selectedModel={selectedModel} 
-                  sttProvider={sttProvider} 
-                  ttsProvider={ttsProvider} 
-                  ttsVoice={ttsVoice} 
-                  systemPrompt={personalities[personality]} 
-                  safeMode={safeMode} 
-                />
-              </ChatLayout>
-            </div>
+          <div className="h-full">
+            <ChatLayout>
+              <ModelSelector 
+                selectedModel={selectedModel} 
+                onModelChange={setSelectedModel}
+                sttProvider={sttProvider}
+                onSttProviderChange={setSttProvider}
+                ttsProvider={ttsProvider}
+                onTtsProviderChange={setTtsProvider}
+                ttsVoice={ttsVoice}
+                onTtsVoiceChange={setTtsVoice}
+                personality={personality}
+                onPersonalityChange={setPersonality}
+                safeMode={safeMode}
+                onSafeModeChange={setSafeMode}
+              />
+              <ChatArea 
+                selectedModel={selectedModel} 
+                sttProvider={sttProvider} 
+                ttsProvider={ttsProvider} 
+                ttsVoice={ttsVoice} 
+                systemPrompt={personalities[personality]} 
+                safeMode={safeMode} 
+                isLandingMode={true}
+                onAuthRequired={() => setShowAuthPrompt(true)}
+              />
+            </ChatLayout>
           </div>
         </div>
 
-        {/* Right side - Pricing Plans */}
+        {/* Right side - Real Pricing Plans */}
         <div className="lg:w-1/3 p-6 bg-secondary/20">
           <div className="space-y-6">
             <div className="text-center">
@@ -155,102 +223,44 @@ const Landing = () => {
               <p className="text-muted-foreground text-sm">Accès instantané après connexion</p>
             </div>
 
-            {/* Pricing Cards */}
+            {/* Real Pricing Cards */}
             <div className="space-y-4">
-              {/* Starter */}
-              <Card className="hover:shadow-elegant transition-all duration-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">Starter</h3>
-                    <Badge variant="outline">5€/mois</Badge>
-                  </div>
-                  <ul className="space-y-1 text-sm text-muted-foreground mb-4">
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />1 utilisateur</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />Tous les modèles IA</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />50 images/mois</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />100 min TTS</li>
-                  </ul>
-                  <Button 
-                    onClick={() => navigate('/auth')}
-                    className="w-full"
-                    size="sm"
-                  >
-                    Choisir ce plan
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Pro */}
-              <Card className="border-primary shadow-elegant">
-                <CardContent className="p-4 relative">
-                  <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-xs">
-                    Populaire
-                  </Badge>
-                  <div className="flex items-center justify-between mb-3 mt-2">
-                    <h3 className="font-semibold">Pro</h3>
-                    <Badge variant="outline">15€/mois</Badge>
-                  </div>
-                  <ul className="space-y-1 text-sm text-muted-foreground mb-4">
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />5 utilisateurs</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />Tous les modèles IA</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />200 images/mois</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />500 min TTS</li>
-                  </ul>
-                  <Button 
-                    onClick={() => navigate('/auth')}
-                    className="w-full bg-gradient-primary hover:shadow-glow"
-                    size="sm"
-                  >
-                    Choisir ce plan
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Business */}
-              <Card className="hover:shadow-elegant transition-all duration-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">Business</h3>
-                    <Badge variant="outline">35€/mois</Badge>
-                  </div>
-                  <ul className="space-y-1 text-sm text-muted-foreground mb-4">
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />20 utilisateurs</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />Tous les modèles IA</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />500 images/mois</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />1500 min TTS</li>
-                  </ul>
-                  <Button 
-                    onClick={() => navigate('/auth')}
-                    className="w-full"
-                    size="sm"
-                  >
-                    Choisir ce plan
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Enterprise */}
-              <Card className="hover:shadow-elegant transition-all duration-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">Enterprise</h3>
-                    <Badge variant="outline">75€/mois</Badge>
-                  </div>
-                  <ul className="space-y-1 text-sm text-muted-foreground mb-4">
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />Utilisateurs illimités</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />Tous les modèles IA</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />2000 images/mois</li>
-                    <li className="flex items-center"><Check className="w-3 h-3 text-primary mr-2" />5000 min TTS</li>
-                  </ul>
-                  <Button 
-                    onClick={() => navigate('/auth')}
-                    className="w-full"
-                    size="sm"
-                  >
-                    Choisir ce plan
-                  </Button>
-                </CardContent>
-              </Card>
+              {plans.map((plan, index) => (
+                <Card key={plan.id} className={`hover:shadow-elegant transition-all duration-300 ${plan.popular ? 'border-primary shadow-elegant' : ''}`}>
+                  <CardContent className="p-4 relative">
+                    {plan.popular && (
+                      <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-xs">
+                        Populaire
+                      </Badge>
+                    )}
+                    <div className={`flex items-center justify-between mb-3 ${plan.popular ? 'mt-2' : ''}`}>
+                      <div className="flex items-center gap-2">
+                        <plan.icon className="w-4 h-4 text-primary" />
+                        <h3 className="font-semibold">{plan.id}</h3>
+                      </div>
+                      <Badge variant="outline">
+                        {plan.price === 0 ? 'Sur mesure' : `${(plan.price / 100).toFixed(0)} FCFA/mois`}
+                      </Badge>
+                    </div>
+                    
+                    <div className="space-y-1 text-xs text-muted-foreground mb-3">
+                      <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.users} utilisateur{plan.users !== '1' ? 's' : ''}</span></div>
+                      <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.images}</span></div>
+                      <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.minutes}</span></div>
+                      <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.tts}</span></div>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => navigate('/auth')}
+                      className={`w-full ${plan.popular ? 'bg-gradient-primary hover:shadow-glow' : ''}`}
+                      size="sm"
+                      variant={plan.popular ? "default" : "outline"}
+                    >
+                      Choisir ce plan
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
             {/* Features highlight */}
