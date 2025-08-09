@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Users, Zap } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { useMobileNative } from "@/hooks/use-mobile-native";
+import MobileOptimizations from "@/components/MobileOptimizations";
 
 const Index = () => {
   const [selectedModel, setSelectedModel] = useState("gpt-4-turbo");
@@ -20,6 +22,7 @@ const Index = () => {
   const [safeMode, setSafeMode] = useState<boolean>((localStorage.getItem('safeMode') || 'true') === 'true');
   const [subscription, setSubscription] = useState<any>(null);
   const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
+  const { triggerHapticFeedback } = useMobileNative();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -94,8 +97,10 @@ const Index = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen w-full flex flex-col lg:flex-row">
+    <>
+      <MobileOptimizations />
+      <SidebarProvider>
+        <div className="min-h-screen w-full flex flex-col lg:flex-row">
         {/* Subscription Prompt Overlay */}
         {showSubscriptionPrompt && (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -183,8 +188,9 @@ const Index = () => {
             />
           </main>
         </div>
-      </div>
-    </SidebarProvider>
+        </div>
+      </SidebarProvider>
+    </>
   );
 };
 

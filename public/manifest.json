@@ -1,0 +1,35 @@
+{
+  "name": "Chatelix - Assistant IA Multi-Modèles",
+  "short_name": "Chatelix",
+  "description": "Plateforme unifiée pour interagir avec plusieurs modèles IA (GPT-4, Deepseek, Gemini)",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/lovable-uploads/bb8847f5-56f9-4e8b-b9f0-67b8a41e9639.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/lovable-uploads/bb8847f5-56f9-4e8b-b9f0-67b8a41e9639.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/lovable-uploads/bb8847f5-56f9-4e8b-b9f0-67b8a41e9639.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}
