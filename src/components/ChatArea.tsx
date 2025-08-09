@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Document as DocxDocument, Packer, Paragraph } from "docx";
 import PptxGenJS from "pptxgenjs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
@@ -77,53 +77,11 @@ const createPptxDataUrl = async (text: string) => {
 
 interface ChatAreaProps {
   selectedModel: string;
-  conversationId?: string | null;
-  onConversationChange?: (id: string) => void;
 }
 
-export const ChatArea = ({ selectedModel, conversationId, onConversationChange }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
-  const [localConversationId, setLocalConversationId] = useState<string | null>(null);
-  const effectiveConversationId = conversationId ?? localConversationId;
-
-  useEffect(() => {
-    if (!effectiveConversationId) return;
-    (async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('id, role, content, model, created_at')
-        .eq('conversation_id', effectiveConversationId)
-        .order('created_at', { ascending: true });
-      if (data) {
-        const mapped = data.map((m: any) => ({
-          id: m.id,
-          content: m.content as string,
-          role: m.role as 'user' | 'assistant',
-          timestamp: new Date(m.created_at as string),
-          model: (m.model as string) || undefined,
-        }));
-        setMessages(mapped);
-      }
-    })();
-  }, [effectiveConversationId]);
-
-  const ensureConversation = async (title: string) => {
-    let cid = conversationId ?? localConversationId;
-    if (cid) return cid;
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) throw new Error('Utilisateur non authentifié');
-    const { data, error } = await supabase
-      .from('conversations')
-      .insert({ user_id: userId, title })
-      .select('id')
-      .maybeSingle();
-    if (error || !data?.id) throw error || new Error('Création conversation échouée');
-    setLocalConversationId(data.id);
-    onConversationChange?.(data.id);
-    return data.id as string;
-  };
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -134,26 +92,6 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
     };
 
     setMessages(prev => [...prev, userMessage]);
-
-    const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
-
-    let convId = effectiveConversationId as string | null;
-    const titleBase = isUpload
-      ? 'Pièce jointe'
-      : (content.replace(/^data:[^,]+,/, '').slice(0, 60) || 'Nouvelle conversation');
-    convId = await ensureConversation(titleBase);
-
-    // Enregistrer le message utilisateur
-    await supabase.from('messages').insert({
-      conversation_id: convId,
-      role: 'user',
-      content,
-      model: selectedModel,
-    });
-
-    // Si c'est un upload, on s'arrête ici sans appel modèle
-    if (isUpload) return;
-
     setIsLoading(true);
 
     try {
@@ -175,12 +113,6 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
         };
 
         setMessages(prev => [...prev, assistantMessage]);
-        await supabase.from('messages').insert({
-          conversation_id: convId as string,
-          role: 'assistant',
-          content: assistantMessage.content,
-          model: selectedModel,
-        });
         return;
       }
 
@@ -207,16 +139,17 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
           model: selectedModel
         };
         setMessages(prev => [...prev, assistantMessage]);
-        await supabase.from('messages').insert({
-          conversation_id: convId as string,
-          role: 'assistant',
-          content: dataUrl,
-          model: selectedModel,
-        });
         return;
       }
 
-      // Decide provider and model first
+      // Map existing messages to provider format
+      const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
+      const chatMessages = [
+        { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
+        ...history,
+        { role: 'user', content }
+      ];
+
       let functionName = 'openai-chat';
       let model = 'gpt-4o-mini';
       if (selectedModel === 'gpt-4.1') {
@@ -227,39 +160,6 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
-      }
-
-      const recent = messages.slice(-6);
-
-      // Build chat messages, attaching images for OpenAI (multimodal)
-      let chatMessages: any[];
-      if (functionName === 'openai-chat') {
-        chatMessages = [
-          { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
-          ...recent.map((m) => {
-            const c = String(m.content || '');
-            const lower = c.toLowerCase();
-            const isHttp = lower.startsWith('http');
-            const isImg = isHttp && /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg)$/i.test(lower);
-            if (isImg) {
-              return { role: m.role, content: [{ type: 'image_url', image_url: { url: c } }] };
-            }
-            // Ignore raw data URLs in history to keep payload small
-            if (lower.startsWith('data:')) {
-              return { role: m.role, content: '[Pièce jointe]' };
-            }
-            return { role: m.role, content: c };
-          }),
-          { role: 'user', content }
-        ];
-      } else {
-        // Fallback: text-only providers
-        const history = recent.map(m => ({ role: m.role, content: m.content }));
-        chatMessages = [
-          { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
-          ...history,
-          { role: 'user', content }
-        ];
       }
 
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -282,12 +182,6 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-      await supabase.from('messages').insert({
-        conversation_id: convId as string,
-        role: 'assistant',
-        content: assistantMessage.content,
-        model: selectedModel,
-      });
     } catch (e: any) {
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),

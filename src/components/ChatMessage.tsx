@@ -79,46 +79,7 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
               : "bg-card border-border"
           } ${isLoading ? "animate-pulse" : ""}`}
         >
-          {typeof message.content === 'string' && (
-            message.content.startsWith('data:application/pdf') || message.content.toLowerCase().endsWith('.pdf')
-          ) ? (
-            <div className="relative group">
-              <object
-                data={message.content}
-                type="application/pdf"
-                className="w-full h-[420px] rounded-md border border-border"
-              >
-                <p className="text-sm">Aperçu PDF non disponible. Utilisez le bouton pour télécharger.</p>
-              </object>
-              <Button
-                type="button"
-                size="icon"
-                variant={isUser ? "secondary" : "outline"}
-                aria-label="Télécharger le PDF"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={async () => {
-                  try {
-                    const response = await fetch(message.content);
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `document-${message.id || message.timestamp.getTime()}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    URL.revokeObjectURL(url);
-                  } catch (e) {
-                    toast({ title: "Téléchargement impossible", description: "Échec du téléchargement du PDF.", variant: "destructive" });
-                  }
-                }}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : (typeof message.content === 'string' && (
-            message.content.startsWith('data:image') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(message.content.toLowerCase())
-          )) ? (
+          {typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
             <div className="relative group">
               <img
                 src={message.content}
@@ -151,6 +112,41 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
                       description: "Le téléchargement direct a échoué. Réessayez ou régénérez l'image.",
                       variant: "destructive",
                     });
+                  }
+                }}
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (typeof message.content === 'string' && message.content.startsWith('data:application/pdf')) ? (
+            <div className="relative group">
+              <object
+                data={message.content}
+                type="application/pdf"
+                className="w-full h-[420px] rounded-md border border-border"
+              >
+                <p className="text-sm">Aperçu PDF non disponible. Utilisez le bouton pour télécharger.</p>
+              </object>
+              <Button
+                type="button"
+                size="icon"
+                variant={isUser ? "secondary" : "outline"}
+                aria-label="Télécharger le PDF"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(message.content);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `document-${message.id || message.timestamp.getTime()}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                  } catch (e) {
+                    toast({ title: "Téléchargement impossible", description: "Échec du téléchargement du PDF.", variant: "destructive" });
                   }
                 }}
               >
