@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Bot, Sparkles, Cpu, Zap, Search, Download, FileText, File as FileIcon } from "lucide-react";
+import { User, Bot, Sparkles, Cpu, Zap, Search, Download, FileText, File as FileIcon, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Message {
@@ -21,6 +21,7 @@ interface ChatMessageProps {
 const getModelInfo = (modelId?: string) => {
   const models = {
     "gpt-4-turbo": { name: "GPT-4 Turbo", provider: "OpenAI", icon: Sparkles, color: "openai" },
+    "gpt-4.1": { name: "GTP-5", provider: "OpenAI", icon: Sparkles, color: "openai" },
     "claude-3-sonnet": { name: "Claude 3 Sonnet", provider: "Anthropic", icon: Cpu, color: "claude" },
     "gemini-pro": { name: "Gemini Pro", provider: "Google", icon: Zap, color: "gemini" },
     "perplexity-pro": { name: "Perplexity Pro", provider: "Perplexity", icon: Search, color: "perplexity" },
@@ -28,6 +29,14 @@ const getModelInfo = (modelId?: string) => {
   } as const;
 
   return models[modelId as keyof typeof models] || models["gpt-4-turbo"];
+};
+
+const sanitizeContent = (text: string) => {
+  try {
+    return text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*\*/g, '');
+  } catch {
+    return text;
+  }
 };
 
 export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
@@ -179,8 +188,27 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
               </Button>
             </div>
           ) : (
-            <div className="text-sm leading-relaxed whitespace-pre-wrap">
-              {message.content}
+            <div className="relative group">
+              <div className="text-sm leading-relaxed whitespace-pre-wrap pr-10">
+                {sanitizeContent(String(message.content))}
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant={isUser ? "secondary" : "outline"}
+                aria-label="Copier le message"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(sanitizeContent(String(message.content)));
+                    toast({ title: "Copié", description: "Le message a été copié dans le presse‑papiers." });
+                  } catch (e) {
+                    toast({ title: "Échec de copie", description: "Impossible de copier le message.", variant: "destructive" });
+                  }
+                }}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
             </div>
           )}
 
