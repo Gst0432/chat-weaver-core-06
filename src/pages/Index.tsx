@@ -12,6 +12,7 @@ const Index = () => {
   const [ttsProvider, setTtsProvider] = useState<'openai' | 'google'>("openai");
   const [ttsVoice, setTtsVoice] = useState<string>("alloy");
   const [personality, setPersonality] = useState<string>(localStorage.getItem('personality') || 'default');
+  const [safeMode, setSafeMode] = useState<boolean>((localStorage.getItem('safeMode') || 'true') === 'true');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -80,8 +81,10 @@ const Index = () => {
         onTtsVoiceChange={(v) => { setTtsVoice(v); localStorage.setItem('ttsVoice', v); }}
         personality={personality}
         onPersonalityChange={(k) => { setPersonality(k); localStorage.setItem('personality', k); }}
+        safeMode={safeMode}
+        onSafeModeChange={(v) => { setSafeMode(v); localStorage.setItem('safeMode', String(v)); }}
       />
-      <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} ttsVoice={ttsVoice} systemPrompt={personalities[personality]} />
+      <ChatArea selectedModel={selectedModel} sttProvider={sttProvider} ttsProvider={ttsProvider} ttsVoice={ttsVoice} systemPrompt={personalities[personality]} safeMode={safeMode} />
     </ChatLayout>
   );
 };

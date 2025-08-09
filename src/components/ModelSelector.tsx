@@ -1,8 +1,17 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Cpu, Sparkles, Zap, Search } from "lucide-react";
+import { Cpu, Sparkles, Zap, Search, ShieldCheck } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 const models = [
+  {
+    id: "auto-router",
+    name: "Auto (Routeur)",
+    provider: "Intelligent",
+    icon: Search,
+    color: "perplexity",
+    description: "Choisit le meilleur modèle selon la tâche"
+  },
   {
     id: "gpt-4-turbo",
     name: "GPT-4 Turbo",
@@ -45,9 +54,11 @@ interface ModelSelectorProps {
   onTtsProviderChange: (p: 'openai' | 'google') => void;
   personality: string;
   onPersonalityChange: (key: string) => void;
+  safeMode: boolean;
+  onSafeModeChange: (v: boolean) => void;
 }
 
-export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange, ttsVoice, onTtsVoiceChange, personality, onPersonalityChange }: ModelSelectorProps & { ttsVoice: string; onTtsVoiceChange: (v: string) => void; }) => {
+export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange, ttsVoice, onTtsVoiceChange, personality, onPersonalityChange, safeMode, onSafeModeChange }: ModelSelectorProps & { ttsVoice: string; onTtsVoiceChange: (v: string) => void; }) => {
   const currentModel = models.find(m => m.id === selectedModel) || models[0];
 
   return (

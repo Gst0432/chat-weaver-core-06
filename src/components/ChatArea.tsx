@@ -74,9 +74,10 @@ interface ChatAreaProps {
   ttsProvider: 'openai' | 'google';
   ttsVoice: string;
   systemPrompt?: string;
+  safeMode?: boolean;
 }
 
-export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt, safeMode }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -394,18 +395,36 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
 
       // Historique de messages pour le provider
       const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
+      const baseSystem = systemPrompt || 'You are Chatelix, a helpful multilingual assistant.';
+      const safeAddendum = ' Réponds avec prudence, vérifie les faits, cite tes limites et si tu n\'es pas sûr, dis que tu ne sais pas.';
+      const sys = safeMode ? (baseSystem + safeAddendum) : baseSystem;
       const chatMessages = [
-        { role: 'system', content: systemPrompt || 'You are Chatelix, a helpful multilingual assistant.' },
+        { role: 'system', content: sys },
         ...history,
         { role: 'user', content }
       ];
 
       // Normalisation du modèle côté front pour correspondre aux fonctions backend disponibles
-      let functionName = 'openai-chat';
+      let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' = 'openai-chat';
       let model = 'gpt-4o-mini'; // modèle supporté par openai-chat (chat/completions)
 
       // Adapter selon la sélection de l'utilisateur sans casser la compatibilité backend
-      if (selectedModel === 'gpt-4.1') {
+      if (selectedModel === 'auto-router') {
+        const text = content.toLowerCase();
+        const len = content.length;
+        const wantsWeb = /\b(actualité|news|web|recherche|internet|http|www|google|source|récent|update)\b/.test(text);
+        const hardTask = len > 600 || /(analyse|preuve|démonstration|math|optimiser|refactor|architecture|raisonne|reason|long)/i.test(content);
+        if (wantsWeb) {
+          functionName = 'perplexity-chat';
+          model = 'llama-3.1-sonar-small-128k-online';
+        } else if (hardTask) {
+          functionName = 'deepseek-chat';
+          model = 'deepseek-chat';
+        } else {
+          functionName = 'openai-chat';
+          model = 'gpt-4o-mini';
+        }
+      } else if (selectedModel === 'gpt-4.1') {
         model = 'gpt-4o-mini';
       } else if (selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
@@ -433,7 +452,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ messages: chatMessages, model, temperature: 0.5, max_tokens: 400 })
+          body: JSON.stringify({ messages: chatMessages, model, temperature: (safeMode ? 0.2 : 0.5), max_tokens: 400 })
         });
 
         if (!res.ok || !res.body) throw new Error(`Stream init failed: ${res.status}`);
@@ -493,7 +512,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         body: {
           messages: chatMessages,
           model,
-          temperature: 0.5,
+          temperature: (safeMode ? 0.2 : 0.5),
           max_tokens: 400
         }
       });
