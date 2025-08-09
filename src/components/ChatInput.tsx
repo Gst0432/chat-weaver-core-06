@@ -70,7 +70,7 @@ export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
         </form>
         
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          Chat Weaver peut faire des erreurs. Vérifiez les informations importantes.
+          Chatelix peut faire des erreurs. Vérifiez les informations importantes.
         </p>
       </div>
     </div>

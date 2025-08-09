@@ -11,7 +11,7 @@ export const Sidebar = () => {
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
             <Zap className="w-4 h-4 text-primary-foreground" />
           </div>
-          <h1 className="text-lg font-semibold text-foreground">Chat Weaver</h1>
+          <h1 className="text-lg font-semibold text-foreground">Chatelix</h1>
         </div>
         <Button variant="default" className="w-full bg-gradient-primary hover:opacity-90 transition-opacity">
           <Plus className="w-4 h-4 mr-2" />
