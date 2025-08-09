@@ -43,7 +43,7 @@ const Landing = () => {
   const plans = [
     {
       id: 'Starter',
-      price: 7500, // 75 FCFA
+      price: 750000, // 7500 FCFA
       users: '1',
       models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
       images: '10 images DALL·E 3 / mois',
@@ -56,7 +56,7 @@ const Landing = () => {
     },
     {
       id: 'Pro',
-      price: 22000, // 220 FCFA
+      price: 2200000, // 22000 FCFA
       users: "Jusqu'à 5",
       models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
       images: '50 images DALL·E 3 / mois',
@@ -69,7 +69,7 @@ const Landing = () => {
     },
     {
       id: 'Business',
-      price: 55000, // 550 FCFA
+      price: 5500000, // 55000 FCFA
       users: "Jusqu'à 20",
       models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
       images: 'Images DALL·E 3 illimité',
@@ -100,28 +100,28 @@ const Landing = () => {
     {
       id: "50",
       minutes: 50,
-      price: 2500, // 25 FCFA
+      price: 250000, // 2500 FCFA
       pricePerMinute: 50,
       popular: false,
     },
     {
       id: "100",
       minutes: 100,
-      price: 4500, // 45 FCFA
+      price: 450000, // 4500 FCFA
       pricePerMinute: 45,
       popular: true, // Meilleur rapport
     },
     {
       id: "300",
       minutes: 300,
-      price: 12000, // 120 FCFA
+      price: 1200000, // 12000 FCFA
       pricePerMinute: 40,
       popular: false,
     },
     {
       id: "500",
       minutes: 500,
-      price: 18000, // 180 FCFA
+      price: 1800000, // 18000 FCFA
       pricePerMinute: 36,
       popular: false,
     },
