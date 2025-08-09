@@ -52,7 +52,7 @@ export const Sidebar = ({ selectedConversationId, onSelectConversation = () => {
   };
 
   return (
-    <aside className="w-80 bg-background p-4 flex flex-col">
+    <aside className="w-80 bg-card border-r border-border p-4 flex flex-col">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -67,7 +67,7 @@ export const Sidebar = ({ selectedConversationId, onSelectConversation = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Chats</h3>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Conversations (30 jours)</h3>
         <div className="space-y-2">
           {loading && <p className="text-xs text-muted-foreground">Chargement…</p>}
           {!loading && conversations.length === 0 && (
@@ -77,8 +77,8 @@ export const Sidebar = ({ selectedConversationId, onSelectConversation = () => {
             <Card
               key={c.id}
               onClick={() => onSelectConversation(c.id)}
-              className={`p-3 bg-transparent border-border hover:bg-muted/60 cursor-pointer transition-colors ${
-                c.id === selectedConversationId ? "bg-muted border-l-2 border-primary" : ""
+              className={`p-3 bg-secondary/50 border-secondary hover:bg-secondary/70 cursor-pointer transition-colors ${
+                c.id === selectedConversationId ? "ring-2 ring-primary" : ""
               }`}
             >
               <div className="flex items-start gap-2">
