@@ -14,7 +14,8 @@ serve(async (req) => {
   try {
     const { prompt, size } = await req.json();
 
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    // First try DALL·E 3 (URL response)
+    const dalleRes = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
@@ -23,41 +24,74 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'dall-e-3',
         prompt,
-        size: size || '1024x1024'
+        size: size || '1024x1024',
+        quality: 'standard',
+        n: 1,
       }),
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('dalle-image error:', errText);
+    if (dalleRes.ok) {
+      const data = await dalleRes.json();
+      const url = data?.data?.[0]?.url;
+      if (!url) {
+        return new Response(JSON.stringify({ error: 'No image URL returned' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Fetch the image bytes and return as base64 PNG data URL for easy download/display
+      const imgResp = await fetch(url);
+      if (!imgResp.ok) {
+        const err = await imgResp.text();
+        return new Response(JSON.stringify({ error: `Failed to fetch image: ${err}` }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const arrayBuffer = await imgResp.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const dataUrl = `data:image/png;base64,${base64}`;
+
+      return new Response(
+        JSON.stringify({ image: dataUrl }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If DALL·E failed, try gpt-image-1 (base64 response)
+    const gptImgRes = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-image-1',
+        prompt,
+        size: size || '1024x1024',
+      }),
+    });
+
+    if (!gptImgRes.ok) {
+      const errText = await gptImgRes.text();
+      console.error('dalle-image fallback error:', errText);
       return new Response(JSON.stringify({ error: errText }), {
-        status: response.status,
+        status: gptImgRes.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const data = await response.json();
-    const url = data?.data?.[0]?.url;
-    if (!url) {
-      return new Response(JSON.stringify({ error: 'No image URL returned' }), {
+    const gptData = await gptImgRes.json();
+    const b64 = gptData?.data?.[0]?.b64_json;
+    if (!b64) {
+      return new Response(JSON.stringify({ error: 'No base64 image returned' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fetch the image bytes and return as base64 PNG data URL for easy download/display
-    const imgResp = await fetch(url);
-    if (!imgResp.ok) {
-      const err = await imgResp.text();
-      return new Response(JSON.stringify({ error: `Failed to fetch image: ${err}` }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const arrayBuffer = await imgResp.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    const dataUrl = `data:image/png;base64,${base64}`;
-
+    const dataUrl = `data:image/png;base64,${b64}`;
     return new Response(
       JSON.stringify({ image: dataUrl }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
