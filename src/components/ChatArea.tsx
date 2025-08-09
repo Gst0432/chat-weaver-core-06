@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Document as DocxDocument, Packer, Paragraph } from "docx";
 import PptxGenJS from "pptxgenjs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
@@ -77,11 +77,53 @@ const createPptxDataUrl = async (text: string) => {
 
 interface ChatAreaProps {
   selectedModel: string;
+  conversationId?: string | null;
+  onConversationChange?: (id: string) => void;
 }
 
-export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, conversationId, onConversationChange }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
+  const [localConversationId, setLocalConversationId] = useState<string | null>(null);
+  const effectiveConversationId = conversationId ?? localConversationId;
+
+  useEffect(() => {
+    if (!effectiveConversationId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('id, role, content, model, created_at')
+        .eq('conversation_id', effectiveConversationId)
+        .order('created_at', { ascending: true });
+      if (data) {
+        const mapped = data.map((m: any) => ({
+          id: m.id,
+          content: m.content as string,
+          role: m.role as 'user' | 'assistant',
+          timestamp: new Date(m.created_at as string),
+          model: (m.model as string) || undefined,
+        }));
+        setMessages(mapped);
+      }
+    })();
+  }, [effectiveConversationId]);
+
+  const ensureConversation = async (title: string) => {
+    let cid = conversationId ?? localConversationId;
+    if (cid) return cid;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) throw new Error('Utilisateur non authentifié');
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({ user_id: userId, title })
+      .select('id')
+      .maybeSingle();
+    if (error || !data?.id) throw error || new Error('Création conversation échouée');
+    setLocalConversationId(data.id);
+    onConversationChange?.(data.id);
+    return data.id as string;
+  };
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -94,6 +136,22 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
     setMessages(prev => [...prev, userMessage]);
 
     const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
+
+    let convId = effectiveConversationId as string | null;
+    const titleBase = isUpload
+      ? 'Pièce jointe'
+      : (content.replace(/^data:[^,]+,/, '').slice(0, 60) || 'Nouvelle conversation');
+    convId = await ensureConversation(titleBase);
+
+    // Enregistrer le message utilisateur
+    await supabase.from('messages').insert({
+      conversation_id: convId,
+      role: 'user',
+      content,
+      model: selectedModel,
+    });
+
+    // Si c'est un upload, on s'arrête ici sans appel modèle
     if (isUpload) return;
 
     setIsLoading(true);
@@ -117,6 +175,12 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         };
 
         setMessages(prev => [...prev, assistantMessage]);
+        await supabase.from('messages').insert({
+          conversation_id: convId as string,
+          role: 'assistant',
+          content: assistantMessage.content,
+          model: selectedModel,
+        });
         return;
       }
 
@@ -143,6 +207,12 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           model: selectedModel
         };
         setMessages(prev => [...prev, assistantMessage]);
+        await supabase.from('messages').insert({
+          conversation_id: convId as string,
+          role: 'assistant',
+          content: dataUrl,
+          model: selectedModel,
+        });
         return;
       }
 
