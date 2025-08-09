@@ -49,24 +49,6 @@ const cleanDocText = (text: string) => {
     .join('\n');
 };
 
-const dataUrlToPng = async (dataUrl: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { reject(new Error('Canvas context unavailable')); return; }
-      ctx.drawImage(img, 0, 0);
-      try { resolve(canvas.toDataURL('image/png')); } catch (err) { reject(err as any); }
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-};
-
 const createPdfDataUrl = async (text: string) => {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage();
@@ -257,10 +239,8 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
           const att = imageAttachment.content as string;
           const mimeAtt = att.slice(5, att.indexOf(';'));
           if (mimeAtt.startsWith('image/')) {
-            const imgToSend = att.startsWith('data:image/png') ? att : await dataUrlToPng(att);
-            const enhancedPrompt = `Modifie uniquement l’image fournie: ${content}. Conserve le style et la composition, ajoute précisément l’élément demandé sans altérer le reste.`;
             const { data, error } = await supabase.functions.invoke('dalle-variation', {
-              body: { image: imgToSend, prompt: enhancedPrompt, size: '1024x1024' }
+              body: { image: att, prompt: content, size: '1024x1024' }
             });
             genData = data; genError = error;
           }
