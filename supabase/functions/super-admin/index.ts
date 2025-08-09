@@ -62,6 +62,7 @@ serve(async (req) => {
     }
 
     const { action, data } = await req.json();
+    console.log('Action received:', action);
 
     let result;
     
@@ -83,10 +84,17 @@ serve(async (req) => {
         break;
       
       case 'promoteUser':
+        console.log('Promoting user:', data);
         result = await promoteUser(supabaseClient, data);
         break;
       
+      case 'demoteUser':
+        console.log('Demoting user:', data);
+        result = await demoteUser(supabaseClient, data);
+        break;
+      
       default:
+        console.log('Invalid action:', action);
         return new Response(
           JSON.stringify({ error: 'Invalid action' }),
           { 
@@ -106,7 +114,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -257,6 +265,18 @@ async function promoteUser(supabaseClient: any, data: any) {
   const { userId, tier, subscriptionEnd } = data;
   
   try {
+    console.log('Starting user promotion:', { userId, tier, subscriptionEnd });
+
+    // Get user email for the subscriber record
+    const { data: userData } = await supabaseClient.auth.admin.getUserById(userId);
+    
+    if (!userData || !userData.user) {
+      throw new Error('User not found');
+    }
+
+    const userEmail = userData.user.email;
+    console.log('Found user:', userEmail);
+
     // Check if subscriber record exists
     const { data: existingSubscriber, error: checkError } = await supabaseClient
       .from('subscribers')
@@ -269,16 +289,8 @@ async function promoteUser(supabaseClient: any, data: any) {
       throw checkError;
     }
 
-    // Get user email for the subscriber record
-    const { data: userData } = await supabaseClient.auth.admin.getUserById(userId);
-    
-    if (!userData || !userData.user) {
-      throw new Error('User not found');
-    }
-
-    const userEmail = userData.user.email;
-
     if (existingSubscriber) {
+      console.log('Updating existing subscriber');
       // Update existing subscriber
       const { data, error } = await supabaseClient
         .from('subscribers')
@@ -296,7 +308,9 @@ async function promoteUser(supabaseClient: any, data: any) {
         console.error('Update subscriber error:', error);
         throw error;
       }
+      console.log('Successfully updated subscriber:', data);
     } else {
+      console.log('Creating new subscriber record');
       // Create new subscriber record
       const { data, error } = await supabaseClient
         .from('subscribers')
@@ -315,11 +329,46 @@ async function promoteUser(supabaseClient: any, data: any) {
         console.error('Create subscriber error:', error);
         throw error;
       }
+      console.log('Successfully created subscriber:', data);
     }
 
-    return { success: true };
+    return { success: true, message: `User promoted to ${tier}` };
 
   } catch (error) {
     console.error('Promote user error:', error);
     throw error;
   }
+}
+
+async function demoteUser(supabaseClient: any, data: any) {
+  const { userId } = data;
+  
+  try {
+    console.log('Starting user demotion:', { userId });
+
+    // Update subscriber to deactivate subscription
+    const { data: result, error } = await supabaseClient
+      .from('subscribers')
+      .update({
+        subscribed: false,
+        subscription_tier: null,
+        subscription_end: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Demote user error:', error);
+      throw error;
+    }
+
+    console.log('Successfully demoted user:', result);
+    return { success: true, message: 'User demoted to free plan' };
+
+  } catch (error) {
+    console.error('Demote user error:', error);
+    throw error;
+  }
+}

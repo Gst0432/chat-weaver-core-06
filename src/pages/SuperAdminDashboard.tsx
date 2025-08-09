@@ -174,17 +174,48 @@ export default function SuperAdminDashboard() {
         }
       });
 
-      if (data) {
+      if (data && data.success) {
         toast({
           title: "Succès",
           description: `Utilisateur promu au plan ${tier}`,
         });
         loadDashboardData();
+      } else {
+        throw new Error(data?.message || 'Erreur inconnue');
       }
     } catch (error) {
+      console.error('Promotion error:', error);
       toast({
         title: "Erreur",
         description: "Impossible de promouvoir l'utilisateur",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const demoteUser = async (userId: string) => {
+    try {
+      const { data } = await supabase.functions.invoke('super-admin', {
+        body: { 
+          action: 'demoteUser', 
+          data: { userId }
+        }
+      });
+
+      if (data && data.success) {
+        toast({
+          title: "Succès",
+          description: "Utilisateur rétrogradé vers le plan gratuit",
+        });
+        loadDashboardData();
+      } else {
+        throw new Error(data?.message || 'Erreur inconnue');
+      }
+    } catch (error) {
+      console.error('Demotion error:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de rétrograder l'utilisateur",
         variant: "destructive",
       });
     }
@@ -314,14 +345,32 @@ export default function SuperAdminDashboard() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {!user.subscription?.subscribed && (
+                        {!user.subscription?.subscribed ? (
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              onClick={() => promoteUserToPremium(user.id, 'premium')}
+                              className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
+                            >
+                              <Crown className="h-3 w-3 mr-1" />
+                              Premium
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => promoteUserToPremium(user.id, 'pro')}
+                            >
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              Pro
+                            </Button>
+                          </div>
+                        ) : (
                           <Button
                             size="sm"
-                            onClick={() => promoteUserToPremium(user.id)}
-                            className="mr-2"
+                            variant="destructive"
+                            onClick={() => demoteUser(user.id)}
                           >
-                            <Crown className="h-3 w-3 mr-1" />
-                            Promouvoir
+                            Désactiver
                           </Button>
                         )}
                       </TableCell>
@@ -575,10 +624,19 @@ export default function SuperAdminDashboard() {
                           }
                         </p>
                       </div>
-                      <Badge variant="default">
-                        <Crown className="h-3 w-3 mr-1" />
-                        Actif
-                      </Badge>
+                      <div className="flex gap-2">
+                        <Badge variant="default">
+                          <Crown className="h-3 w-3 mr-1" />
+                          Actif
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => demoteUser(user.id)}
+                        >
+                          Désactiver
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   {users.filter(user => user.subscription?.subscribed).length === 0 && (
