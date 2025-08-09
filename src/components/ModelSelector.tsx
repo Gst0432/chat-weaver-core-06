@@ -20,14 +20,6 @@ const models = [
     description: "Rapide et polyvalent"
   },
   {
-    id: "perplexity-pro",
-    name: "Perplexity Pro",
-    provider: "Perplexity",
-    icon: Search,
-    color: "perplexity",
-    description: "Recherche web en temps réel"
-  },
-  {
     id: "deepseek-v3",
     name: "DeepSeek V3",
     provider: "DeepSeek",
@@ -43,14 +35,6 @@ const models = [
     color: "openai",
     description: "Modèle généraliste de pointe"
   },
-  {
-    id: "gpt-image-1",
-    name: "GPT-Image-1",
-    provider: "OpenAI",
-    icon: Sparkles,
-    color: "openai",
-    description: "Génération d'images (1024x1024)"
-  }
 ];
 interface ModelSelectorProps {
   selectedModel: string;
