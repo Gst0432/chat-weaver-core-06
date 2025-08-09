@@ -18,7 +18,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
-import aiServicesLogo from "@/assets/ai-services-logo.png";
+import professionalAiHero from "@/assets/professional-ai-hero.png";
 
 const NewLanding = () => {
   const navigate = useNavigate();
@@ -221,8 +221,8 @@ const NewLanding = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-primary opacity-30 blur-3xl rounded-2xl"></div>
                 <img 
-                  src={aiServicesLogo}
-                  alt="Services IA - ChatGPT, Deepseek, Gemini"
+                  src={professionalAiHero}
+                  alt="Intelligence Artificielle Avancée - Chatelix"
                   className="relative w-full max-w-lg h-auto object-contain drop-shadow-2xl"
                 />
               </div>
