@@ -276,17 +276,22 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
         { role: 'user', content }
       ];
 
+      // Normalisation du modèle côté front pour correspondre aux fonctions backend disponibles
       let functionName = 'openai-chat';
-      let model = 'gpt-4o-mini';
+      let model = 'gpt-4o-mini'; // modèle supporté par openai-chat (chat/completions)
+
+      // Adapter selon la sélection de l'utilisateur sans casser la compatibilité backend
       if (selectedModel === 'gpt-4.1') {
-        model = 'gpt-4.1-2025-04-14';
+        // gpt-4.1 est un modèle de l'API Responses: on mappe vers gpt-4o-mini pour chat
+        model = 'gpt-4o-mini';
       } else if (selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
-        model = 'sonar-small-online';
+        model = 'llama-3.1-sonar-small-128k-online';
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
       }
+
 
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
