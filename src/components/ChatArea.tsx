@@ -178,10 +178,20 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
             model: selectedModel
           });
           return;
-        } else if (mime === 'application/pdf') {
+        } else if (mime === 'application/pdf' || mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          const base64 = content.split(',')[1] || '';
+          const { data, error } = await supabase.functions.invoke('file-analyze', {
+            body: {
+              fileBase64: base64,
+              fileName: mime === 'application/pdf' ? 'document.pdf' : 'document.docx',
+              mime,
+              prompt: 'Analyse le document: extrais la structure (titres, sections, tableaux/puces) et propose un résumé en 10 points.'
+            }
+          });
+          if (error) throw error;
           const assistantMessage: Message = {
             id: (Date.now() + 1).toString(),
-            content: "PDF reçu. L’analyse automatique des PDF arrive bientôt. En attendant, envoyez du TXT/CSV ou précisez le résumé souhaité.",
+            content: data?.generatedText || 'Analyse indisponible.',
             role: 'assistant',
             timestamp: new Date(),
             model: selectedModel
