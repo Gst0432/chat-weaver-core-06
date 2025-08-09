@@ -48,11 +48,24 @@ export const ChatInput = ({ onSendMessage, disabled }: ChatInputProps) => {
     if (!file) return;
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      onSendMessage(dataUrl);
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) throw new Error("Utilisateur non authentifié");
+
+      const path = `${userId}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from('uploads').upload(path, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+      if (upErr) throw upErr;
+
+      const { data: pub } = supabase.storage.from('uploads').getPublicUrl(path);
+      const url = pub.publicUrl;
+
+      onSendMessage(url);
       toast({ title: "Fichier ajouté", description: `${file.name} a été ajouté au chat.` });
     } catch (err) {
-      toast({ title: "Erreur", description: "Impossible de lire le fichier.", variant: "destructive" });
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Impossible de téléverser le fichier.", variant: "destructive" });
     } finally {
       e.target.value = ""; // reset input
     }

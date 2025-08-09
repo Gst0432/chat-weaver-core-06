@@ -216,14 +216,7 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
         return;
       }
 
-      // Map existing messages to provider format
-      const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
-      const chatMessages = [
-        { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
-        ...history,
-        { role: 'user', content }
-      ];
-
+      // Decide provider and model first
       let functionName = 'openai-chat';
       let model = 'gpt-4o-mini';
       if (selectedModel === 'gpt-4.1') {
@@ -234,6 +227,39 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
+      }
+
+      const recent = messages.slice(-6);
+
+      // Build chat messages, attaching images for OpenAI (multimodal)
+      let chatMessages: any[];
+      if (functionName === 'openai-chat') {
+        chatMessages = [
+          { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
+          ...recent.map((m) => {
+            const c = String(m.content || '');
+            const lower = c.toLowerCase();
+            const isHttp = lower.startsWith('http');
+            const isImg = isHttp && /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg)$/i.test(lower);
+            if (isImg) {
+              return { role: m.role, content: [{ type: 'image_url', image_url: { url: c } }] };
+            }
+            // Ignore raw data URLs in history to keep payload small
+            if (lower.startsWith('data:')) {
+              return { role: m.role, content: '[Pièce jointe]' };
+            }
+            return { role: m.role, content: c };
+          }),
+          { role: 'user', content }
+        ];
+      } else {
+        // Fallback: text-only providers
+        const history = recent.map(m => ({ role: m.role, content: m.content }));
+        chatMessages = [
+          { role: 'system', content: 'You are Chatelix, a helpful multilingual assistant.' },
+          ...history,
+          { role: 'user', content }
+        ];
       }
 
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -256,6 +282,12 @@ export const ChatArea = ({ selectedModel, conversationId, onConversationChange }
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      await supabase.from('messages').insert({
+        conversation_id: convId as string,
+        role: 'assistant',
+        content: assistantMessage.content,
+        model: selectedModel,
+      });
     } catch (e: any) {
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
