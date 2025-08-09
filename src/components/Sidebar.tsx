@@ -83,8 +83,8 @@ export const Sidebar = () => {
     <aside className="w-80 bg-card border-r border-border p-4 flex flex-col">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden">
+        <div className="flex items-center gap-1 mb-4">
+          <div className="w-16 h-16 rounded-lg flex items-center justify-center overflow-hidden">
             <img 
               src="/lovable-uploads/ff955a65-24d1-4da4-a5d3-7e518af6492b.png" 
               alt="Chatelix Logo" 
