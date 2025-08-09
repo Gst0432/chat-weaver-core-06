@@ -82,66 +82,68 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
           } ${isLoading ? "animate-pulse" : ""}`}
         >
           {typeof message.content === 'string' && message.content.startsWith('data:audio') ? (
-            <div className="relative group">
+            <div className="space-y-3">
               <audio controls src={message.content} className="w-full" />
-              <Button
-                type="button"
-                size="icon"
-                variant={isUser ? "secondary" : "outline"}
-                aria-label="Télécharger l'audio"
-                className="absolute top-2 right-2"
-                onClick={() => {
-                  const mime = message.content.slice(5, message.content.indexOf(';'));
-                  const ext = (mime.split('/')[1] || 'mp3').split(';')[0];
-                  const a = document.createElement('a');
-                  a.href = message.content;
-                  a.download = `audio-${message.id || message.timestamp.getTime()}.${ext}`;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                }}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
+              <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2`}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isUser ? "secondary" : "outline"}
+                  aria-label="Télécharger l'audio"
+                  onClick={() => {
+                    const mime = message.content.slice(5, message.content.indexOf(';'));
+                    const ext = (mime.split('/')[1] || 'mp3').split(';')[0];
+                    const a = document.createElement('a');
+                    a.href = message.content;
+                    a.download = `audio-${message.id || message.timestamp.getTime()}.${ext}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           ) : typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
-            <div className="relative group">
+            <div className="space-y-3">
               <img
                 src={message.content}
                 alt={`Image générée par ${modelInfo.name}`}
                 loading="lazy"
                 className="max-w-full h-auto rounded-md shadow-md"
               />
-              <Button
-                type="button"
-                size="icon"
-                variant={isUser ? "secondary" : "outline"}
-                aria-label="Télécharger l'image"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={async () => {
-                  try {
-                    const response = await fetch(message.content);
-                    const blob = await response.blob();
-                    const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `image-${message.id || message.timestamp.getTime()}.${ext}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    URL.revokeObjectURL(url);
-                  } catch (e) {
-                    toast({
-                      title: "Téléchargement impossible",
-                      description: "Le téléchargement direct a échoué. Réessayez ou régénérez l'image.",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
+              <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2`}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isUser ? "secondary" : "outline"}
+                  aria-label="Télécharger l'image"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(message.content);
+                      const blob = await response.blob();
+                      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `image-${message.id || message.timestamp.getTime()}.${ext}`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    } catch (e) {
+                      toast({
+                        title: "Téléchargement impossible",
+                        description: "Le téléchargement direct a échoué. Réessayez ou régénérez l'image.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 ) : (typeof message.content === 'string' && (message.content.startsWith('data:application/pdf') || message.content.startsWith('data:application/vnd.openxmlformats-officedocument'))) ? (
             <div className="flex items-center justify-between gap-3 p-3 rounded-md border border-border bg-secondary/30">
@@ -183,14 +185,14 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
               </Button>
             </div>
           ) : (
-            <div className="relative group">
-              <div className="text-sm leading-relaxed whitespace-pre-wrap pr-20">
+            <div className="space-y-3">
+              <div className="text-sm leading-relaxed whitespace-pre-wrap">
                 {sanitizeContent(String(message.content))}
               </div>
-              <div className="absolute top-2 right-2 flex gap-1 z-10">
+              <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2 flex-wrap`}>
                 <Button
                   type="button"
-                  size="icon"
+                  size="sm"
                   variant={isUser ? "secondary" : "outline"}
                   aria-label="Lire (TTS)"
                   onClick={() => onSpeak?.(sanitizeContent(String(message.content)))}
@@ -199,7 +201,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                 </Button>
                 <Button
                   type="button"
-                  size="icon"
+                  size="sm"
                   variant={isUser ? "secondary" : "outline"}
                   aria-label="Télécharger (TTS)"
                   onClick={() => onDownloadTts?.(sanitizeContent(String(message.content)))}
@@ -208,7 +210,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                 </Button>
                 <Button
                   type="button"
-                  size="icon"
+                  size="sm"
                   variant={isUser ? "secondary" : "outline"}
                   aria-label="Copier le message"
                   onClick={async () => {
