@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, Bot, Sparkles, Cpu, Zap, Search, Download } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -94,7 +95,11 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
                     a.remove();
                     URL.revokeObjectURL(url);
                   } catch (e) {
-                    window.open(message.content, "_blank");
+                    toast({
+                      title: "Téléchargement impossible",
+                      description: "Le téléchargement direct a échoué. Réessayez ou régénérez l'image.",
+                      variant: "destructive",
+                    });
                   }
                 }}
               >
