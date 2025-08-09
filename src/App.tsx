@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import Team from "./pages/Team";
 import Billing from "./pages/Billing";
+import Landing from "./pages/Landing";
 
 const App = () => (
   <TooltipProvider>
@@ -16,11 +17,12 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/app" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/team" element={<Team />} />
         <Route path="/billing" element={<Billing />} />
-        <Route path="/" element={<Index />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
