@@ -80,10 +80,32 @@ serve(async (req) => {
       });
     }
 
-    return new Response(
-      JSON.stringify({ image: url }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Télécharger l'image et la convertir en base64 pour éviter les problèmes CORS
+    try {
+      console.log('Downloading image from:', url);
+      const imageResponse = await fetch(url);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+      }
+      
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+      const base64DataUrl = `data:image/png;base64,${base64Image}`;
+      
+      console.log('Image converted to base64, size:', base64Image.length);
+      
+      return new Response(
+        JSON.stringify({ image: base64DataUrl }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (downloadError: any) {
+      console.error('Error downloading image:', downloadError);
+      // En cas d'échec du téléchargement, retourner l'URL originale
+      return new Response(
+        JSON.stringify({ image: url }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
   } catch (error: any) {
     console.error('Error in dalle-image function:', error);
     return new Response(
