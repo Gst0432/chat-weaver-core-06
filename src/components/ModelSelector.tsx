@@ -43,7 +43,7 @@ const models = [
     color: "openai",
     description: "Généraliste hautes performances (128k contexte)"
   }
-
+];
 interface ModelSelectorProps {
   selectedModel: string;
   onModelChange: (modelId: string) => void;
