@@ -95,7 +95,7 @@ const Index = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex">
+      <div className="min-h-screen w-full flex flex-col lg:flex-row">
         {/* Subscription Prompt Overlay */}
         {showSubscriptionPrompt && (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -148,9 +148,12 @@ const Index = () => {
 
         <AppSidebar />
         
-        <div className="flex flex-col flex-1">
-          <header className="h-12 flex items-center border-b px-4">
+        <div className="flex flex-col flex-1 min-h-screen lg:min-h-0">
+          <header className="h-12 flex items-center border-b px-4 bg-background">
             <SidebarTrigger />
+            <div className="ml-auto text-sm text-muted-foreground hidden sm:block">
+              Chatelix - Assistant IA Multi-Modèles
+            </div>
           </header>
           
           <main className="flex-1 flex flex-col">

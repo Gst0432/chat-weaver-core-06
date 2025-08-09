@@ -32,7 +32,7 @@ interface AppSidebarProps {
 export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = useSidebar();
+  const { state, isMobile } = useSidebar();
   const [loading, setLoading] = useState(!isLandingMode);
   const [items, setItems] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
     }
   };
 
-  const isCollapsed = state === "collapsed";
+  const isCollapsed = state === "collapsed" && !isMobile;
 
   return (
     <Sidebar className="border-r border-border">

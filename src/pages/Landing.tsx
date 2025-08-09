@@ -39,7 +39,7 @@ const Landing = () => {
     cynic: "Tu es sarcastique mais utile, en restant professionnel.",
   };
 
-  // Real subscription plans from Billing
+  // Real subscription plans from Billing.tsx (exact copy)
   const plans = [
     {
       id: 'Starter',
@@ -55,7 +55,7 @@ const Landing = () => {
       popular: false
     },
     {
-      id: 'Pro', 
+      id: 'Pro',
       price: 22000,
       users: "Jusqu'à 5",
       models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
@@ -131,18 +131,18 @@ const Landing = () => {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row w-full">
+        <div className="flex flex-col lg:flex-row w-full min-h-screen">
           {/* Left side - Chat Interface */}
-          <div className="lg:w-2/3 flex">
+          <div className="w-full lg:w-2/3 flex flex-col lg:flex-row">
             <AppSidebar 
               isLandingMode={true} 
               onAuthRequired={() => setShowAuthPrompt(true)} 
             />
             
-            <div className="flex-1 flex flex-col">
-              <header className="h-12 flex items-center justify-between border-b px-4">
+            <div className="flex-1 flex flex-col min-h-screen lg:min-h-0">
+              <header className="h-12 flex items-center justify-between border-b px-4 bg-background">
                 <SidebarTrigger />
-                <Button onClick={() => navigate('/auth')} className="bg-gradient-primary hover:shadow-glow">
+                <Button onClick={() => navigate('/auth')} size="sm" className="bg-gradient-primary hover:shadow-glow">
                   Se connecter
                 </Button>
               </header>
@@ -176,44 +176,45 @@ const Landing = () => {
             </div>
           </div>
 
-          {/* Right side - Real Pricing Plans */}
-          <div className="lg:w-1/3 p-6 bg-secondary/20 border-l border-border">
-            <div className="space-y-6">
+          {/* Right side - Real Pricing Plans (Mobile: Full width, Desktop: 1/3) */}
+          <div className="w-full lg:w-1/3 bg-secondary/20 border-t lg:border-t-0 lg:border-l border-border">
+            <div className="p-4 lg:p-6 space-y-4 lg:space-y-6 max-h-screen lg:overflow-y-auto">
               <div className="text-center">
-                <h2 className="text-2xl font-bold mb-2">Choisissez votre plan</h2>
+                <h2 className="text-xl lg:text-2xl font-bold mb-2">Choisissez votre plan</h2>
                 <p className="text-muted-foreground text-sm">Accès instantané après connexion</p>
               </div>
 
               {/* Real Pricing Cards */}
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
                 {plans.map((plan, index) => (
                   <Card key={plan.id} className={`hover:shadow-elegant transition-all duration-300 ${plan.popular ? 'border-primary shadow-elegant' : ''}`}>
-                    <CardContent className="p-4 relative">
+                    <CardContent className="p-3 lg:p-4 relative">
                       {plan.popular && (
                         <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-xs">
                           Populaire
                         </Badge>
                       )}
-                      <div className={`flex items-center justify-between mb-3 ${plan.popular ? 'mt-2' : ''}`}>
+                      <div className={`flex items-center justify-between mb-2 lg:mb-3 ${plan.popular ? 'mt-2' : ''}`}>
                         <div className="flex items-center gap-2">
                           <plan.icon className="w-4 h-4 text-primary" />
-                          <h3 className="font-semibold">{plan.id}</h3>
+                          <h3 className="font-semibold text-sm lg:text-base">{plan.id}</h3>
                         </div>
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="text-xs">
                           {plan.price === 0 ? 'Sur mesure' : `${(plan.price / 100).toFixed(0)} FCFA/mois`}
                         </Badge>
                       </div>
                       
-                      <div className="space-y-1 text-xs text-muted-foreground mb-3">
-                        <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.users} utilisateur{plan.users !== '1' ? 's' : ''}</span></div>
-                        <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.images}</span></div>
-                        <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.minutes}</span></div>
-                        <div className="flex items-center"><Check className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>{plan.tts}</span></div>
+                      <div className="space-y-1 text-xs text-muted-foreground mb-2 lg:mb-3">
+                        <div className="flex items-start gap-2"><Check className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" /><span className="leading-tight">{plan.users} utilisateur{plan.users !== '1' ? 's' : ''}</span></div>
+                        <div className="flex items-start gap-2"><Check className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" /><span className="leading-tight">{plan.images}</span></div>
+                        <div className="flex items-start gap-2"><Check className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" /><span className="leading-tight">{plan.minutes}</span></div>
+                        <div className="flex items-start gap-2"><Check className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" /><span className="leading-tight">{plan.tts}</span></div>
+                        <div className="flex items-start gap-2 text-primary"><Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" /><span className="leading-tight font-medium">{plan.limits}</span></div>
                       </div>
                       
                       <Button 
                         onClick={() => navigate('/auth')}
-                        className={`w-full ${plan.popular ? 'bg-gradient-primary hover:shadow-glow' : ''}`}
+                        className={`w-full text-sm ${plan.popular ? 'bg-gradient-primary hover:shadow-glow' : ''}`}
                         size="sm"
                         variant={plan.popular ? "default" : "outline"}
                       >
@@ -224,14 +225,14 @@ const Landing = () => {
                 ))}
 
                 {/* Features highlight */}
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2 text-center">Tous les plans incluent :</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex items-center"><Brain className="w-3 h-3 text-primary mr-2" />GPT-4 Turbo + GPT-5</div>
-                      <div className="flex items-center"><Zap className="w-3 h-3 text-primary mr-2" />Deepseek V3 + Gemini</div>
-                      <div className="flex items-center"><MessageSquare className="w-3 h-3 text-primary mr-2" />Interface unifiée</div>
-                      <div className="flex items-center"><Users className="w-3 h-3 text-primary mr-2" />Support 24/7</div>
+                <Card className="bg-primary/5 border-primary/20 sm:col-span-2 lg:col-span-1">
+                  <CardContent className="p-3 lg:p-4">
+                    <h4 className="font-semibold mb-2 text-center text-sm lg:text-base">Tous les plans incluent :</h4>
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-1 text-xs lg:text-sm">
+                      <div className="flex items-center"><Brain className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>GPT-4 Turbo + GPT-5</span></div>
+                      <div className="flex items-center"><Zap className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>Deepseek V3 + Gemini</span></div>
+                      <div className="flex items-center"><MessageSquare className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>Interface unifiée</span></div>
+                      <div className="flex items-center"><Users className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>Support 24/7</span></div>
                     </div>
                   </CardContent>
                 </Card>
