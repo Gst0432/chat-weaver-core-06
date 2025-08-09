@@ -82,6 +82,10 @@ serve(async (req) => {
         result = await deletePlan(supabaseClient, data.id);
         break;
       
+      case 'promoteUser':
+        result = await promoteUser(supabaseClient, data);
+        break;
+      
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid action' }),
@@ -113,9 +117,28 @@ serve(async (req) => {
 
 async function getDashboardData(supabaseClient: any) {
   try {
-    // Get users count from auth.users
+    // Get users count from auth.users with subscription info
     const { data: authUsers, error: authError } = await supabaseClient.auth.admin.listUsers();
-    const users = authError ? [] : authUsers.users;
+    let users = authError ? [] : authUsers.users;
+
+    // Get subscription info for each user
+    const usersWithSubscriptions = await Promise.all(
+      users.map(async (user: any) => {
+        const { data: subscription } = await supabaseClient
+          .from('subscribers')
+          .select('subscribed, subscription_tier, subscription_end')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        return {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          last_sign_in_at: user.last_sign_in_at,
+          subscription: subscription || null
+        };
+      })
+    );
 
     // Get subscription plans
     const { data: plans, error: plansError } = await supabaseClient
@@ -154,19 +177,14 @@ async function getDashboardData(supabaseClient: any) {
     }
 
     const stats = {
-      totalUsers: users.length || 0,
+      totalUsers: usersWithSubscriptions.length || 0,
       totalRevenue: (purchases || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0),
       activeSubscriptions: (subscribers || []).filter((s: any) => s.subscribed).length || 0,
       totalConversations: (conversations || []).length || 0
     };
 
     return {
-      users: users.map((u: any) => ({
-        id: u.id,
-        email: u.email,
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at
-      })),
+      users: usersWithSubscriptions,
       plans: plans || [],
       stats
     };
@@ -234,3 +252,74 @@ async function deletePlan(supabaseClient: any, planId: string) {
 
   return { success: true };
 }
+
+async function promoteUser(supabaseClient: any, data: any) {
+  const { userId, tier, subscriptionEnd } = data;
+  
+  try {
+    // Check if subscriber record exists
+    const { data: existingSubscriber, error: checkError } = await supabaseClient
+      .from('subscribers')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found"
+      console.error('Check subscriber error:', checkError);
+      throw checkError;
+    }
+
+    // Get user email for the subscriber record
+    const { data: userData } = await supabaseClient.auth.admin.getUserById(userId);
+    
+    if (!userData || !userData.user) {
+      throw new Error('User not found');
+    }
+
+    const userEmail = userData.user.email;
+
+    if (existingSubscriber) {
+      // Update existing subscriber
+      const { data, error } = await supabaseClient
+        .from('subscribers')
+        .update({
+          subscribed: true,
+          subscription_tier: tier,
+          subscription_end: subscriptionEnd,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Update subscriber error:', error);
+        throw error;
+      }
+    } else {
+      // Create new subscriber record
+      const { data, error } = await supabaseClient
+        .from('subscribers')
+        .insert([{
+          user_id: userId,
+          email: userEmail,
+          subscribed: true,
+          subscription_tier: tier,
+          subscription_end: subscriptionEnd,
+          minutes_balance: 1000 // Give 1000 minutes as bonus
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Create subscriber error:', error);
+        throw error;
+      }
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Promote user error:', error);
+    throw error;
+  }
