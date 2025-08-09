@@ -158,10 +158,18 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
 
       // Si upload (data URL), gérer image/PDF
       if (typeof content === 'string' && content.startsWith('data:')) {
-        const mime = content.slice(5, content.indexOf(';'));
-        if (mime.startsWith('image/')) {
+        // Fichier attaché: on attend une instruction utilisateur avant d'analyser
+        return;
+      }
+
+      // Si un fichier a été ajouté récemment, utiliser le prompt textuel pour l'analyser maintenant
+      const attachment = [...messages].reverse().find(m => typeof m.content === 'string' && (m.content as string).startsWith('data:'));
+      if (attachment && typeof content === 'string' && !content.startsWith('data:')) {
+        const att = attachment.content as string;
+        const mimeAtt = att.slice(5, att.indexOf(';'));
+        if (mimeAtt.startsWith('image/')) {
           const { data, error } = await supabase.functions.invoke('vision-analyze', {
-            body: { image: content, prompt: 'Analyse l’image: décris la scène, extrais le texte (OCR), liste les éléments clés et propose un résumé concis.' }
+            body: { image: att, prompt: content }
           });
           if (error) throw error;
           const assistantMessage: Message = {
@@ -179,14 +187,14 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
             model: selectedModel
           });
           return;
-        } else if (mime === 'application/pdf' || mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-          const base64 = content.split(',')[1] || '';
+        } else if (mimeAtt === 'application/pdf' || mimeAtt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          const base64 = att.split(',')[1] || '';
           const { data, error } = await supabase.functions.invoke('file-analyze', {
             body: {
               fileBase64: base64,
-              fileName: mime === 'application/pdf' ? 'document.pdf' : 'document.docx',
-              mime,
-              prompt: 'Analyse le document: extrais la structure (titres, sections, tableaux/puces) et propose un résumé en 10 points.'
+              fileName: mimeAtt === 'application/pdf' ? 'document.pdf' : 'document.docx',
+              mime: mimeAtt,
+              prompt: content
             }
           });
           if (error) throw error;
