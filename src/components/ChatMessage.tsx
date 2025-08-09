@@ -148,26 +148,38 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                           const ext = (blob.type && blob.type.split('/')[1]) || 'png';
                           fileName += `.${ext}`;
                         } catch (fetchError) {
-                          // Si le téléchargement direct échoue, utiliser le proxy Supabase
-                          const { data, error } = await supabase.functions.invoke('image-proxy', {
-                            body: { url: message.content }
-                          });
-                          
-                          if (error || !data.image) throw error || new Error('Proxy failed');
-                          
-                          // Traiter l'image du proxy (base64)
-                          const base64Data = data.image.split(',')[1];
-                          const mimeType = data.image.split(';')[0].split(':')[1];
-                          const ext = mimeType.split('/')[1] || 'png';
-                          
-                          const byteCharacters = atob(base64Data);
-                          const byteNumbers = new Array(byteCharacters.length);
-                          for (let i = 0; i < byteCharacters.length; i++) {
-                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                          // Si le téléchargement direct échoue, essayer le proxy
+                          console.log('Direct download failed, trying proxy...');
+                          try {
+                            const { data, error } = await supabase.functions.invoke('image-proxy', {
+                              body: { url: message.content }
+                            });
+                            
+                            if (error || !data.image) throw error || new Error('Proxy failed');
+                            
+                            // Traiter l'image du proxy (base64)
+                            const base64Data = data.image.split(',')[1];
+                            const mimeType = data.image.split(';')[0].split(':')[1];
+                            const ext = mimeType.split('/')[1] || 'png';
+                            
+                            const byteCharacters = atob(base64Data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                              byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            blob = new Blob([byteArray], { type: mimeType });
+                            fileName += `.${ext}`;
+                          } catch (proxyError) {
+                            // Dernier recours : ouvrir dans une nouvelle fenêtre
+                            console.log('Proxy failed, opening in new window');
+                            window.open(message.content, '_blank');
+                            toast({
+                              title: "Image ouverte",
+                              description: "L'image a été ouverte dans une nouvelle fenêtre. Vous pouvez la sauvegarder avec clic droit > Enregistrer l'image.",
+                            });
+                            return; // Sortir de la fonction
                           }
-                          const byteArray = new Uint8Array(byteNumbers);
-                          blob = new Blob([byteArray], { type: mimeType });
-                          fileName += `.${ext}`;
                         }
                       }
                       

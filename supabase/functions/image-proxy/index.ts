@@ -41,10 +41,21 @@ serve(async (req) => {
       });
     }
 
-    // Convertir en base64
+    // Convertir en base64 de manière sécurisée
     const imageBuffer = await imageResponse.arrayBuffer();
     const contentType = imageResponse.headers.get('content-type') || 'image/png';
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+    
+    // Utiliser une approche plus sûre pour la conversion base64
+    const bytes = new Uint8Array(imageBuffer);
+    let binaryString = '';
+    const chunkSize = 8192;
+    
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    
+    const base64Image = btoa(binaryString);
     const base64DataUrl = `data:${contentType};base64,${base64Image}`;
 
     console.log('Image successfully proxied, size:', imageBuffer.byteLength, 'bytes');
