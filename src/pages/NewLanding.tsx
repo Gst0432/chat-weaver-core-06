@@ -172,44 +172,67 @@ const NewLanding = () => {
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-4xl mx-auto">
-            <Badge className="mb-6 bg-gradient-primary text-primary-foreground">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Plateforme Multi-API de nouvelle génération
-            </Badge>
-            
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent leading-tight">
-              L'IA accessible à tous avec 
-              <span className="bg-gradient-primary bg-clip-text text-transparent"> Chatelix</span>
-            </h1>
-            
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-              Découvrez la puissance de GPT-4, GPT-5, Deepseek V3 et Gemini réunis dans une seule plateforme intuitive. 
-              Créez, collaborez et innovez avec l'IA de demain.
-            </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column - Content */}
+            <div className="text-center lg:text-left">
+              <Badge className="mb-6 bg-gradient-primary text-primary-foreground">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Plateforme Multi-API de nouvelle génération
+              </Badge>
+              
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent leading-tight">
+                L'IA accessible à tous avec 
+                <span className="bg-gradient-primary bg-clip-text text-transparent"> Chatelix</span>
+              </h1>
+              
+              <p className="text-xl text-muted-foreground mb-8 max-w-2xl lg:max-w-none leading-relaxed">
+                Découvrez la puissance de GPT-4, GPT-5, Deepseek V3 et Gemini réunis dans une seule plateforme intuitive. 
+                Créez, collaborez et innovez avec l'IA de demain.
+              </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button 
-                size="lg" 
-                onClick={() => navigate('/auth')}
-                className="bg-gradient-primary hover:shadow-glow text-lg px-8 py-6"
-              >
-                <Play className="w-5 h-5 mr-2" />
-                Essayer gratuitement
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                onClick={() => navigate('/app')}
-                className="text-lg px-8 py-6"
-              >
-                Voir la démo
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center">
+                <Button 
+                  size="lg" 
+                  onClick={() => navigate('/auth')}
+                  className="bg-gradient-primary hover:shadow-glow text-lg px-8 py-6"
+                >
+                  <Play className="w-5 h-5 mr-2" />
+                  Essayer gratuitement
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  onClick={() => navigate('/app')}
+                  className="text-lg px-8 py-6"
+                >
+                  Voir la démo
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </div>
+
+              <div className="mt-12 text-sm text-muted-foreground">
+                Aucune carte de crédit requise • Essai gratuit de 7 jours
+              </div>
             </div>
 
-            <div className="mt-12 text-sm text-muted-foreground">
-              Aucune carte de crédit requise • Essai gratuit de 7 jours
+            {/* Right Column - Logos */}
+            <div className="flex flex-col items-center justify-center gap-8">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-2xl rounded-full"></div>
+                <img 
+                  src="/lovable-uploads/4d23475f-fa47-4f1b-bba0-5b597d4be24b.png"
+                  alt="Deepseek AI Logo"
+                  className="relative w-64 h-auto object-contain"
+                />
+              </div>
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-primary opacity-10 blur-xl rounded-full"></div>
+                <img 
+                  src="/lovable-uploads/18559761-9d7a-4f88-b792-3c402d548818.png"
+                  alt="ChatGPT Logo"
+                  className="relative w-48 h-auto object-contain"
+                />
+              </div>
             </div>
           </div>
 
