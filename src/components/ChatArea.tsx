@@ -42,10 +42,11 @@ export const ChatArea = ({ selectedModel }: ChatAreaProps) => {
     setIsLoading(true);
 
     try {
-      // Image generation flow
-      if (selectedModel === 'gpt-image-1') {
-        const { data, error } = await supabase.functions.invoke('openai-image', {
-          body: { prompt: content }
+      // Image generation via DALL·E when the user asks for an image using any OpenAI model
+      const wantsImage = /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
+      if (selectedModel.includes('gpt') && (wantsImage || selectedModel === 'gpt-image-1')) {
+        const { data, error } = await supabase.functions.invoke('dalle-image', {
+          body: { prompt: content, size: '1024x1024' }
         });
         if (error) throw error;
 
