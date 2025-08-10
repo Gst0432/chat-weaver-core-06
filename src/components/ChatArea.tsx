@@ -839,30 +839,40 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       {/* Barre d'actions avec boutons optimisés mobile */}
       <div className="border-t border-border bg-background">
         <div className="max-w-4xl mx-auto px-3 py-3">
-          {/* Ligne principale : Nouveau chat + Export */}
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <Button 
-              variant="default" 
-              size="sm" 
-              onClick={createNewConversation}
-              className="flex-shrink-0 bg-gradient-primary hover:shadow-glow transition-all"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Nouveau chat</span>
-              <span className="sm:hidden">Nouveau</span>
-            </Button>
+          {/* Ligne principale : Boutons d'actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-2">
+            {/* Première ligne mobile : Nouveau chat + Studio DALL-E */}
+            <div className="flex items-center gap-3 flex-1">
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={createNewConversation}
+                className="flex-1 sm:flex-none bg-gradient-primary hover:shadow-glow transition-all"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Nouveau chat</span>
+                <span className="sm:hidden">Nouveau</span>
+              </Button>
+              
+              <Button 
+                onClick={() => setShowImageControls(!showImageControls)}
+                variant={showImageControls ? "default" : "outline"}
+                size="sm"
+                className="flex-1 sm:flex-none font-medium transition-all duration-200 bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700 hover:text-purple-800 hover:shadow-md"
+              >
+                <span className="hidden sm:inline">
+                  {showImageControls ? '✕ Fermer Studio' : '🎨 Studio DALL-E'}
+                </span>
+                <span className="sm:hidden font-bold">
+                  {showImageControls ? '✕' : '🎨 DALL-E'}
+                </span>
+              </Button>
+            </div>
             
-            <Button 
-              onClick={() => setShowImageControls(!showImageControls)}
-              variant="outline"
-              size="sm"
-              className="hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-colors"
-            >
-              {showImageControls ? 'Masquer' : 'Studio DALL-E'}
-            </Button>
             
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden md:inline">
+            {/* Section Export - Deuxième ligne sur mobile */}
+            <div className="flex items-center gap-2 justify-center sm:justify-end">
+              <span className="text-xs text-muted-foreground hidden md:inline whitespace-nowrap">
                 Exporter le dernier contenu:
               </span>
               <span className="text-xs text-muted-foreground md:hidden">
@@ -907,9 +917,17 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         </div>
       </div>
       
-      {/* Studio d'Images DALL-E */}
+      {/* Studio d'Images DALL-E - Repositionné avant ChatInput pour mobile */}
       {showImageControls && (
-        <div className="mb-4 p-4 border-t bg-muted/20">
+        <div className="border-t border-border bg-gradient-to-br from-purple-50/50 to-indigo-50/50 p-4 mx-auto max-w-4xl">
+          <div className="mb-2 text-center">
+            <h3 className="text-sm font-medium text-purple-800 flex items-center justify-center gap-2">
+              🎨 Studio DALL-E - Génération d'Images IA
+            </h3>
+            <p className="text-xs text-purple-600 mt-1">
+              Créez des images avec DALL-E 3, éditez avec DALL-E 2 ou générez des variations
+            </p>
+          </div>
           <ImageControls onImageGenerated={handleImageGenerated} />
         </div>
       )}
