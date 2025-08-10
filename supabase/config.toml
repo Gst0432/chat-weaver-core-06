@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.dalle-image]
 verify_jwt = false
+
+[functions.openai-image-edit]
+verify_jwt = false
+
+[functions.openai-image-variations]
+verify_jwt = false

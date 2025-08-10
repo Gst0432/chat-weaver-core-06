@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, size } = await req.json();
+    const { prompt, size, quality } = await req.json();
     
     // Améliorer les prompts vagues pour éviter les rejets d'OpenAI
     let enhancedPrompt = prompt;
@@ -56,9 +56,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'dall-e-3',
+        model: 'gpt-image-1',
         prompt: enhancedPrompt,
-        size: size || '1024x1024'
+        size: size || '1024x1024',
+        quality: quality || 'high',
+        n: 1
       }),
     });
 
