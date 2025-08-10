@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { ImageService, ImageGenerationOptions, ImageEditOptions, ImageVariationOptions } from "@/services/imageService";
 import { useToast } from "@/hooks/use-toast";
-import { Image, Edit, Shuffle, Sparkles, Loader2 } from "lucide-react";
+import { Image, Edit, Shuffle, Sparkles, Loader2, Settings, Zap } from "lucide-react";
 
 interface ImageControlsProps {
   onImageGenerated: (imageUrl: string, type: 'generation' | 'edit' | 'variation') => void;
@@ -17,11 +19,20 @@ interface ImageControlsProps {
 export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'generate' | 'edit' | 'variations'>('generate');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [runwareAvailable, setRunwareAvailable] = useState(false);
+  const [runwareApiKey, setRunwareApiKey] = useState('');
   
   // Generation state
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState<'1024x1024' | '1792x1024' | '1024x1792'>('1024x1024');
   const [quality, setQuality] = useState<'hd' | 'standard'>('hd');
+  const [provider, setProvider] = useState<'dalle' | 'runware'>('dalle');
+  
+  // Options avancées Runware pour fidélité
+  const [cfgScale, setCfgScale] = useState(12); // Fidélité au prompt
+  const [steps, setSteps] = useState(25); // Qualité/détails
+  const [seed, setSeed] = useState<number | undefined>();
   
   // Edit state
   const [editPrompt, setEditPrompt] = useState('');
@@ -38,7 +49,49 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
   const maskImageRef = useRef<HTMLInputElement>(null);
   const variationImageRef = useRef<HTMLInputElement>(null);
   
+  
   const { toast } = useToast();
+
+  // Initialiser Runware au chargement
+  useEffect(() => {
+    const initRunware = async () => {
+      const available = await ImageService.initRunware();
+      setRunwareAvailable(available);
+      if (available) {
+        setProvider('runware'); // Utiliser Runware par défaut si disponible
+      }
+    };
+    initRunware();
+  }, []);
+
+  // Fonction pour initialiser Runware avec clé API manuelle
+  const handleRunwareInit = async () => {
+    if (!runwareApiKey.trim()) {
+      toast({
+        title: "Clé API requise",
+        description: "Veuillez entrer votre clé API Runware",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const success = await ImageService.initRunware(runwareApiKey);
+    if (success) {
+      setRunwareAvailable(true);
+      setProvider('runware');
+      setRunwareApiKey(''); // Effacer après initialisation
+      toast({
+        title: "Runware activé",
+        description: "Génération haute fidélité disponible"
+      });
+    } else {
+      toast({
+        title: "Échec d'activation",
+        description: "Vérifiez votre clé API Runware",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -55,7 +108,12 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
       const options: ImageGenerationOptions = {
         prompt: prompt.trim(),
         size,
-        quality
+        quality,
+        provider,
+        // Options avancées Runware
+        cfgScale: provider === 'runware' ? cfgScale : undefined,
+        steps: provider === 'runware' ? steps : undefined,
+        seed: provider === 'runware' && seed ? seed : undefined,
       };
       
       const imageUrl = await ImageService.generateImage(options);
@@ -63,7 +121,7 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
       
       toast({
         title: "Image générée avec succès",
-        description: "Votre image a été créée avec DALL-E 3"
+        description: `Image créée avec ${provider === 'runware' ? 'Runware (Haute Fidélité)' : 'DALL-E 3'}`
       });
       
       setPrompt('');
@@ -172,11 +230,14 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5" />
-          Studio d'Images DALL-E
-          <Badge variant="secondary" className="ml-2">OpenAI</Badge>
+          Studio d'Images IA
+          <div className="flex gap-2">
+            <Badge variant="secondary">DALL-E</Badge>
+            {runwareAvailable && <Badge variant="default" className="bg-green-600">Runware</Badge>}
+          </div>
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Génération, édition et variations d'images avec les modèles DALL-E d'OpenAI
+          Génération d'images avec DALL-E (OpenAI) et Runware (Haute Fidélité)
         </p>
       </CardHeader>
       
@@ -215,15 +276,73 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
         {/* Generate Tab */}
         {activeTab === 'generate' && (
           <div className="space-y-4">
+            {/* Configuration Runware si pas disponible */}
+            {!runwareAvailable && (
+              <div className="p-4 border border-dashed border-orange-300 rounded-lg bg-orange-50/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-orange-600" />
+                  <span className="font-medium text-orange-800">Activer Runware (Fidélité Maximale)</span>
+                </div>
+                <p className="text-sm text-orange-700 mb-3">
+                  Runware génère des images ultra-fidèles aux descriptions. Obtenez votre clé API sur{' '}
+                  <a href="https://runware.ai" target="_blank" rel="noopener" className="underline">runware.ai</a>
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Entrez votre clé API Runware..."
+                    value={runwareApiKey}
+                    onChange={(e) => setRunwareApiKey(e.target.value)}
+                    className="flex-1"
+                    type="password"
+                  />
+                  <Button onClick={handleRunwareInit} variant="outline" size="sm">
+                    Activer
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Choix du provider */}
+            <div className="space-y-2">
+              <Label>Moteur de génération</Label>
+              <Select value={provider} onValueChange={(value: any) => setProvider(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dalle">
+                    <div className="flex items-center gap-2">
+                      <span>DALL-E 3 (OpenAI)</span>
+                      <Badge variant="outline" className="text-xs">Rapide</Badge>
+                    </div>
+                  </SelectItem>
+                  {runwareAvailable && (
+                    <SelectItem value="runware">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-3 w-3" />
+                        <span>Runware</span>
+                        <Badge variant="default" className="text-xs bg-green-600">Haute Fidélité</Badge>
+                      </div>
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="prompt">Description de l'image</Label>
               <Textarea
                 id="prompt"
-                placeholder="Décrivez l'image que vous souhaitez générer..."
+                placeholder="Décrivez précisément l'image que vous souhaitez générer..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 className="min-h-[80px]"
               />
+              {provider === 'runware' && (
+                <p className="text-xs text-green-700">
+                  💡 Runware excelle avec des descriptions détaillées et spécifiques
+                </p>
+              )}
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -254,6 +373,65 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
                 </Select>
               </div>
             </div>
+
+            {/* Options avancées Runware */}
+            {provider === 'runware' && (
+              <div className="space-y-4 p-4 border rounded-lg bg-green-50/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Settings className="h-4 w-4 text-green-600" />
+                  <Label className="text-green-800 font-medium">Options Haute Fidélité</Label>
+                  <Switch 
+                    checked={showAdvanced} 
+                    onCheckedChange={setShowAdvanced}
+                  />
+                </div>
+                
+                {showAdvanced && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Fidélité au prompt: {cfgScale}</Label>
+                      <Slider
+                        value={[cfgScale]}
+                        onValueChange={(value) => setCfgScale(value[0])}
+                        max={20}
+                        min={1}
+                        step={1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Plus élevé = plus fidèle à votre description (recommandé: 12-15)
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Étapes de génération: {steps}</Label>
+                      <Slider
+                        value={[steps]}
+                        onValueChange={(value) => setSteps(value[0])}
+                        max={50}
+                        min={1}
+                        step={1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Plus élevé = plus de détails mais plus lent (recommandé: 20-30)
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="seed">Seed (optionnel)</Label>
+                      <Input
+                        id="seed"
+                        type="number"
+                        placeholder="Nombre aléatoire pour reproduire une image"
+                        value={seed || ''}
+                        onChange={(e) => setSeed(e.target.value ? parseInt(e.target.value) : undefined)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
             <Button 
               onClick={handleGenerate}
@@ -263,12 +441,21 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Génération avec DALL-E 3...
+                  {provider === 'runware' ? 'Génération Runware...' : 'Génération DALL-E 3...'}
                 </>
               ) : (
                 <>
-                  <Image className="mr-2 h-4 w-4" />
-                  Générer avec DALL-E 3
+                  {provider === 'runware' ? (
+                    <>
+                      <Zap className="mr-2 h-4 w-4" />
+                      Générer avec Runware (Haute Fidélité)
+                    </>
+                  ) : (
+                    <>
+                      <Image className="mr-2 h-4 w-4" />
+                      Générer avec DALL-E 3
+                    </>
+                  )}
                 </>
               )}
             </Button>

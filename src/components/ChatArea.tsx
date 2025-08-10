@@ -375,15 +375,19 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       }
 
       // Déclenchement prioritaire: génération d'image si le message le demande
-      // Force l'utilisation de DALL-E indépendamment du modèle sélectionné
+      // Utilise automatiquement le meilleur provider disponible (Runware si configuré, sinon DALL-E)
       const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
       const wantsImage = !isUpload && ImageService.isImageRequest(content);
       if (wantsImage) {
+        // Initialiser Runware si pas déjà fait
+        await ImageService.initRunware();
+        
         try {
           const imageUrl = await ImageService.generateImage({
             prompt: content,
             size: '1024x1024',
             quality: 'hd'
+            // Le service choisira automatiquement le meilleur provider
           });
           
           const assistantMessage: Message = {
@@ -391,7 +395,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             content: imageUrl,
             role: 'assistant',
             timestamp: new Date(),
-            model: 'dall-e-3' // Force l'affichage du modèle DALL-E
+            model: 'ai-image' // Nom générique pour les images IA
           };
           
           setMessages(prev => [...prev, assistantMessage]);
@@ -399,17 +403,17 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             conversation_id: convoId,
             role: 'assistant',
             content: assistantMessage.content,
-            model: 'dall-e-3' // Sauvegarde avec le bon modèle
+            model: 'ai-image'
           });
           return;
         } catch (error) {
           console.error('Erreur génération d\'image:', error);
           const errorMessage: Message = {
             id: (Date.now() + 1).toString(),
-            content: `Échec de génération d'image avec DALL-E: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+            content: `Échec de génération d'image: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
             role: 'assistant',
             timestamp: new Date(),
-            model: 'dall-e-3'
+            model: 'ai-image'
           };
           setMessages(prev => [...prev, errorMessage]);
           return;
