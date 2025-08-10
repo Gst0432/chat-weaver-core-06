@@ -17,19 +17,8 @@ serve(async (req) => {
     // Force l'utilisation de DALL-E 3 indépendamment du modèle frontend
     console.log('🎨 Génération d\'image avec DALL-E 3 (forcé)', { prompt, size, quality });
     
-    // Améliorer les prompts vagues pour éviter les rejets d'OpenAI
+    // Utiliser le prompt original de l'utilisateur
     let enhancedPrompt = prompt;
-    
-    // Si le prompt est trop vague, l'améliorer
-    const vaguePrompts = [
-      'genere une image', 'génère une image', 'generate an image', 
-      'crée une image', 'create an image', 'fais une image',
-      'make an image', 'image', 'picture', 'photo'
-    ];
-    
-    if (vaguePrompts.some(vague => enhancedPrompt.toLowerCase().includes(vague.toLowerCase()))) {
-      enhancedPrompt = "A beautiful artistic illustration, creative and colorful, high quality digital art";
-    }
     
     // Traduire les mots-clés français courants vers l'anglais pour éviter les rejets
     const translations = {

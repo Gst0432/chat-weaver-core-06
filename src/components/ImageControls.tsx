@@ -53,7 +53,7 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
     setIsGenerating(true);
     try {
       const options: ImageGenerationOptions = {
-        prompt: ImageService.enhancePrompt(prompt),
+        prompt: prompt.trim(),
         size,
         quality
       };

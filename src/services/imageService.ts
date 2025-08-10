@@ -132,23 +132,10 @@ export class ImageService {
   }
 
   /**
-   * Améliore automatiquement les prompts vagues pour DALL-E
+   * Préserve le prompt original de l'utilisateur
    */
   static enhancePrompt(prompt: string): string {
-    const vaguePrompts = [
-      'genere une image', 'génère une image', 'generate an image', 
-      'crée une image', 'create an image', 'fais une image',
-      'make an image', 'image', 'picture', 'photo'
-    ];
-    
-    const isVague = vaguePrompts.some(vague => 
-      prompt.toLowerCase().includes(vague.toLowerCase())
-    );
-    
-    if (isVague) {
-      return "A beautiful artistic illustration, creative and colorful, high quality digital art";
-    }
-    
+    // On retourne toujours le prompt original sans modification
     return prompt;
   }
 }
