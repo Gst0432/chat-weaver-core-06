@@ -56,10 +56,10 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-image-1',
+        model: 'dall-e-3',
         prompt: enhancedPrompt,
         size: size || '1024x1024',
-        quality: quality || 'high',
+        quality: quality || 'hd',
         n: 1
       }),
     });

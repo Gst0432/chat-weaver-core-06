@@ -31,7 +31,7 @@ serve(async (req) => {
 
     // Préparer le FormData pour OpenAI
     const openAIFormData = new FormData();
-    openAIFormData.append('model', 'gpt-image-1');
+    openAIFormData.append('model', 'dall-e-2');
     openAIFormData.append('prompt', prompt);
     openAIFormData.append('size', size);
     openAIFormData.append('quality', quality);
