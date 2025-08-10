@@ -16,7 +16,6 @@ serve(async (req) => {
     const formData = await req.formData();
     const prompt = formData.get('prompt') as string;
     const size = formData.get('size') as string || '1024x1024';
-    const quality = formData.get('quality') as string || 'high';
     const imageFile = formData.get('image') as File;
     const maskFile = formData.get('mask') as File;
 
@@ -27,18 +26,14 @@ serve(async (req) => {
       });
     }
 
-    console.log('Editing image with prompt:', prompt);
-
-    // Force l'utilisation de DALL-E 2 pour l'édition d'images
-    console.log('✏️ Édition d\'image avec DALL-E 2 (forcé)', { prompt, size, quality });
+    console.log('✏️ Édition d\'image avec DALL-E 2:', prompt);
     
-    // Préparer le FormData pour OpenAI
+    // Préparer le FormData pour OpenAI (DALL-E 2 pour édition)
     const openAIFormData = new FormData();
-    openAIFormData.append('model', 'dall-e-2'); // Forcé à dall-e-2
     openAIFormData.append('prompt', prompt);
-    openAIFormData.append('size', size);
-    openAIFormData.append('quality', quality);
     openAIFormData.append('image', imageFile);
+    openAIFormData.append('size', size);
+    openAIFormData.append('n', '1');
     
     if (maskFile) {
       openAIFormData.append('mask', maskFile);
