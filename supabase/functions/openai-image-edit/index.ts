@@ -29,9 +29,12 @@ serve(async (req) => {
 
     console.log('Editing image with prompt:', prompt);
 
+    // Force l'utilisation de DALL-E 2 pour l'édition d'images
+    console.log('✏️ Édition d\'image avec DALL-E 2 (forcé)', { prompt, size, quality });
+    
     // Préparer le FormData pour OpenAI
     const openAIFormData = new FormData();
-    openAIFormData.append('model', 'dall-e-2');
+    openAIFormData.append('model', 'dall-e-2'); // Forcé à dall-e-2
     openAIFormData.append('prompt', prompt);
     openAIFormData.append('size', size);
     openAIFormData.append('quality', quality);

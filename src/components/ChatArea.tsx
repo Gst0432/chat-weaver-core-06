@@ -4,10 +4,13 @@ import PptxGenJS from "pptxgenjs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
+import { ImageControls } from "./ImageControls";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ImageService } from "@/services/imageService";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -158,6 +161,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showImageControls, setShowImageControls] = useState(false);
+  const { toast } = useToast();
 
   const createNewConversation = async () => {
     try {
@@ -370,28 +375,45 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       }
 
       // Déclenchement prioritaire: génération d'image si le message le demande
+      // Force l'utilisation de DALL-E indépendamment du modèle sélectionné
       const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
-      const wantsImage = !isUpload && /(\bimage\b|\bphoto\b|\bpicture\b|\billustration\b|dessin|génère une image|genere une image|générer une image|crée une image|create an image|generate an image|logo|affiche)/i.test(content);
+      const wantsImage = !isUpload && ImageService.isImageRequest(content);
       if (wantsImage) {
-        const { data, error } = await supabase.functions.invoke('dalle-image', {
-          body: { prompt: content, size: '1024x1024' }
-        });
-        if (error) throw error;
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: data?.image || "Échec de génération d'image.",
-          role: 'assistant',
-          timestamp: new Date(),
-          model: selectedModel
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        await supabase.from('messages').insert({
-          conversation_id: convoId,
-          role: 'assistant',
-          content: assistantMessage.content,
-          model: selectedModel
-        });
-        return;
+        try {
+          const imageUrl = await ImageService.generateImage({
+            prompt: content,
+            size: '1024x1024',
+            quality: 'hd'
+          });
+          
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: imageUrl,
+            role: 'assistant',
+            timestamp: new Date(),
+            model: 'dall-e-3' // Force l'affichage du modèle DALL-E
+          };
+          
+          setMessages(prev => [...prev, assistantMessage]);
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: assistantMessage.content,
+            model: 'dall-e-3' // Sauvegarde avec le bon modèle
+          });
+          return;
+        } catch (error) {
+          console.error('Erreur génération d\'image:', error);
+          const errorMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: `Échec de génération d'image avec DALL-E: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+            role: 'assistant',
+            timestamp: new Date(),
+            model: 'dall-e-3'
+          };
+          setMessages(prev => [...prev, errorMessage]);
+          return;
+        }
       }
 
       // Si un fichier a été ajouté récemment, utiliser le prompt textuel pour l'analyser maintenant
@@ -695,6 +717,40 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       setIsLoading(false);
     }
   };
+
+  // Gestionnaire pour les images générées via ImageControls
+  const handleImageGenerated = async (imageUrl: string, type: 'generation' | 'edit' | 'variation') => {
+    const typeLabels = {
+      generation: 'Génération DALL-E 3',
+      edit: 'Édition DALL-E 2',
+      variation: 'Variation DALL-E 2'
+    };
+
+    const assistantMessage: Message = {
+      id: Date.now().toString(),
+      content: imageUrl,
+      role: 'assistant',
+      timestamp: new Date(),
+      model: type === 'generation' ? 'dall-e-3' : 'dall-e-2'
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
+    // Sauvegarder dans la base si on a une conversation active
+    if (currentConversationId) {
+      await supabase.from('messages').insert({
+        conversation_id: currentConversationId,
+        role: 'assistant',
+        content: imageUrl,
+        model: assistantMessage.model
+      });
+    }
+
+    toast({
+      title: typeLabels[type],
+      description: "Image créée avec succès"
+    });
+  };
   
   const exportDocument = async (type: 'pdf' | 'docx' | 'pptx') => {
     try {
@@ -796,6 +852,15 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
               <span className="sm:hidden">Nouveau</span>
             </Button>
             
+            <Button 
+              onClick={() => setShowImageControls(!showImageControls)}
+              variant="outline"
+              size="sm"
+              className="hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-colors"
+            >
+              {showImageControls ? 'Masquer' : 'Studio DALL-E'}
+            </Button>
+            
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground hidden md:inline">
                 Exporter le dernier contenu:
@@ -841,6 +906,13 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           )}
         </div>
       </div>
+      
+      {/* Studio d'Images DALL-E */}
+      {showImageControls && (
+        <div className="mb-4 p-4 border-t bg-muted/20">
+          <ImageControls onImageGenerated={handleImageGenerated} />
+        </div>
+      )}
       
       <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} sttProvider={sttProvider} />
     </div>

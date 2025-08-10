@@ -14,6 +14,9 @@ serve(async (req) => {
   try {
     const { prompt, size, quality } = await req.json();
     
+    // Force l'utilisation de DALL-E 3 indépendamment du modèle frontend
+    console.log('🎨 Génération d\'image avec DALL-E 3 (forcé)', { prompt, size, quality });
+    
     // Améliorer les prompts vagues pour éviter les rejets d'OpenAI
     let enhancedPrompt = prompt;
     
