@@ -21,7 +21,7 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
   const [activeTab, setActiveTab] = useState<'generate' | 'edit' | 'variations'>('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [runwareAvailable, setRunwareAvailable] = useState(false);
-  const [runwareApiKey, setRunwareApiKey] = useState('');
+  
   
   // Generation state
   const [prompt, setPrompt] = useState('');
@@ -64,34 +64,6 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
     initRunware();
   }, []);
 
-  // Fonction pour initialiser Runware avec clé API manuelle
-  const handleRunwareInit = async () => {
-    if (!runwareApiKey.trim()) {
-      toast({
-        title: "Clé API requise",
-        description: "Veuillez entrer votre clé API Runware",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const success = await ImageService.initRunware(runwareApiKey);
-    if (success) {
-      setRunwareAvailable(true);
-      setProvider('runware');
-      setRunwareApiKey(''); // Effacer après initialisation
-      toast({
-        title: "Runware activé",
-        description: "Génération haute fidélité disponible"
-      });
-    } else {
-      toast({
-        title: "Échec d'activation",
-        description: "Vérifiez votre clé API Runware",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -276,29 +248,16 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
         {/* Generate Tab */}
         {activeTab === 'generate' && (
           <div className="space-y-4">
-            {/* Configuration Runware si pas disponible */}
+            {/* Message si Runware pas disponible */}
             {!runwareAvailable && (
-              <div className="p-4 border border-dashed border-orange-300 rounded-lg bg-orange-50/50">
+              <div className="p-4 border border-dashed border-blue-300 rounded-lg bg-blue-50/50">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-4 w-4 text-orange-600" />
-                  <span className="font-medium text-orange-800">Activer Runware (Fidélité Maximale)</span>
+                  <Zap className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-800">Runware en cours d'initialisation</span>
                 </div>
-                <p className="text-sm text-orange-700 mb-3">
-                  Runware génère des images ultra-fidèles aux descriptions. Obtenez votre clé API sur{' '}
-                  <a href="https://runware.ai" target="_blank" rel="noopener" className="underline">runware.ai</a>
+                <p className="text-sm text-blue-700">
+                  Le service Runware (haute fidélité) se connecte automatiquement...
                 </p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Entrez votre clé API Runware..."
-                    value={runwareApiKey}
-                    onChange={(e) => setRunwareApiKey(e.target.value)}
-                    className="flex-1"
-                    type="password"
-                  />
-                  <Button onClick={handleRunwareInit} variant="outline" size="sm">
-                    Activer
-                  </Button>
-                </div>
               </div>
             )}
 
