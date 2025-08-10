@@ -29,9 +29,9 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
   const [quality, setQuality] = useState<'hd' | 'standard'>('hd');
   const [provider, setProvider] = useState<'dalle' | 'runware'>('dalle');
   
-  // Options avancées Runware pour fidélité
-  const [cfgScale, setCfgScale] = useState(12); // Fidélité au prompt
-  const [steps, setSteps] = useState(25); // Qualité/détails
+  // Options avancées Runware pour fidélité maximale
+  const [cfgScale, setCfgScale] = useState(15); // Fidélité très élevée (augmenté)
+  const [steps, setSteps] = useState(30); // Plus de détails (augmenté)
   const [seed, setSeed] = useState<number | undefined>();
   
   // Edit state
@@ -353,12 +353,12 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
                         value={[cfgScale]}
                         onValueChange={(value) => setCfgScale(value[0])}
                         max={20}
-                        min={1}
+                        min={7}
                         step={1}
                         className="w-full"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Plus élevé = plus fidèle à votre description (recommandé: 12-15)
+                        Plus élevé = plus fidèle à votre description (optimal: 15-18)
                       </p>
                     </div>
                     
@@ -368,12 +368,12 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
                         value={[steps]}
                         onValueChange={(value) => setSteps(value[0])}
                         max={50}
-                        min={1}
-                        step={1}
+                        min={15}
+                        step={5}
                         className="w-full"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Plus élevé = plus de détails mais plus lent (recommandé: 20-30)
+                        Plus élevé = plus de détails mais plus lent (optimal: 30-40)
                       </p>
                     </div>
                     

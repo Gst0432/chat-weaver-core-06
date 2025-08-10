@@ -81,11 +81,12 @@ export class ImageService {
           positivePrompt: prompt,
           width,
           height,
-          CFGScale: options.cfgScale || 12, // Fidélité élevée
-          steps: options.steps || 25, // Plus de détails
-          scheduler: options.scheduler || "DPMSolverMultistepScheduler",
+          CFGScale: options.cfgScale || 15, // Fidélité très élevée (augmenté de 12 à 15)
+          steps: options.steps || 30, // Plus de détails (augmenté de 25 à 30)
+          scheduler: options.scheduler || "DPMSolverMultistepScheduler", // Meilleur scheduler pour la qualité
           promptWeighting: "compel", // Meilleur suivi du prompt
           seed: options.seed,
+          model: "runware:100@1", // Modèle optimisé
         });
         
         if (result.imageURL) {
@@ -200,21 +201,35 @@ export class ImageService {
    * Améliore les prompts pour une fidélité maximale aux descriptions
    */
   static enhancePromptForFidelity(prompt: string): string {
-    // Si le prompt est déjà détaillé, le conserver
-    if (prompt.length > 50 && prompt.includes(',')) {
+    // Si le prompt contient déjà des détails techniques, ne pas sur-améliorer
+    if (prompt.length > 100 && (prompt.includes('detailed') || prompt.includes('realistic') || prompt.includes('8k'))) {
       return prompt;
     }
     
-    // Ajouter des détails pour améliorer la fidélité
-    const enhancements = [
-      "highly detailed",
-      "realistic",
-      "sharp focus", 
-      "professional quality",
-      "8k resolution"
+    // Techniques de prompt engineering pour une fidélité maximale
+    const fidelityEnhancements = [
+      "masterpiece",
+      "best quality", 
+      "ultra-detailed",
+      "photorealistic",
+      "perfect composition",
+      "professional photography",
+      "studio lighting"
     ];
     
-    return `${prompt}, ${enhancements.join(', ')}`;
+    // Ajouter des détails spécifiques selon le type de contenu
+    let enhancedPrompt = prompt;
+    
+    // Détection du type de contenu pour des améliorations ciblées
+    if (/portrait|person|face|human/i.test(prompt)) {
+      enhancedPrompt += ", perfect facial features, detailed eyes, natural skin texture";
+    } else if (/landscape|nature|outdoor/i.test(prompt)) {
+      enhancedPrompt += ", natural lighting, depth of field, atmospheric perspective";
+    } else if (/art|painting|drawing/i.test(prompt)) {
+      enhancedPrompt += ", fine art style, detailed brushwork, rich colors";
+    }
+    
+    return `${enhancedPrompt}, ${fidelityEnhancements.join(', ')}, 8k uhd, sharp focus`;
   }
 
   /**
