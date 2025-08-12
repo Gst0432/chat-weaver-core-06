@@ -59,7 +59,7 @@ interface Plan {
   name: string;
   description: string;
   price: number;
-  features: any[];
+  features: string[] | string;
   is_active: boolean;
 }
 
@@ -166,8 +166,16 @@ export default function SuperAdminDashboard() {
 
   const updatePlan = async (plan: Plan) => {
     try {
+      // Traiter les features comme pour la création
+      const planData = {
+        ...plan,
+        features: typeof plan.features === 'string' 
+          ? plan.features.split(',').map(f => f.trim()).filter(f => f)
+          : plan.features || []
+      };
+
       const { data } = await supabase.functions.invoke('super-admin', {
-        body: { action: 'updatePlan', data: plan }
+        body: { action: 'updatePlan', data: planData }
       });
 
       if (data) {
@@ -533,7 +541,7 @@ export default function SuperAdminDashboard() {
                                   <Label htmlFor="edit-description">Description</Label>
                                   <Textarea
                                     id="edit-description"
-                                    value={editingPlan.description}
+                                    value={editingPlan.description || ''}
                                     onChange={(e) => setEditingPlan({ ...editingPlan, description: e.target.value })}
                                   />
                                 </div>
@@ -544,6 +552,17 @@ export default function SuperAdminDashboard() {
                                     type="number"
                                     value={editingPlan.price}
                                     onChange={(e) => setEditingPlan({ ...editingPlan, price: parseInt(e.target.value) || 0 })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="edit-features">Fonctionnalités (séparées par des virgules)</Label>
+                                  <Textarea
+                                    id="edit-features"
+                                    value={Array.isArray(editingPlan.features) 
+                                      ? editingPlan.features.join(', ') 
+                                      : editingPlan.features || ''}
+                                     onChange={(e) => setEditingPlan({ ...editingPlan, features: e.target.value })}
+                                    placeholder="Accès illimité aux IA, Support prioritaire, Équipes..."
                                   />
                                 </div>
                                 <div className="flex items-center space-x-2">
