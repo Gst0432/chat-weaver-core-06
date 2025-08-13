@@ -28,13 +28,24 @@ import {
   Twitter,
   Github
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import professionalAiHero from "@/assets/professional-ai-hero.png";
+
+interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  features: string[] | string;
+  is_active: boolean;
+}
 
 const NewLanding = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
 
   // Présentation - Pourquoi la plateforme est unique
   const uniquePoints = [
@@ -95,49 +106,53 @@ const NewLanding = () => {
     { icon: Star, title: "Interface intuitive", description: "Design ergonomique" }
   ];
 
-  // Plans tarifaires
-  const plans = [
-    {
-      id: 'Mensuel',
-      price: 15000,
-      period: 'mois',
-      features: [
-        'Chat IA illimité (tous modèles)',
-        'Génération d\'images illimitée',
-        'Voix Off & Transcription illimitées',
-        'Support email',
-        'API incluse'
-      ],
-      popular: false
-    },
-    {
-      id: 'Annuel',
-      price: 150000,
-      period: 'an',
-      originalPrice: 180000,
-      features: [
-        'Tout du plan mensuel',
-        '2 mois offerts',
-        'Support prioritaire',
-        'Stockage étendu',
-        'Fonctionnalités avancées'
-      ],
-      popular: true
-    },
-    {
-      id: 'Lifetime',
-      price: 500000,
-      period: 'à vie',
-      features: [
-        'Accès à vie complet',
-        'Toutes les mises à jour incluses',
-        'Support VIP dédié',
-        'Stockage illimité',
-        'Nouvelles fonctionnalités incluses'
-      ],
-      popular: false
-    }
-  ];
+  // Chargement des plans depuis la base de données
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const { data: dashboardData } = await supabase.functions.invoke('super-admin', {
+          body: { action: 'getDashboardData' }
+        });
+        
+        if (dashboardData && dashboardData.plans) {
+          // Ne garder que les plans actifs
+          const activePlans = dashboardData.plans.filter((plan: Plan) => plan.is_active);
+          setPlans(activePlans);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des plans:', error);
+        // Plans de fallback si la base de données n'est pas accessible
+        setPlans([
+          {
+            id: '1',
+            name: 'Mensuel',
+            description: 'Accès complet mensuel',
+            price: 15000,
+            features: ['Chat IA illimité', 'Génération d\'images', 'Voix Off & Transcription', 'Support email', 'API incluse'],
+            is_active: true
+          },
+          {
+            id: '2', 
+            name: 'Annuel',
+            description: 'Accès annuel avec économies',
+            price: 150000,
+            features: ['Tout du plan mensuel', '2 mois offerts', 'Support prioritaire', 'Stockage étendu', 'Fonctionnalités avancées'],
+            is_active: true
+          },
+          {
+            id: '3',
+            name: 'Lifetime', 
+            description: 'Accès à vie',
+            price: 500000,
+            features: ['Accès à vie complet', 'Toutes les mises à jour incluses', 'Support VIP dédié', 'Stockage illimité', 'Nouvelles fonctionnalités incluses'],
+            is_active: true
+          }
+        ]);
+      }
+    };
+
+    loadPlans();
+  }, []);
 
   // Témoignages
   const testimonials = [
@@ -459,52 +474,49 @@ const NewLanding = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {plans.map((plan, index) => (
-              <Card key={plan.id} className={`relative hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 ${plan.popular ? 'border-primary shadow-elegant scale-105 bg-gradient-to-b from-primary/5 to-background' : 'bg-card/50 backdrop-blur-sm'}`}>
-                {plan.popular && (
-                  <Badge className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-lg px-6 py-2">
-                    Plus Populaire
-                  </Badge>
-                )}
-                <CardContent className="p-8 text-center">
-                  <h3 className="text-3xl font-bold mb-4">{plan.id}</h3>
-                  <div className="mb-6">
-                    {plan.originalPrice && (
-                      <div className="text-lg text-muted-foreground line-through mb-2">
-                        {plan.originalPrice.toLocaleString()} FCFA
+            {plans.map((plan, index) => {
+              const isPopular = index === 1; // Le deuxième plan est populaire par défaut
+              const planFeatures = Array.isArray(plan.features) ? plan.features : 
+                                 typeof plan.features === 'string' ? plan.features.split(',').map(f => f.trim()) : [];
+              
+              return (
+                <Card key={plan.id} className={`relative hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 ${isPopular ? 'border-primary shadow-elegant scale-105 bg-gradient-to-b from-primary/5 to-background' : 'bg-card/50 backdrop-blur-sm'}`}>
+                  {isPopular && (
+                    <Badge className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-lg px-6 py-2">
+                      Plus Populaire
+                    </Badge>
+                  )}
+                  <CardContent className="p-8 text-center">
+                    <h3 className="text-3xl font-bold mb-4">{plan.name}</h3>
+                    <p className="text-muted-foreground mb-6">{plan.description}</p>
+                    <div className="mb-6">
+                      <div className="flex items-baseline justify-center">
+                        <span className="text-5xl font-bold">{plan.price.toLocaleString()}</span>
+                        <span className="text-muted-foreground ml-2"> FCFA</span>
                       </div>
-                    )}
-                    <div className="flex items-baseline justify-center">
-                      <span className="text-5xl font-bold">{plan.price.toLocaleString()}</span>
-                      <span className="text-muted-foreground ml-2"> FCFA/{plan.period}</span>
                     </div>
-                    {plan.originalPrice && (
-                      <div className="text-sm text-green-600 font-semibold mt-2">
-                        Économisez {((plan.originalPrice - plan.price) / plan.originalPrice * 100).toFixed(0)}%
-                      </div>
-                    )}
-                  </div>
-                  
-                  <ul className="space-y-4 mb-8 text-left">
-                    {plan.features.map((feature, fIndex) => (
-                      <li key={fIndex} className="flex items-start gap-3">
-                        <Check className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
-                        <span className="text-sm leading-relaxed">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                    
+                    <ul className="space-y-4 mb-8 text-left">
+                      {planFeatures.map((feature, fIndex) => (
+                        <li key={fIndex} className="flex items-start gap-3">
+                          <Check className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                          <span className="text-sm leading-relaxed">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
 
-                  <Button 
-                    size="lg"
-                    onClick={() => navigate('/auth')}
-                    className={`w-full ${plan.popular ? 'bg-gradient-primary hover:shadow-glow text-lg py-6' : 'text-lg py-6'}`}
-                    variant={plan.popular ? "default" : "outline"}
-                  >
-                    Choisir {plan.id}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                    <Button 
+                      size="lg"
+                      onClick={() => navigate('/auth')}
+                      className={`w-full ${isPopular ? 'bg-gradient-primary hover:shadow-glow text-lg py-6' : 'text-lg py-6'}`}
+                      variant={isPopular ? "default" : "outline"}
+                    >
+                      Choisir {plan.name}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           <div className="text-center mt-16">
