@@ -121,30 +121,51 @@ const NewLanding = () => {
         }
       } catch (error) {
         console.error('Erreur lors du chargement des plans:', error);
-        // Plans de fallback si la base de données n'est pas accessible
+        // Plans par défaut avec les nouveaux tarifs
         setPlans([
           {
             id: '1',
-            name: 'Mensuel',
-            description: 'Accès complet mensuel',
-            price: 15000,
-            features: ['Chat IA illimité', 'Génération d\'images', 'Voix Off & Transcription', 'Support email', 'API incluse'],
+            name: 'Starter',
+            description: 'Parfait pour débuter avec l\'IA',
+            price: 7500,
+            features: [
+              'Utilisateurs: 1',
+              'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+              'Images DALL·E 3: 10 images / mois',
+              'Text-to-Voice: OpenAI Standard TTS uniquement',
+              'Minutes TTS: 100 min inclus',
+              '+50 FCFA/min TTS au-delà, +500 FCFA/image'
+            ],
             is_active: true
           },
           {
             id: '2', 
-            name: 'Annuel',
-            description: 'Accès annuel avec économies',
-            price: 150000,
-            features: ['Tout du plan mensuel', '2 mois offerts', 'Support prioritaire', 'Stockage étendu', 'Fonctionnalités avancées'],
+            name: 'Pro',
+            description: 'Le plus populaire - Idéal pour les professionnels',
+            price: 22000,
+            features: [
+              'Utilisateurs: Jusqu\'à 5',
+              'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+              'Images DALL·E 3: 50 images / mois',
+              'Text-to-Voice: OpenAI HD TTS + Google WaveNet',
+              'Minutes TTS: 500 min inclus',
+              'Forfait illimité au-delà, images illimitées'
+            ],
             is_active: true
           },
           {
             id: '3',
-            name: 'Lifetime', 
-            description: 'Accès à vie',
-            price: 500000,
-            features: ['Accès à vie complet', 'Toutes les mises à jour incluses', 'Support VIP dédié', 'Stockage illimité', 'Nouvelles fonctionnalités incluses'],
+            name: 'Business', 
+            description: 'Pour les équipes et entreprises',
+            price: 55000,
+            features: [
+              'Utilisateurs: Jusqu\'à 20',
+              'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
+              'Images DALL·E 3: Illimité',
+              'Text-to-Voice: OpenAI HD + Google WaveNet + voix premium',
+              'Minutes TTS: Illimité',
+              'Support prioritaire, gestion équipes'
+            ],
             is_active: true
           }
         ]);
@@ -492,8 +513,15 @@ const NewLanding = () => {
                     <div className="mb-6">
                       <div className="flex items-baseline justify-center">
                         <span className="text-5xl font-bold">{plan.price.toLocaleString()}</span>
-                        <span className="text-muted-foreground ml-2"> FCFA</span>
+                        <span className="text-muted-foreground ml-2"> FCFA/mois</span>
                       </div>
+                      {isPopular && (
+                        <div className="mt-2">
+                          <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                            Plan actuel
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                     
                     <ul className="space-y-4 mb-8 text-left">

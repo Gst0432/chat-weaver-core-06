@@ -48,13 +48,26 @@ const Auth = () => {
     try {
       setLoading(true);
       const redirectUrl = `${window.location.origin}/app`;
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: redirectUrl },
       });
+      
       if (error) throw error;
-      toast({ title: "Vérifiez votre email", description: "Lien de confirmation envoyé." });
+      
+      // Si l'utilisateur est créé avec succès, on redirige immédiatement
+      if (data.user) {
+        toast({ 
+          title: "Compte créé avec succès", 
+          description: "Redirection vers votre tableau de bord...",
+        });
+        
+        // Redirection immédiate vers le tableau de bord
+        setTimeout(() => {
+          navigate("/app", { replace: true });
+        }, 1500);
+      }
     } catch (error: any) {
       toast({ title: "Erreur d'inscription", description: error.message, variant: "destructive" });
     } finally {
