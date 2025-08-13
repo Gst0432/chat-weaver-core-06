@@ -37,15 +37,16 @@ interface Plan {
   name: string;
   description: string;
   price: number;
-  features: string[] | string;
+  features: string[];
   is_active: boolean;
+  popular?: boolean;
+  buttonText?: string;
 }
 
 const NewLanding = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
 
   // Présentation - Pourquoi la plateforme est unique
   const uniquePoints = [
@@ -106,74 +107,60 @@ const NewLanding = () => {
     { icon: Star, title: "Interface intuitive", description: "Design ergonomique" }
   ];
 
-  // Chargement des plans depuis la base de données
-  useEffect(() => {
-    const loadPlans = async () => {
-      try {
-        const { data: dashboardData } = await supabase.functions.invoke('super-admin', {
-          body: { action: 'getDashboardData' }
-        });
-        
-        if (dashboardData && dashboardData.plans) {
-          // Ne garder que les plans actifs
-          const activePlans = dashboardData.plans.filter((plan: Plan) => plan.is_active);
-          setPlans(activePlans);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des plans:', error);
-        // Plans par défaut avec les nouveaux tarifs
-        setPlans([
-          {
-            id: '1',
-            name: 'Starter',
-            description: 'Parfait pour débuter avec l\'IA',
-            price: 7500,
-            features: [
-              'Utilisateurs: 1',
-              'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
-              'Images DALL·E 3: 10 images / mois',
-              'Text-to-Voice: OpenAI Standard TTS uniquement',
-              'Minutes TTS: 100 min inclus',
-              '+50 FCFA/min TTS au-delà, +500 FCFA/image'
-            ],
-            is_active: true
-          },
-          {
-            id: '2', 
-            name: 'Pro',
-            description: 'Le plus populaire - Idéal pour les professionnels',
-            price: 22000,
-            features: [
-              'Utilisateurs: Jusqu\'à 5',
-              'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
-              'Images DALL·E 3: 50 images / mois',
-              'Text-to-Voice: OpenAI HD TTS + Google WaveNet',
-              'Minutes TTS: 500 min inclus',
-              'Forfait illimité au-delà, images illimitées'
-            ],
-            is_active: true
-          },
-          {
-            id: '3',
-            name: 'Business', 
-            description: 'Pour les équipes et entreprises',
-            price: 55000,
-            features: [
-              'Utilisateurs: Jusqu\'à 20',
-              'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
-              'Images DALL·E 3: Illimité',
-              'Text-to-Voice: OpenAI HD + Google WaveNet + voix premium',
-              'Minutes TTS: Illimité',
-              'Support prioritaire, gestion équipes'
-            ],
-            is_active: true
-          }
-        ]);
-      }
-    };
-
-    loadPlans();
-  }, []);
+  // Plans d'abonnement fixes
+  const plans = [
+    {
+      id: '1',
+      name: 'Starter',
+      description: 'Parfait pour débuter avec l\'IA',
+      price: 7500,
+      features: [
+        'Utilisateurs: 1',
+        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini illimité',
+        'Images DALL·E 3: 10 images / mois',
+        'Text-to-Voice: OpenAI Standard TTS uniquement',
+        'Minutes TTS: 100 min inclus',
+        '+50 FCFA/min TTS au-delà, +500 FCFA/image'
+      ],
+      is_active: true,
+      popular: false,
+      buttonText: 'Mettre à niveau'
+    },
+    {
+      id: '2', 
+      name: 'Pro',
+      description: 'Le plus populaire - Idéal pour les professionnels',
+      price: 22000,
+      features: [
+        'Utilisateurs: Jusqu\'à 5',
+        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini illimité',
+        'Images DALL·E 3: 50 images / mois',
+        'Text-to-Voice: OpenAI HD TTS + Google WaveNet',
+        'Minutes TTS: 500 min inclus',
+        'Forfait illimité au-delà, images illimitées'
+      ],
+      is_active: true,
+      popular: true,
+      buttonText: 'Plan actuel'
+    },
+    {
+      id: '3',
+      name: 'Business', 
+      description: 'Pour les équipes et entreprises',
+      price: 55000,
+      features: [
+        'Utilisateurs: Jusqu\'à 20',
+        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini illimité',
+        'Images DALL·E 3: Illimité',
+        'Text-to-Voice: OpenAI HD + Google WaveNet + voix premium',
+        'Minutes TTS: Illimité',
+        'Support prioritaire, gestion équipes'
+      ],
+      is_active: true,
+      popular: false,
+      buttonText: 'Choisir Business'
+    }
+  ];
 
   // Témoignages
   const testimonials = [
@@ -495,16 +482,11 @@ const NewLanding = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {plans.map((plan, index) => {
-              const isPopular = index === 1; // Le deuxième plan est populaire par défaut
-              const planFeatures = Array.isArray(plan.features) ? plan.features : 
-                                 typeof plan.features === 'string' ? plan.features.split(',').map(f => f.trim()) : [];
-              
-              return (
-                <Card key={plan.id} className={`relative hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 ${isPopular ? 'border-primary shadow-elegant scale-105 bg-gradient-to-b from-primary/5 to-background' : 'bg-card/50 backdrop-blur-sm'}`}>
-                  {isPopular && (
+            {plans.map((plan, index) => (
+              <Card key={plan.id} className={`relative hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 ${plan.popular ? 'border-primary shadow-elegant scale-105 bg-gradient-to-b from-primary/5 to-background' : 'bg-card/50 backdrop-blur-sm'}`}>
+                {plan.popular && (
                     <Badge className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-primary text-lg px-6 py-2">
-                      Plus Populaire
+                      Populaire
                     </Badge>
                   )}
                   <CardContent className="p-8 text-center">
@@ -515,17 +497,17 @@ const NewLanding = () => {
                         <span className="text-5xl font-bold">{plan.price.toLocaleString()}</span>
                         <span className="text-muted-foreground ml-2"> FCFA/mois</span>
                       </div>
-                      {isPopular && (
+                      {plan.popular && (
                         <div className="mt-2">
                           <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
-                            Plan actuel
+                            Actuel
                           </Badge>
                         </div>
                       )}
                     </div>
                     
                     <ul className="space-y-4 mb-8 text-left">
-                      {planFeatures.map((feature, fIndex) => (
+                      {plan.features.map((feature, fIndex) => (
                         <li key={fIndex} className="flex items-start gap-3">
                           <Check className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
                           <span className="text-sm leading-relaxed">{feature}</span>
@@ -536,15 +518,15 @@ const NewLanding = () => {
                     <Button 
                       size="lg"
                       onClick={() => navigate('/auth')}
-                      className={`w-full ${isPopular ? 'bg-gradient-primary hover:shadow-glow text-lg py-6' : 'text-lg py-6'}`}
-                      variant={isPopular ? "default" : "outline"}
+                      className={`w-full ${plan.popular ? 'bg-gradient-primary hover:shadow-glow text-lg py-6' : 'text-lg py-6'}`}
+                      variant={plan.popular ? "default" : "outline"}
+                      disabled={plan.popular}
                     >
-                      Choisir {plan.name}
+                      {plan.buttonText || `Choisir ${plan.name}`}
                     </Button>
                   </CardContent>
                 </Card>
-              );
-            })}
+              ))}
           </div>
 
           <div className="text-center mt-16">
