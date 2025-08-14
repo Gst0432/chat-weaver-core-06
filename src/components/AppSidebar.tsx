@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -142,6 +142,23 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 <SidebarMenuButton onClick={createNewChat} className="w-full justify-center bg-primary text-primary-foreground hover:bg-primary/90">
                   <Plus className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Nouveau chat</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* SaaS Generator Button */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => window.dispatchEvent(new CustomEvent('chat:toggle-saas-generator'))} 
+                  className="w-full justify-start bg-gradient-primary text-primary-foreground hover:shadow-glow"
+                >
+                  <Wand2 className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Générateur SaaS</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

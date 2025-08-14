@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Users, Zap } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { SaaSGenerator } from "@/components/SaaSGenerator";
 import { useMobileNative } from "@/hooks/use-mobile-native";
 import MobileOptimizations from "@/components/MobileOptimizations";
 
@@ -22,6 +23,7 @@ const Index = () => {
   const [safeMode, setSafeMode] = useState<boolean>((localStorage.getItem('safeMode') || 'true') === 'true');
   const [subscription, setSubscription] = useState<any>(null);
   const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
+  const [showSaaSGenerator, setShowSaaSGenerator] = useState(false);
   const { triggerHapticFeedback } = useMobileNative();
   const navigate = useNavigate();
 
@@ -81,8 +83,13 @@ const Index = () => {
     };
     window.addEventListener('chat:prefs-updated', onPrefs);
 
+    // Écoute événement pour basculer vers le générateur SaaS
+    const handleToggleSaaS = () => setShowSaaSGenerator(prev => !prev);
+    window.addEventListener('chat:toggle-saas-generator', handleToggleSaaS);
+
     return () => {
       window.removeEventListener('chat:prefs-updated', onPrefs);
+      window.removeEventListener('chat:toggle-saas-generator', handleToggleSaaS);
       subscription.unsubscribe();
     };
   }, [navigate]);
@@ -164,28 +171,39 @@ const Index = () => {
           </header>
           
           <main className="flex-1 flex flex-col bg-background">
-            <ModelSelector 
-              selectedModel={selectedModel} 
-              onModelChange={(m) => { setSelectedModel(m); localStorage.setItem('model', m); }}
-              sttProvider={sttProvider}
-              onSttProviderChange={(v) => { setSttProvider(v); localStorage.setItem('sttProvider', v); }}
-              ttsProvider={ttsProvider}
-              onTtsProviderChange={(v) => { setTtsProvider(v); localStorage.setItem('ttsProvider', v); }}
-              ttsVoice={ttsVoice}
-              onTtsVoiceChange={(v) => { setTtsVoice(v); localStorage.setItem('ttsVoice', v); }}
-              personality={personality}
-              onPersonalityChange={(k) => { setPersonality(k); localStorage.setItem('personality', k); }}
-              safeMode={safeMode}
-              onSafeModeChange={(v) => { setSafeMode(v); localStorage.setItem('safeMode', String(v)); }}
-            />
-            <ChatArea 
-              selectedModel={selectedModel} 
-              sttProvider={sttProvider} 
-              ttsProvider={ttsProvider} 
-              ttsVoice={ttsVoice} 
-              systemPrompt={personalities[personality]} 
-              safeMode={safeMode} 
-            />
+            {showSaaSGenerator ? (
+              <SaaSGenerator 
+                onGenerate={(app) => {
+                  console.log('App générée:', app);
+                  setShowSaaSGenerator(false);
+                }}
+              />
+            ) : (
+              <>
+                <ModelSelector 
+                  selectedModel={selectedModel} 
+                  onModelChange={(m) => { setSelectedModel(m); localStorage.setItem('model', m); }}
+                  sttProvider={sttProvider}
+                  onSttProviderChange={(v) => { setSttProvider(v); localStorage.setItem('sttProvider', v); }}
+                  ttsProvider={ttsProvider}
+                  onTtsProviderChange={(v) => { setTtsProvider(v); localStorage.setItem('ttsProvider', v); }}
+                  ttsVoice={ttsVoice}
+                  onTtsVoiceChange={(v) => { setTtsVoice(v); localStorage.setItem('ttsVoice', v); }}
+                  personality={personality}
+                  onPersonalityChange={(k) => { setPersonality(k); localStorage.setItem('personality', k); }}
+                  safeMode={safeMode}
+                  onSafeModeChange={(v) => { setSafeMode(v); localStorage.setItem('safeMode', String(v)); }}
+                />
+                <ChatArea 
+                  selectedModel={selectedModel} 
+                  sttProvider={sttProvider} 
+                  ttsProvider={ttsProvider} 
+                  ttsVoice={ttsVoice} 
+                  systemPrompt={personalities[personality]} 
+                  safeMode={safeMode} 
+                />
+              </>
+            )}
           </main>
         </div>
         </div>
