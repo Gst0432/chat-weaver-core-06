@@ -24,8 +24,37 @@ serve(async (req) => {
       });
     }
 
-    const { messages, model, temperature = 0.2, max_tokens = 1000 } = await req.json();
-    console.log("📥 Paramètres reçus:", { model, temperature, max_tokens, messagesCount: messages?.length });
+    const requestData = await req.json();
+    console.log("📥 Données brutes reçues:", requestData);
+    
+    const { messages, model, temperature = 0.2, max_tokens = 1000 } = requestData;
+    
+    // Validation stricte des paramètres
+    if (!Array.isArray(messages) || messages.length === 0) {
+      console.error("❌ Messages invalides:", messages);
+      return new Response(JSON.stringify({ error: "Messages array is required and cannot be empty" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    if (typeof temperature !== 'number' || temperature < 0 || temperature > 2) {
+      console.error("❌ Temperature invalide:", temperature);
+      return new Response(JSON.stringify({ error: "Temperature must be a number between 0 and 2" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    if (typeof max_tokens !== 'number' || max_tokens < 1 || max_tokens > 4096) {
+      console.error("❌ max_tokens invalide:", max_tokens);
+      return new Response(JSON.stringify({ error: "max_tokens must be a number between 1 and 4096" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    console.log("✅ Paramètres validés:", { model, temperature, max_tokens, messagesCount: messages.length });
 
     const modelMap: Record<string, string> = {
       "llama-3.1-sonar-small-128k-online": "llama-3.1-sonar-small-128k-online",
@@ -36,16 +65,39 @@ serve(async (req) => {
     const resolvedModel = modelMap[model] || model || "llama-3.1-sonar-small-128k-online";
     console.log("🔄 Modèle mappé:", model, "->", resolvedModel);
 
+    // Nettoyage des messages - s'assurer qu'ils sont au bon format
+    const cleanMessages = messages.filter((msg: any) => 
+      msg && typeof msg === 'object' && 
+      ['user', 'assistant', 'system'].includes(msg.role) &&
+      typeof msg.content === 'string' && 
+      msg.content.trim().length > 0
+    );
+
+    if (cleanMessages.length === 0) {
+      console.error("❌ Aucun message valide après nettoyage");
+      return new Response(JSON.stringify({ error: "No valid messages found" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Payload strictement compatible avec l'API Perplexity
     const payload = {
       model: resolvedModel,
-      messages: Array.isArray(messages) ? messages : [],
-      temperature,
-      max_tokens,
+      messages: cleanMessages,
+      temperature: Math.min(Math.max(temperature, 0), 2), // Clamp entre 0 et 2
+      max_tokens: Math.min(Math.max(max_tokens, 1), 4096), // Clamp entre 1 et 4096
       frequency_penalty: 0,
       presence_penalty: 0,
     };
 
-    console.log("🚀 Appel API Perplexity avec payload:", JSON.stringify(payload, null, 2));
+    console.log("🚀 Appel API Perplexity avec payload validé:", {
+      model: payload.model,
+      temperature: payload.temperature,
+      max_tokens: payload.max_tokens,
+      messagesCount: payload.messages.length,
+      firstMessage: payload.messages[0]?.content?.substring(0, 100) + "..."
+    });
 
     const response = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
@@ -59,15 +111,42 @@ serve(async (req) => {
     console.log("📡 Réponse Perplexity API:", response.status, response.statusText);
 
     if (!response.ok) {
-      const err = await response.text();
-      console.error("❌ Erreur Perplexity API:", {
-        status: response.status,
-        statusText: response.statusText,
-        error: err,
-        model: resolvedModel,
-        messagesCount: messages?.length
-      });
-      return new Response(JSON.stringify({ error: err }), {
+      const errText = await response.text();
+      let parsedError = errText;
+      
+      try {
+        const errorJson = JSON.parse(errText);
+        parsedError = errorJson;
+        console.error("❌ Erreur JSON Perplexity API:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorDetails: errorJson,
+          model: resolvedModel,
+          messagesCount: cleanMessages.length,
+          sentPayload: {
+            model: payload.model,
+            temperature: payload.temperature,
+            max_tokens: payload.max_tokens
+          }
+        });
+      } catch {
+        console.error("❌ Erreur texte Perplexity API:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errText,
+          model: resolvedModel,
+          messagesCount: cleanMessages.length
+        });
+      }
+      
+      return new Response(JSON.stringify({ 
+        error: parsedError,
+        debug: {
+          status: response.status,
+          model: resolvedModel,
+          messagesCount: cleanMessages.length
+        }
+      }), {
         status: response.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

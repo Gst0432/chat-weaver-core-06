@@ -719,12 +719,21 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         return;
       }
 
+      // Construction du requestBody avec paramètres spécifiques selon le provider
       const requestBody: any = {
         messages: chatMessages,
         model,
         temperature,
-        [maxTokensParam]: maxTokens
       };
+
+      // Paramètres spécifiques selon le provider
+      if (functionName === 'perplexity-chat') {
+        // Forcer max_tokens pour Perplexity (jamais max_completion_tokens)
+        requestBody.max_tokens = maxTokens;
+      } else {
+        // Pour les autres providers (OpenAI, etc.)
+        requestBody[maxTokensParam] = maxTokens;
+      }
 
       // Pour les modèles O1, ne pas envoyer temperature
       if (functionName === ('openai-chat' as string) && isO1Model) {
