@@ -23,15 +23,22 @@ interface ChatMessageProps {
 
 const getModelInfo = (modelId?: string) => {
   const models = {
-    "gpt-4o": { name: "GPT-4o", provider: "OpenAI", icon: Sparkles, color: "openai" },
-    "gpt-4o-mini": { name: "GPT-4o Mini", provider: "OpenAI", icon: Sparkles, color: "openai" },
+    "gpt-5-2025-08-07": { name: "GPT-5", provider: "OpenAI", icon: Sparkles, color: "openai" },
+    "gpt-5-mini-2025-08-07": { name: "GPT-5 Mini", provider: "OpenAI", icon: Zap, color: "openai" },
+    "gpt-5-nano-2025-08-07": { name: "GPT-5 Nano", provider: "OpenAI", icon: Zap, color: "openai" },
+    "gpt-4.1-2025-04-14": { name: "GPT-4.1", provider: "OpenAI", icon: Sparkles, color: "openai" },
+    "gpt-4.1-mini-2025-04-14": { name: "GPT-4.1 Mini", provider: "OpenAI", icon: Zap, color: "openai" },
+    "o3-2025-04-16": { name: "O3", provider: "OpenAI", icon: Cpu, color: "openai" },
+    "o4-mini-2025-04-16": { name: "O4 Mini", provider: "OpenAI", icon: Cpu, color: "openai" },
+    "gpt-4o": { name: "GPT-4o (Legacy)", provider: "OpenAI", icon: Sparkles, color: "openai" },
+    "gpt-4o-mini": { name: "GPT-4o Mini (Legacy)", provider: "OpenAI", icon: Sparkles, color: "openai" },
     "o1-preview": { name: "o1-preview", provider: "OpenAI", icon: Cpu, color: "openai" },
     "o1-mini": { name: "o1-mini", provider: "OpenAI", icon: Cpu, color: "openai" },
     "gemini-1.5-flash": { name: "Gemini 1.5 Flash", provider: "Google", icon: Zap, color: "gemini" },
     "gemini-1.5-pro": { name: "Gemini 1.5 Pro", provider: "Google", icon: Zap, color: "gemini" },
-    "perplexity": { name: "Perplexity Search", provider: "Perplexity", icon: Search, color: "perplexity" },
     "deepseek-chat": { name: "DeepSeek Chat", provider: "DeepSeek", icon: Cpu, color: "openai" },
-    "auto-router": { name: "Auto Router", provider: "Smart", icon: Sparkles, color: "openai" }
+    "auto-router": { name: "Auto Router", provider: "Smart", icon: Sparkles, color: "openai" },
+    "ai-image": { name: "Image AI", provider: "AI", icon: Sparkles, color: "openai" }
   } as const;
 
   // Retourner null si le modèle n'est pas reconnu (pas de badge affiché)
@@ -68,9 +75,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
             <Badge 
               variant="secondary" 
               className={`text-xs ${
-                modelInfo.color === 'openai' ? 'bg-openai/20 text-openai border-openai/30' :
                 modelInfo.color === 'gemini' ? 'bg-gemini/20 text-gemini border-gemini/30' :
-                modelInfo.color === 'perplexity' ? 'bg-perplexity/20 text-perplexity border-perplexity/30' :
                 'bg-openai/20 text-openai border-openai/30'
               }`}
             >

@@ -607,27 +607,24 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           model = 'gemini-1.5-flash'; // Gemini pour la vision
           setAutoRouterChoice('gemini-vision');
         } else {
-          // Par défaut: GPT-4o pour usage général
+          // Par défaut: GPT-5 pour usage général
           functionName = 'openai-chat';
-          model = 'gpt-4o';
-          setAutoRouterChoice('gpt4o-general');
+          model = 'gpt-5-2025-08-07';
+          setAutoRouterChoice('gpt5-general');
         }
-      } else if (selectedModel === 'perplexity' || selectedModel.includes('perplexity')) {
-        functionName = 'perplexity-chat';
-        model = 'llama-3.1-sonar-small-128k-online';
       } else if (selectedModel.includes('gemini')) {
         functionName = 'gemini-chat';
         model = selectedModel; // gemini-1.5-flash ou gemini-1.5-pro
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
-      } else if (selectedModel.startsWith('gpt-') || selectedModel.startsWith('o1-')) {
+      } else if (selectedModel.startsWith('gpt-') || selectedModel.startsWith('o')) {
         functionName = 'openai-chat';
         model = selectedModel;
       } else {
-        // Fallback amélioré - utiliser GPT-4o par défaut
+        // Fallback amélioré - utiliser GPT-5 par défaut
         functionName = 'openai-chat';
-        model = 'gpt-4o';
+        model = 'gpt-5-2025-08-07';
       }
 
       // Debug: Afficher le modèle et la fonction utilisés
@@ -635,10 +632,11 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       console.log("🔧 MODEL ROUTING:", { selectedModel, functionName, model, isAutoRouter });
 
       // Paramètres optimisés selon le modèle
-      const isO1Model = model.startsWith('o1-');
-      const maxTokensParam = isO1Model ? 'max_completion_tokens' : 'max_tokens';
+      const isO1Model = model.startsWith('o1-') || model.startsWith('o3-') || model.startsWith('o4-');
+      const isNewModel = model.includes('gpt-5') || model.includes('gpt-4.1') || model.startsWith('o3-') || model.startsWith('o4-');
+      const maxTokensParam = isNewModel ? 'max_completion_tokens' : 'max_tokens';
       const temperature = safeMode ? 0.3 : 0.7;
-      const maxTokens = functionName === 'perplexity-chat' ? 1000 : 1500; // Plus généreux
+      const maxTokens = 1500;
       
       // Streaming uniquement pour OpenAI
       if (functionName === 'openai-chat') {
@@ -727,16 +725,10 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       };
 
       // Paramètres spécifiques selon le provider
-      if (functionName === 'perplexity-chat') {
-        // Forcer max_tokens pour Perplexity (jamais max_completion_tokens)
-        requestBody.max_tokens = maxTokens;
-      } else {
-        // Pour les autres providers (OpenAI, etc.)
-        requestBody[maxTokensParam] = maxTokens;
-      }
+      requestBody[maxTokensParam] = maxTokens;
 
-      // Pour les modèles O1, ne pas envoyer temperature
-      if (functionName === ('openai-chat' as string) && isO1Model) {
+      // Pour les modèles O1 et nouveaux modèles, ne pas envoyer temperature
+      if (functionName === ('openai-chat' as string) && (isO1Model || isNewModel)) {
         delete requestBody.temperature;
       }
 

@@ -11,32 +11,80 @@ const models = [
     name: "Auto (Routeur)",
     provider: "Intelligent",
     icon: Search,
-    color: "perplexity",
+    color: "openai",
     description: "Choisit automatiquement le meilleur modèle selon la tâche"
   },
   {
-    id: "gpt-4o",
-    name: "GPT-4o",
+    id: "gpt-5-2025-08-07",
+    name: "GPT-5",
     provider: "OpenAI",
     icon: Sparkles,
     color: "openai",
-    description: "Le modèle le plus avancé d'OpenAI - Excellence généraliste"
+    description: "Le modèle phare d'OpenAI avec recherche web native"
   },
   {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
+    id: "gpt-5-mini-2025-08-07",
+    name: "GPT-5 Mini",
     provider: "OpenAI",
     icon: Zap,
     color: "openai",
-    description: "Modèle rapide et économique"
+    description: "Version rapide et efficace de GPT-5"
   },
   {
-    id: "o1-preview",
-    name: "O1 Preview",
+    id: "gpt-5-nano-2025-08-07",
+    name: "GPT-5 Nano",
+    provider: "OpenAI",
+    icon: Zap,
+    color: "openai",
+    description: "Version ultra-rapide pour tâches simples"
+  },
+  {
+    id: "gpt-4.1-2025-04-14",
+    name: "GPT-4.1",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "Modèle GPT-4 fiable et éprouvé"
+  },
+  {
+    id: "gpt-4.1-mini-2025-04-14",
+    name: "GPT-4.1 Mini",
+    provider: "OpenAI",
+    icon: Zap,
+    color: "openai",
+    description: "Version rapide et économique de GPT-4.1"
+  },
+  {
+    id: "o3-2025-04-16",
+    name: "O3",
     provider: "OpenAI",
     icon: Cpu,
     color: "openai",
-    description: "Raisonnement complexe et analyse multi-étapes"
+    description: "Modèle de raisonnement avancé pour analyses complexes"
+  },
+  {
+    id: "o4-mini-2025-04-16",
+    name: "O4 Mini",
+    provider: "OpenAI",
+    icon: Cpu,
+    color: "openai",
+    description: "Raisonnement rapide et efficace"
+  },
+  {
+    id: "gpt-4o",
+    name: "GPT-4o (Legacy)",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "Ancien modèle OpenAI - Remplacé par GPT-5"
+  },
+  {
+    id: "gpt-4o-mini",
+    name: "GPT-4o Mini (Legacy)",
+    provider: "OpenAI",
+    icon: Zap,
+    color: "openai",
+    description: "Ancien modèle rapide - Remplacé par GPT-5 Mini"
   },
   {
     id: "gemini-1.5-flash",
@@ -61,14 +109,6 @@ const models = [
     icon: Cpu,
     color: "openai",
     description: "Généraliste hautes performances pour le code"
-  },
-  {
-    id: "perplexity",
-    name: "Perplexity Search",
-    provider: "Perplexity",
-    icon: Search,
-    color: "perplexity",
-    description: "Recherche web IA en temps réel avec sources"
   },
 ];
 interface ModelSelectorProps {
