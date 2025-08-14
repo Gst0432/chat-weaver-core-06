@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WebPreview } from "@/components/WebPreview";
+import { SaaSEditor } from "@/components/SaaSEditor";
 import { 
   Wand2, 
   Database, 
@@ -18,10 +19,27 @@ import {
   Download, 
   Rocket,
   Settings,
-  Sparkles
+  Sparkles,
+  CreditCard,
+  BarChart3,
+  Cloud,
+  Zap,
+  Bell,
+  MessageSquare,
+  Search,
+  Smartphone,
+  Save,
+  History,
+  Edit3,
+  Brain,
+  Heart,
+  Star
 } from "lucide-react";
 import { AppGeneratorService, type AppGenerationOptions, type GeneratedApp } from "@/services/appGeneratorService";
+import { ContextualMemoryService } from "@/services/contextualMemoryService";
+import { AIDesignService } from "@/services/aiDesignService";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SaaSGeneratorProps {
   onGenerate?: (app: GeneratedApp) => void;
@@ -31,6 +49,9 @@ export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedApp, setGeneratedApp] = useState<GeneratedApp | null>(null);
   const [activeTab, setActiveTab] = useState("config");
+  const [showEditor, setShowEditor] = useState(false);
+  const [userApps, setUserApps] = useState<any[]>([]);
+  const [suggestedOptions, setSuggestedOptions] = useState<Partial<AppGenerationOptions>>({});
   const { toast } = useToast();
 
   const [options, setOptions] = useState<AppGenerationOptions>({
@@ -39,11 +60,50 @@ export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
     description: '',
     industry: 'technologie',
     style: 'modern',
-    colorScheme: 'blue',
+    colorScheme: 'ai-generated',
     includeAuth: true,
+    authProviders: ['email'],
     includeDatabase: true,
-    includeCMS: false
+    includeStripe: false,
+    includeAnalytics: false,
+    includeStorage: false,
+    includeRealtime: false,
+    includeNotifications: false,
+    includeCMS: false,
+    includeChat: false,
+    seoOptimized: true,
+    pwaEnabled: false
   });
+
+  // Charger les données utilisateur au démarrage
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Charger les suggestions basées sur l'historique
+      const suggestions = await ContextualMemoryService.getSuggestedOptions(user.id);
+      setSuggestedOptions(suggestions);
+
+      // Appliquer les suggestions aux options par défaut
+      setOptions(prev => ({
+        ...prev,
+        ...suggestions,
+        businessName: prev.businessName,
+        description: prev.description
+      }));
+
+      // Charger les apps précédemment générées
+      const apps = await ContextualMemoryService.getUserGeneratedApps(user.id);
+      setUserApps(apps);
+    } catch (error) {
+      console.error('Erreur chargement données utilisateur:', error);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!options.businessName || !options.description) {
@@ -58,18 +118,88 @@ export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
     setIsGenerating(true);
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Générer le design IA si demandé
+      let enhancedCSS = '';
+      if (options.colorScheme === 'ai-generated') {
+        toast({
+          title: "🎨 Génération du design IA",
+          description: "Création d'une palette de couleurs personnalisée...",
+        });
+        
+        const aiDesign = await AIDesignService.generateDesignSystem(
+          options.industry,
+          options.style || 'modern',
+          options.businessName
+        );
+        
+        // Le CSS sera amélioré avec le design IA après génération
+      }
+
       const prompt = `Crée une application ${options.type} pour ${options.businessName}. ${options.description}`;
       const app = await AppGeneratorService.generateApp(prompt, options);
       
+      // Appliquer le design IA au CSS si généré
+      if (options.colorScheme === 'ai-generated') {
+        const aiDesign = await AIDesignService.generateDesignSystem(
+          options.industry,
+          options.style || 'modern',
+          options.businessName
+        );
+        app.css = AIDesignService.applyDesignToCSS(aiDesign, app.css);
+      }
+
       setGeneratedApp(app);
       setActiveTab("preview");
       onGenerate?.(app);
       
+      // Sauvegarder dans la mémoire contextuelle
+      if (user) {
+        await ContextualMemoryService.saveGeneratedApp(
+          user.id,
+          options.businessName,
+          options.type,
+          options.industry,
+          app,
+          options
+        );
+        
+        await ContextualMemoryService.updateGenerationHistory(
+          user.id,
+          prompt,
+          options,
+          true
+        );
+        
+        await ContextualMemoryService.updatePreferencesFromUsage(
+          user.id,
+          options,
+          true
+        );
+        
+        // Recharger les données
+        loadUserData();
+      }
+      
       toast({
-        title: "Application générée !",
-        description: `Votre ${options.type} ${options.businessName} est prête.`,
+        title: "✨ Application générée !",
+        description: `Votre ${options.type} ${options.businessName} est prête avec design IA.`,
       });
     } catch (error: any) {
+      console.error('Erreur génération:', error);
+      
+      // Sauvegarder l'échec dans l'historique
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await ContextualMemoryService.updateGenerationHistory(
+          user.id,
+          `${options.businessName}: ${options.description}`,
+          options,
+          false
+        );
+      }
+      
       toast({
         title: "Erreur de génération",
         description: error.message || "Échec de la génération de l'application",
@@ -257,10 +387,13 @@ ${generatedApp.databaseSchema}
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="ai-generated">🎨 IA Généré (Recommandé)</SelectItem>
                         <SelectItem value="blue">Bleu</SelectItem>
                         <SelectItem value="green">Vert</SelectItem>
                         <SelectItem value="purple">Violet</SelectItem>
                         <SelectItem value="orange">Orange</SelectItem>
+                        <SelectItem value="pink">Rose</SelectItem>
+                        <SelectItem value="teal">Turquoise</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -290,7 +423,7 @@ ${generatedApp.databaseSchema}
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Base de données Supabase</Label>
-                    <p className="text-sm text-muted-foreground">Schéma automatique avec données de démo</p>
+                    <p className="text-sm text-muted-foreground">Schéma automatique avec RLS</p>
                   </div>
                   <Switch
                     checked={options.includeDatabase}
@@ -299,13 +432,72 @@ ${generatedApp.databaseSchema}
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Système de contenu</Label>
-                    <p className="text-sm text-muted-foreground">CMS intégré pour gérer le contenu</p>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    <div>
+                      <Label>Paiements Stripe</Label>
+                      <p className="text-sm text-muted-foreground">Checkout et abonnements</p>
+                    </div>
                   </div>
                   <Switch
-                    checked={options.includeCMS}
-                    onCheckedChange={(checked) => setOptions(prev => ({ ...prev, includeCMS: checked }))}
+                    checked={options.includeStripe}
+                    onCheckedChange={(checked) => setOptions(prev => ({ ...prev, includeStripe: checked }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    <div>
+                      <Label>Analytics</Label>
+                      <p className="text-sm text-muted-foreground">Tracking et métriques</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={options.includeAnalytics}
+                    onCheckedChange={(checked) => setOptions(prev => ({ ...prev, includeAnalytics: checked }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cloud className="w-4 h-4" />
+                    <div>
+                      <Label>Stockage fichiers</Label>
+                      <p className="text-sm text-muted-foreground">Upload images/documents</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={options.includeStorage}
+                    onCheckedChange={(checked) => setOptions(prev => ({ ...prev, includeStorage: checked }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    <div>
+                      <Label>Temps réel</Label>
+                      <p className="text-sm text-muted-foreground">Live updates</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={options.includeRealtime}
+                    onCheckedChange={(checked) => setOptions(prev => ({ ...prev, includeRealtime: checked }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4" />
+                    <div>
+                      <Label>PWA</Label>
+                      <p className="text-sm text-muted-foreground">App mobile native</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={options.pwaEnabled}
+                    onCheckedChange={(checked) => setOptions(prev => ({ ...prev, pwaEnabled: checked }))}
                   />
                 </div>
               </CardContent>

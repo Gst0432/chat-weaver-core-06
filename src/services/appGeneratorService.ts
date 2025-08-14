@@ -122,10 +122,19 @@ export class AppGeneratorService {
       description: prompt,
       industry,
       style: 'modern',
-      colorScheme: 'blue',
+      colorScheme: 'ai-generated',
       includeAuth: true,
+      authProviders: ['email'],
       includeDatabase: true,
-      includeCMS: false
+      includeStripe: false,
+      includeAnalytics: false,
+      includeStorage: false,
+      includeRealtime: false,
+      includeNotifications: false,
+      includeCMS: false,
+      includeChat: false,
+      seoOptimized: true,
+      pwaEnabled: false
     };
   }
 
@@ -214,49 +223,74 @@ export class AppGeneratorService {
    */
   private static buildEnhancedPrompt(prompt: string, options: AppGenerationOptions, images: GeneratedApp['images']): string {
     const imageUrls = images.map((img, i) => `${img.usage}: ${img.url}`).join('\n');
+    
+    const technicalFeatures = [];
+    if (options.includeAuth) technicalFeatures.push(`- Authentification (${options.authProviders?.join(', ') || 'email'})`);
+    if (options.includeDatabase) technicalFeatures.push('- Base de données Supabase avec RLS');
+    if (options.includeStripe) technicalFeatures.push('- Intégration Stripe pour paiements');
+    if (options.includeAnalytics) technicalFeatures.push('- Analytics et tracking');
+    if (options.includeStorage) technicalFeatures.push('- Stockage de fichiers');
+    if (options.includeRealtime) technicalFeatures.push('- Fonctionnalités temps réel');
+    if (options.includeNotifications) technicalFeatures.push('- Système de notifications');
+    if (options.includeCMS) technicalFeatures.push('- CMS intégré');
+    if (options.includeChat) technicalFeatures.push('- Chat/messagerie');
+    if (options.seoOptimized) technicalFeatures.push('- Optimisation SEO avancée');
+    if (options.pwaEnabled) technicalFeatures.push('- Progressive Web App (PWA)');
 
     return `
-Génère une application web complète pour: ${prompt}
+Génère une application web complète et moderne pour: ${prompt}
 
-SPÉCIFICATIONS:
+SPÉCIFICATIONS BUSINESS:
 - Type: ${options.type}
 - Business: ${options.businessName}
 - Industrie: ${options.industry}
 - Style: ${options.style}
-- Couleurs: ${options.colorScheme}
+- Couleurs: ${options.colorScheme === 'ai-generated' ? 'Palette générée par IA selon l\'industrie' : options.colorScheme}
 
 IMAGES DISPONIBLES:
 ${imageUrls}
 
 EXIGENCES TECHNIQUES:
-- HTML5 sémantique responsive
-- CSS moderne avec Flexbox/Grid
-- JavaScript vanilla moderne (ES6+)
-- Design mobile-first
-- Accessibility (ARIA labels)
-- SEO optimisé (meta tags, structured data)
+- HTML5 sémantique et accessible (WCAG AA)
+- CSS moderne avec CSS Grid/Flexbox
+- JavaScript vanilla ES6+ avec modules
+- Design mobile-first responsive
+- Performance optimisée (Core Web Vitals)
+- Cross-browser compatibility
 
 FONCTIONNALITÉS REQUISES:
-${options.includeAuth ? '- Système d\'authentification (UI mockup)' : ''}
-${options.includeDatabase ? '- Intégration base de données (forms)' : ''}
-- Navigation responsive
-- Section héro avec CTA
-- Formulaire de contact
-- Footer professionnel
+${technicalFeatures.join('\n')}
 
-UTILISE les images fournies aux endroits appropriés.
-RÉPONDS avec le format exact:
+DESIGN REQUIREMENTS:
+- Interface utilisateur moderne et intuitive
+- Animations et micro-interactions fluides
+- Palette de couleurs cohérente selon l'industrie
+- Typographie optimisée pour la lisibilité
+- Layout responsive avec breakpoints appropriés
+- Loading states et feedback utilisateur
+
+STRUCTURE DE PAGE:
+- Header avec navigation et CTA
+- Section héro avec value proposition
+- Sections features/services
+- Témoignages clients si approprié
+- Section pricing si SaaS
+- Footer avec liens importants
+
+UTILISE les images fournies aux endroits appropriés et optimise pour ${options.industry}.
+
+Réponds avec le format exact:
 
 \`\`\`html
-[Code HTML complet]
+[Code HTML complet avec structure sémantique]
 \`\`\`
 
 \`\`\`css
-[Code CSS complet]
+[Code CSS moderne avec design system complet]
 \`\`\`
 
 \`\`\`javascript
-[Code JavaScript complet]
+[Code JavaScript fonctionnel avec interactivité]
 \`\`\`
     `;
   }

@@ -112,6 +112,7 @@ export type Database = {
           app_type: string
           created_at: string
           generated_content: Json
+          generation_options: Json | null
           id: string
           industry: string
           updated_at: string
@@ -122,6 +123,7 @@ export type Database = {
           app_type: string
           created_at?: string
           generated_content: Json
+          generation_options?: Json | null
           id?: string
           industry: string
           updated_at?: string
@@ -132,6 +134,7 @@ export type Database = {
           app_type?: string
           created_at?: string
           generated_content?: Json
+          generation_options?: Json | null
           id?: string
           industry?: string
           updated_at?: string
@@ -206,6 +209,45 @@ export type Database = {
           minutes?: number
           payment_reference?: string
           status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saas_templates: {
+        Row: {
+          created_at: string
+          id: string
+          industry: string
+          is_public: boolean | null
+          template_content: Json
+          template_name: string
+          template_type: string
+          updated_at: string
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          industry: string
+          is_public?: boolean | null
+          template_content: Json
+          template_name: string
+          template_type: string
+          updated_at?: string
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          industry?: string
+          is_public?: boolean | null
+          template_content?: Json
+          template_name?: string
+          template_type?: string
+          updated_at?: string
+          usage_count?: number | null
           user_id?: string
         }
         Relationships: []
@@ -338,6 +380,45 @@ export type Database = {
           name?: string | null
           owner_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          default_technical_features: Json | null
+          favorite_colors: string[] | null
+          favorite_industries: string[] | null
+          favorite_styles: string[] | null
+          generation_history: Json | null
+          id: string
+          template_preferences: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_technical_features?: Json | null
+          favorite_colors?: string[] | null
+          favorite_industries?: string[] | null
+          favorite_styles?: string[] | null
+          generation_history?: Json | null
+          id?: string
+          template_preferences?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_technical_features?: Json | null
+          favorite_colors?: string[] | null
+          favorite_industries?: string[] | null
+          favorite_styles?: string[] | null
+          generation_history?: Json | null
+          id?: string
+          template_preferences?: Json | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
