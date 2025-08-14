@@ -15,15 +15,28 @@ serve(async (req) => {
 
   try {
     if (!OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is not configured");
       return new Response(JSON.stringify({ error: "OPENAI_API_KEY is not set" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { messages, model = "gpt-5-2025-08-07", temperature, max_tokens, max_completion_tokens } = await req.json();
+    const { messages, model = "gpt-4o", temperature, max_tokens, max_completion_tokens } = await req.json();
 
-    // Support nouveaux modèles OpenAI avec paramètres corrects
+    console.log(`Processing request for model: ${model}`);
+    console.log(`Request parameters:`, { 
+      model, 
+      temperature, 
+      max_tokens, 
+      max_completion_tokens, 
+      messageCount: Array.isArray(messages) ? messages.length : 0 
+    });
+
+    // Détection correcte des modèles o1 (qui requièrent max_completion_tokens et interdisent temperature)
+    const isO1Model = model && (model.includes('o1-preview') || model.includes('o1-mini'));
+    
+    // Détection des nouveaux modèles GPT-5 et reasoning models
     const isNewModel = model && (model.startsWith('gpt-5') || model.startsWith('gpt-4.1') || 
                                 model.startsWith('o3-') || model.startsWith('o4-'));
     
@@ -33,14 +46,26 @@ serve(async (req) => {
       stream: true,
     };
 
-    // Nouveaux modèles utilisent max_completion_tokens, anciens max_tokens
-    if (isNewModel) {
+    // Configuration des paramètres selon le type de modèle
+    if (isO1Model) {
+      // Modèles o1 : max_completion_tokens uniquement, pas de temperature
+      console.log("Using o1 model parameters");
       if (max_completion_tokens) payload.max_completion_tokens = max_completion_tokens;
-      // Ne pas inclure temperature pour les nouveaux modèles (défaut 1.0)
+      // Ne pas inclure temperature pour les modèles o1 (cause une erreur 400)
+    } else if (isNewModel) {
+      // Nouveaux modèles GPT-5+ : max_completion_tokens optionnel
+      console.log("Using new model parameters");
+      if (max_completion_tokens) payload.max_completion_tokens = max_completion_tokens;
+      // Temperature optionnel pour les nouveaux modèles
+      if (temperature !== undefined) payload.temperature = temperature;
     } else {
+      // Modèles classiques : max_tokens et temperature
+      console.log("Using legacy model parameters");
       if (temperature !== undefined) payload.temperature = temperature;
       if (max_tokens) payload.max_tokens = max_tokens;
     }
+
+    console.log("Final payload to OpenAI:", JSON.stringify(payload, null, 2));
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -52,9 +77,41 @@ serve(async (req) => {
     });
 
     if (!response.ok || !response.body) {
-      const err = await response.text();
-      return new Response(JSON.stringify({ error: err }), {
-        status: response.status || 500,
+      const errorText = await response.text();
+      const errorStatus = response.status;
+      
+      console.error(`OpenAI API Error (${errorStatus}):`, errorText);
+      console.error(`Failed request payload:`, JSON.stringify(payload, null, 2));
+      
+      let userFriendlyError = `OpenAI API Error (${errorStatus})`;
+      
+      // Messages d'erreur contextuels selon le modèle et l'erreur
+      if (errorStatus === 400) {
+        if (isO1Model && errorText.includes('temperature')) {
+          userFriendlyError = `Erreur: Le modèle ${model} ne supporte pas le paramètre temperature`;
+        } else if (errorText.includes('max_tokens') && isNewModel) {
+          userFriendlyError = `Erreur: Le modèle ${model} nécessite max_completion_tokens au lieu de max_tokens`;
+        } else if (errorText.includes('model')) {
+          userFriendlyError = `Erreur: Modèle ${model} non valide ou indisponible`;
+        } else {
+          userFriendlyError = `Erreur de paramètres pour le modèle ${model}`;
+        }
+      } else if (errorStatus === 401) {
+        userFriendlyError = "Erreur d'authentification OpenAI - Vérifiez votre clé API";
+      } else if (errorStatus === 403) {
+        userFriendlyError = `Accès refusé au modèle ${model}`;
+      } else if (errorStatus === 429) {
+        userFriendlyError = "Limite de taux dépassée - Veuillez réessayer dans quelques instants";
+      } else if (errorStatus >= 500) {
+        userFriendlyError = "Erreur serveur OpenAI - Veuillez réessayer";
+      }
+      
+      return new Response(JSON.stringify({ 
+        error: userFriendlyError,
+        details: errorText,
+        model: model
+      }), {
+        status: errorStatus || 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
