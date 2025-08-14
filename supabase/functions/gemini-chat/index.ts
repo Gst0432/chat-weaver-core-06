@@ -14,7 +14,10 @@ serve(async (req) => {
   }
 
   try {
+    console.log("🔍 GEMINI-CHAT: Fonction appelée");
+    
     if (!GEMINI_API_KEY) {
+      console.error("❌ GEMINI_API_KEY manquante");
       return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not set" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -22,6 +25,7 @@ serve(async (req) => {
     }
 
     const { messages, model = "gemini-1.5-flash", temperature = 0.7, max_tokens = 800 } = await req.json();
+    console.log("📥 Paramètres reçus:", { model, temperature, max_tokens, messagesCount: messages?.length });
 
     // Convert OpenAI format to Gemini format
     const contents = messages
@@ -51,6 +55,8 @@ serve(async (req) => {
       };
     }
 
+    console.log("🚀 Appel API Gemini avec payload:", JSON.stringify(payload, null, 2));
+    
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -61,6 +67,8 @@ serve(async (req) => {
         body: JSON.stringify(payload),
       }
     );
+    
+    console.log("📡 Réponse Gemini API:", response.status, response.statusText);
 
     if (!response.ok) {
       const err = await response.text();
@@ -73,6 +81,7 @@ serve(async (req) => {
 
     const data = await response.json();
     const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    console.log("✅ Texte généré par Gemini:", generatedText?.substring(0, 100) + "...");
 
     return new Response(JSON.stringify({ generatedText, raw: data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

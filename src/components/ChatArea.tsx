@@ -630,6 +630,10 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         model = 'gpt-5-2025-08-07';
       }
 
+      // Debug: Afficher le modèle et la fonction utilisés
+      const isAutoRouter = selectedModel === 'auto-router';
+      console.log("🔧 MODEL ROUTING:", { selectedModel, functionName, model, isAutoRouter });
+
       // Paramètres optimisés selon le modèle
       const isNewOpenAIModel = model.startsWith('gpt-5') || model.startsWith('gpt-4.1') || 
                                model.startsWith('o3-') || model.startsWith('o4-');
@@ -732,7 +736,10 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         body: requestBody
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Erreur Edge Function:", { functionName, model, error });
+        throw error;
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),

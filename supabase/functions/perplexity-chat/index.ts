@@ -28,9 +28,10 @@ serve(async (req) => {
     console.log("📥 Paramètres reçus:", { model, temperature, max_tokens, messagesCount: messages?.length });
 
     const modelMap: Record<string, string> = {
-      "llama-3.1-sonar-small-128k-online": "sonar-small-online",
-      "llama-3.1-sonar-large-128k-online": "sonar-large-online",
-      "llama-3.1-sonar-huge-128k-online": "sonar-huge-online",
+      "llama-3.1-sonar-small-128k-online": "llama-3.1-sonar-small-128k-online",
+      "llama-3.1-sonar-large-128k-online": "llama-3.1-sonar-large-128k-online", 
+      "llama-3.1-sonar-huge-128k-online": "llama-3.1-sonar-huge-128k-online",
+      "perplexity": "llama-3.1-sonar-small-128k-online", // Fallback pour ID simple
     };
     const resolvedModel = modelMap[model] || model || "sonar-small-online";
     console.log("🔄 Modèle mappé:", model, "->", resolvedModel);
