@@ -39,39 +39,30 @@ serve(async (req) => {
       });
     }
 
-    // Préparer la requête pour l'API RunwayML
+    // Préparer la requête pour l'API RunwayML Gen-3
     const requestBody: any = {
-      promptText: prompt,
-      seed: Math.floor(Math.random() * 1000000),
-      exploreMode: false
+      model: "gen3a_turbo",
+      prompt: prompt,
+      duration: duration,
+      aspect_ratio: quality === "high" ? "16:9" : "9:16",
+      seed: Math.floor(Math.random() * 1000000)
     };
 
-    // Configuration pour image-to-video vs text-to-video
+    // Ajouter l'image si c'est une génération image-to-video
     if (image) {
-      requestBody.promptImage = image;
-      requestBody.model = "gen3a_turbo";
-    } else {
-      requestBody.seconds = duration;
-      requestBody.ratio = quality === "high" ? "16:9" : "9:16";
+      requestBody.image = image;
     }
 
     console.log("🚀 Appel API RunwayML avec:", JSON.stringify(requestBody, null, 2));
     
-    // Détermine le bon endpoint selon le type de génération
-    const endpoint = image ? "/v1/image_to_video" : "/v1/generations";
-    
-    // Appel à l'API RunwayML Gen-3 Turbo
-    const response = await fetch(`https://api.dev.runwayml.com${endpoint}`, {
+    // Utiliser le bon endpoint RunwayML Gen-3
+    const response = await fetch(`https://api.runwayml.com/v1/image_to_video`, {
       method: "POST", 
       headers: {
         "Authorization": `Bearer ${RUNWAYML_API_KEY}`,
-        "Content-Type": "application/json",
-        "X-Runway-Version": "2024-11-06"
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        ...requestBody,
-        model: "gen3a_turbo"
-      }),
+      body: JSON.stringify(requestBody),
     });
     
     console.log("📡 Réponse RunwayML API:", response.status, response.statusText);
@@ -88,16 +79,16 @@ serve(async (req) => {
     const data = await response.json();
     console.log("📦 Réponse brute RunwayML:", JSON.stringify(data, null, 2));
     
-    // RunwayML retourne un task ID, on doit attendre que la vidéo soit générée
-    if (data.id) {
-      console.log("✅ Tâche RunwayML créée avec succès, ID:", data.id);
+    // RunwayML retourne un task ID
+    const taskId = data.id || data.task_id || data.taskId;
+    if (taskId) {
+      console.log("✅ Tâche RunwayML créée avec succès, ID:", taskId);
       
       return new Response(JSON.stringify({ 
-        taskId: data.id,
+        taskId: taskId,
         status: "processing",
         duration,
         quality,
-        hasAudio: true,
         provider: "runwayml"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
