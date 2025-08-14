@@ -39,29 +39,39 @@ serve(async (req) => {
       });
     }
 
-    // Préparer la requête pour l'API Veo 3
-    const requestBody: any = {
-      prompt,
-      duration,
-      quality,
-      audio: true, // Générer l'audio natif
-      resolution: quality === "high" ? "4K" : "1080p"
-    };
+    // Préparer la requête pour l'API Veo 3 au format Gemini standard
+    const contents = [];
+    
+    // Ajouter le prompt de génération vidéo
+    contents.push({
+      parts: [{
+        text: `Generate a ${duration}-second video with ${quality} quality: ${prompt}`
+      }]
+    });
 
-    // Si une image est fournie, utiliser le mode image-to-video
+    // Si une image est fournie pour image-to-video
     if (image) {
-      requestBody.image = image;
-      requestBody.mode = "image-to-video";
-    } else {
-      requestBody.mode = "text-to-video";
+      contents[0].parts.push({
+        inline_data: {
+          mime_type: "image/jpeg", // ou le type MIME approprié
+          data: image.replace(/^data:image\/[^;]+;base64,/, '') // Enlever le préfixe data URL si présent
+        }
+      });
     }
+
+    const requestBody = {
+      contents,
+      generationConfig: {
+        videoLength: `${duration}s`,
+        includeAudio: true
+      }
+    };
 
     console.log("🚀 Appel API Veo 3 avec:", JSON.stringify(requestBody, null, 2));
     
-    // Note: L'endpoint exact de Veo 3 peut varier, voici une structure générique
-    // Vous devrez peut-être ajuster l'URL selon la documentation officielle
+    // Utiliser l'endpoint generateContent standard avec le modèle veo-3
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateVideo?key=${GOOGLE_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateContent?key=${GOOGLE_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -83,10 +93,26 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log("📦 Réponse brute Veo 3:", JSON.stringify(data, null, 2));
     
-    // La structure de réponse peut varier, adaptez selon l'API
-    const videoData = data?.video || data?.output || data;
-    console.log("✅ Vidéo générée par Veo 3:", videoData ? "Succès" : "Échec");
+    // Parser la réponse au format Gemini standard
+    const videoData = data?.candidates?.[0]?.content?.parts?.[0]?.videoData ||
+                     data?.candidates?.[0]?.content?.parts?.[0]?.inlineData ||
+                     data?.video || 
+                     data?.output;
+    
+    if (!videoData) {
+      console.error("❌ Aucune donnée vidéo trouvée dans la réponse");
+      return new Response(JSON.stringify({ 
+        error: "No video data found in response",
+        raw: data 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("✅ Vidéo générée par Veo 3 avec succès");
 
     return new Response(JSON.stringify({ 
       video: videoData,
