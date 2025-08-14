@@ -21,5 +21,14 @@ verify_jwt = false
 [functions.gemini-chat]
 verify_jwt = true
 
+[functions.deepseek-chat]
+verify_jwt = true
+
+[functions.claude-chat]
+verify_jwt = true
+
+[functions.codestral-chat]
+verify_jwt = true
+
 [functions.perplexity-chat]
 verify_jwt = true

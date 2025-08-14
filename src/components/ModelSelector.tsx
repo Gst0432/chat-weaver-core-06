@@ -1,11 +1,12 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Cpu, Sparkles, Zap, Search, ShieldCheck, Settings2 } from "lucide-react";
+import { Cpu, Sparkles, Zap, Search, ShieldCheck, Settings2, Code2, Globe, Wrench } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const models = [
+  // === ROUTAGE INTELLIGENT ===
   {
     id: "auto-router",
     name: "Auto (Routeur)",
@@ -14,6 +15,8 @@ const models = [
     color: "openai",
     description: "Choisit automatiquement le meilleur modèle selon la tâche"
   },
+  
+  // === MODÈLES GÉNÉRALISTES ===
   {
     id: "gpt-5-2025-08-07",
     name: "GPT-5",
@@ -54,6 +57,8 @@ const models = [
     color: "openai",
     description: "Version rapide et économique de GPT-4.1"
   },
+
+  // === MODÈLES DE RAISONNEMENT ===
   {
     id: "o3-2025-04-16",
     name: "O3",
@@ -70,22 +75,68 @@ const models = [
     color: "openai",
     description: "Raisonnement rapide et efficace"
   },
+
+  // === CLAUDE - SPÉCIALISTE CODE ===
   {
-    id: "gpt-4o",
-    name: "GPT-4o (Legacy)",
-    provider: "OpenAI",
-    icon: Sparkles,
-    color: "openai",
-    description: "Ancien modèle OpenAI - Remplacé par GPT-5"
+    id: "claude-3-5-sonnet-20241022",
+    name: "Claude 3.5 Sonnet",
+    provider: "Anthropic",
+    icon: Code2,
+    color: "claude",
+    description: "🏆 Expert en programmation, debug et architecture"
   },
   {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini (Legacy)",
-    provider: "OpenAI",
+    id: "claude-3-5-haiku-20241022",
+    name: "Claude 3.5 Haiku",
+    provider: "Anthropic",
     icon: Zap,
-    color: "openai",
-    description: "Ancien modèle rapide - Remplacé par GPT-5 Mini"
+    color: "claude",
+    description: "⚡ Version rapide pour code simple et corrections"
   },
+  {
+    id: "claude-3-opus-20240229",
+    name: "Claude 3 Opus",
+    provider: "Anthropic",
+    icon: Sparkles,
+    color: "claude",
+    description: "💎 Le plus puissant pour projets complexes"
+  },
+
+  // === SPÉCIALISTES CODE AVANCÉS ===
+  {
+    id: "deepseek-chat",
+    name: "DeepSeek Chat",
+    provider: "DeepSeek",
+    icon: Code2,
+    color: "deepseek",
+    description: "🚀 Généraliste hautes performances pour le code"
+  },
+  {
+    id: "codestral-latest",
+    name: "Codestral",
+    provider: "Mistral AI",
+    icon: Wrench,
+    color: "mistral",
+    description: "🔧 Expert français en programmation et outils"
+  },
+  {
+    id: "llama-3.1-sonar-small-128k-online",
+    name: "Perplexity CodeLlama",
+    provider: "Perplexity",
+    icon: Globe,
+    color: "perplexity",
+    description: "🌐 Code avec recherche web temps réel"
+  },
+  {
+    id: "llama-3.1-sonar-large-128k-online",
+    name: "Perplexity Pro Code",
+    provider: "Perplexity",
+    icon: Globe,
+    color: "perplexity",
+    description: "🌐 Version puissante avec recherche web"
+  },
+
+  // === GOOGLE GEMINI ===
   {
     id: "gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
@@ -110,6 +161,24 @@ const models = [
     color: "gemini",
     description: "Version ultra-rapide pour tâches simples avec 1M context"
   },
+
+  // === MODÈLES LEGACY ===
+  {
+    id: "gpt-4o",
+    name: "GPT-4o (Legacy)",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "Ancien modèle OpenAI - Remplacé par GPT-5"
+  },
+  {
+    id: "gpt-4o-mini",
+    name: "GPT-4o Mini (Legacy)",
+    provider: "OpenAI",
+    icon: Zap,
+    color: "openai",
+    description: "Ancien modèle rapide - Remplacé par GPT-5 Mini"
+  },
   {
     id: "gemini-1.5-flash",
     name: "Gemini 1.5 Flash (Legacy)",
@@ -125,14 +194,6 @@ const models = [
     icon: Sparkles,
     color: "gemini",
     description: "Version pro avec capacités étendues et vision"
-  },
-  {
-    id: "deepseek-chat",
-    name: "DeepSeek Chat",
-    provider: "DeepSeek",
-    icon: Cpu,
-    color: "openai",
-    description: "Généraliste hautes performances pour le code"
   },
 ];
 interface ModelSelectorProps {
@@ -164,15 +225,17 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
           <SelectTrigger className="flex-1 sm:w-[200px] lg:w-[280px] bg-secondary border-border text-sm">
             <SelectValue>
               <div className="flex items-center gap-2">
-                <Badge 
-                  variant="secondary" 
-                  className={`text-xs ${
-                    currentModel.color === 'openai' ? 'bg-openai/20 text-openai border-openai/30' :
-                    currentModel.color === 'claude' ? 'bg-claude/20 text-claude border-claude/30' :
-                    currentModel.color === 'gemini' ? 'bg-gemini/20 text-gemini border-gemini/30' :
-                    'bg-perplexity/20 text-perplexity border-perplexity/30'
-                  }`}
-                >
+                      <Badge 
+                        variant="secondary" 
+                        className={`text-xs ${
+                          currentModel.color === 'openai' ? 'bg-openai/20 text-openai border-openai/30' :
+                          currentModel.color === 'claude' ? 'bg-claude/20 text-claude border-claude/30' :
+                          currentModel.color === 'gemini' ? 'bg-gemini/20 text-gemini border-gemini/30' :
+                          currentModel.color === 'deepseek' ? 'bg-deepseek/20 text-deepseek border-deepseek/30' :
+                          currentModel.color === 'mistral' ? 'bg-mistral/20 text-mistral border-mistral/30' :
+                          'bg-perplexity/20 text-perplexity border-perplexity/30'
+                        }`}
+                      >
                   {currentModel.provider}
                 </Badge>
                 <span className="text-foreground truncate">{currentModel.name}</span>
@@ -187,15 +250,17 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{model.name}</span>
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs ${
-                          model.color === 'openai' ? 'bg-openai/20 text-openai border-openai/30' :
-                          model.color === 'claude' ? 'bg-claude/20 text-claude border-claude/30' :
-                          model.color === 'gemini' ? 'bg-gemini/20 text-gemini border-gemini/30' :
-                          'bg-perplexity/20 text-perplexity border-perplexity/30'
-                        }`}
-                      >
+                       <Badge 
+                         variant="secondary" 
+                         className={`text-xs ${
+                           model.color === 'openai' ? 'bg-openai/20 text-openai border-openai/30' :
+                           model.color === 'claude' ? 'bg-claude/20 text-claude border-claude/30' :
+                           model.color === 'gemini' ? 'bg-gemini/20 text-gemini border-gemini/30' :
+                           model.color === 'deepseek' ? 'bg-deepseek/20 text-deepseek border-deepseek/30' :
+                           model.color === 'mistral' ? 'bg-mistral/20 text-mistral border-mistral/30' :
+                           'bg-perplexity/20 text-perplexity border-perplexity/30'
+                         }`}
+                       >
                         {model.provider}
                       </Badge>
                     </div>
