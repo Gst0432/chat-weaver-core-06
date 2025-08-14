@@ -41,10 +41,10 @@ const getModelInfo = (modelId?: string) => {
     "gemini-1.5-pro": { name: "Gemini 1.5 Pro", provider: "Google", icon: Zap, color: "gemini" },
     "deepseek-chat": { name: "DeepSeek Chat", provider: "DeepSeek", icon: Cpu, color: "openai" },
     "auto-router": { name: "Auto Router", provider: "Smart", icon: Sparkles, color: "openai" },
-    "ai-image": { name: "Image AI", provider: "AI", icon: Sparkles, color: "openai" }
+    "ai-image": { name: "Image AI", provider: "AI", icon: Sparkles, color: "openai" },
+    "veo-3": { name: "Veo 3", provider: "Google AI", icon: Sparkles, color: "gemini" }
   } as const;
 
-  // Retourner null si le modèle n'est pas reconnu (pas de badge affiché)
   return models[modelId as keyof typeof models] || null;
 };
 
@@ -118,6 +118,51 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                 </Button>
               </div>
             </div>
+          ) : typeof message.content === 'string' && (message.content.startsWith('data:video') || (message.content.startsWith('http') && message.content.includes('.mp4'))) ? (
+            <div className="space-y-3">
+              <video 
+                controls 
+                src={message.content} 
+                className="w-full max-w-md rounded-md shadow-md"
+                poster="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNUwyMCAxMkw4IDE5VjVaIiBmaWxsPSIjOTQ5NDk0Ii8+Cjwvc3ZnPgo="
+              />
+              <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2`}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isUser ? "secondary" : "outline"}
+                  aria-label="Télécharger la vidéo"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(message.content);
+                      const blob = await response.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `video-${message.id || message.timestamp.getTime()}.mp4`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                      
+                      toast({
+                        title: "Vidéo téléchargée",
+                        description: "La vidéo a été téléchargée avec succès",
+                      });
+                    } catch (e) {
+                      console.error('Download error:', e);
+                      toast({
+                        title: "Téléchargement impossible",
+                        description: "Le téléchargement a échoué. Veuillez réessayer.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           ) : typeof message.content === 'string' && (message.content.startsWith('data:image') || message.content.startsWith('http')) ? (
             <div className="space-y-3">
               <img
@@ -138,7 +183,6 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                       let fileName = `image-${message.id || message.timestamp.getTime()}`;
                       
                       if (message.content.startsWith('data:image/')) {
-                        // Image en base64 - conversion directe
                         const base64Data = message.content.split(',')[1];
                         const mimeType = message.content.split(';')[0].split(':')[1];
                         const ext = mimeType.split('/')[1] || 'png';
@@ -152,7 +196,6 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                         blob = new Blob([byteArray], { type: mimeType });
                         fileName += `.${ext}`;
                       } else {
-                        // URL d'image - téléchargement direct ou via proxy
                         try {
                           const response = await fetch(message.content);
                           if (!response.ok) throw new Error('Failed to fetch image');
@@ -160,7 +203,6 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                           const ext = (blob.type && blob.type.split('/')[1]) || 'png';
                           fileName += `.${ext}`;
                         } catch (fetchError) {
-                          // Si le téléchargement direct échoue, essayer le proxy
                           console.log('Direct download failed, trying proxy...');
                           try {
                             const { data, error } = await supabase.functions.invoke('image-proxy', {
@@ -169,7 +211,6 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                             
                             if (error || !data.image) throw error || new Error('Proxy failed');
                             
-                            // Traiter l'image du proxy (base64)
                             const base64Data = data.image.split(',')[1];
                             const mimeType = data.image.split(';')[0].split(':')[1];
                             const ext = mimeType.split('/')[1] || 'png';
@@ -183,19 +224,17 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                             blob = new Blob([byteArray], { type: mimeType });
                             fileName += `.${ext}`;
                           } catch (proxyError) {
-                            // Dernier recours : ouvrir dans une nouvelle fenêtre
                             console.log('Proxy failed, opening in new window');
                             window.open(message.content, '_blank');
                             toast({
                               title: "Image ouverte",
                               description: "L'image a été ouverte dans une nouvelle fenêtre. Vous pouvez la sauvegarder avec clic droit > Enregistrer l'image.",
                             });
-                            return; // Sortir de la fonction
+                            return;
                           }
                         }
                       }
                       
-                      // Télécharger le fichier
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
@@ -224,7 +263,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                 </Button>
               </div>
             </div>
-) : (typeof message.content === 'string' && (message.content.startsWith('data:application/pdf') || message.content.startsWith('data:application/vnd.openxmlformats-officedocument'))) ? (
+          ) : (typeof message.content === 'string' && (message.content.startsWith('data:application/pdf') || message.content.startsWith('data:application/vnd.openxmlformats-officedocument'))) ? (
             <div className="flex items-center justify-between gap-3 p-3 rounded-md border border-border bg-secondary/30">
               <div className="flex items-center gap-2">
                 {message.content.includes('presentationml.presentation') ? (
@@ -306,7 +345,6 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
               </div>
             </div>
           )}
-
         </Card>
 
         <div className={`text-xs text-muted-foreground mt-2 ${isUser ? "text-right" : "text-left"}`}>

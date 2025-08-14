@@ -23,6 +23,19 @@ interface Message {
 
 const initialMessages: Message[] = [];
 
+// Helper: Video request detection
+const isVideoRequest = (content: string): boolean => {
+  const videoKeywords = [
+    'vidéo', 'video', 'film', 'animation', 'clip', 'court métrage',
+    'génère une vidéo', 'crée une vidéo', 'fais une vidéo', 'video de',
+    'anime', 'animé', 'moving', 'motion', 'cinématique', 'séquence',
+    'scène animée', 'clip vidéo', 'court film', 'vidéo courte'
+  ];
+  
+  const text = content.toLowerCase();
+  return videoKeywords.some(keyword => text.includes(keyword));
+};
+
 // Helpers: generation of documents
 const wrapText = (text: string, max = 90) =>
   text
@@ -380,6 +393,53 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       // Utilise automatiquement le meilleur provider disponible (Runware si configuré, sinon DALL-E)
       const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
       const wantsImage = !isUpload && ImageService.isImageRequest(content);
+      const wantsVideo = !isUpload && isVideoRequest(content);
+      
+      // Génération vidéo avec Veo 3
+      if (wantsVideo) {
+        try {
+          const { data, error } = await supabase.functions.invoke('veo3-video', {
+            body: {
+              prompt: content,
+              duration: 8,
+              quality: 'high'
+            }
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: data?.video || 'Erreur: Vidéo non générée',
+            role: 'assistant',
+            timestamp: new Date(),
+            model: 'veo-3'
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: assistantMessage.content,
+            model: 'veo-3'
+          });
+          return;
+        } catch (error) {
+          console.error('Erreur génération vidéo:', error);
+          const errorMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: `Échec de génération vidéo: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+            role: 'assistant',
+            timestamp: new Date(),
+            model: 'veo-3'
+          };
+          setMessages(prev => [...prev, errorMessage]);
+          return;
+        }
+      }
+
       if (wantsImage) {
         // Initialiser Runware si pas déjà fait
         await ImageService.initRunware();
