@@ -87,8 +87,32 @@ const models = [
     description: "Ancien modèle rapide - Remplacé par GPT-5 Mini"
   },
   {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    provider: "Google AI",
+    icon: Zap,
+    color: "gemini",
+    description: "Nouveau modèle multimodal avec context 1M tokens et capacités 'thinking'"
+  },
+  {
+    id: "gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
+    provider: "Google AI",
+    icon: Sparkles,
+    color: "gemini",
+    description: "Modèle avancé avec raisonnement 'thinking' et context 1M tokens"
+  },
+  {
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    provider: "Google AI",
+    icon: Zap,
+    color: "gemini",
+    description: "Version ultra-rapide pour tâches simples avec 1M context"
+  },
+  {
     id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash",
+    name: "Gemini 1.5 Flash (Legacy)",
     provider: "Google",
     icon: Zap,
     color: "gemini",
@@ -96,7 +120,7 @@ const models = [
   },
   {
     id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
+    name: "Gemini 1.5 Pro (Legacy)",
     provider: "Google",
     icon: Sparkles,
     color: "gemini",

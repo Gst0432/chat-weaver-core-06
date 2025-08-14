@@ -590,22 +590,32 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         // Détection vision/image
         const needsVision = /(image|photo|vision|voir|analyser une image|screenshot|diagramme|graphique)/i.test(text);
         
+        // Détection tâches créatives/multimodales
+        const needsCreativity = /(créer|créatif|imagination|histoire|poème|art|design|brainstorm|idée|concept)/i.test(text);
+        
         if (wantsWeb) {
           functionName = 'perplexity-chat';
           model = 'llama-3.1-sonar-small-128k-online';
           setAutoRouterChoice('perplexity');
         } else if (needsReasoning && len > 200) {
-          functionName = 'openai-chat';
-          model = 'o1-preview'; // O1 pour le raisonnement complexe
-          setAutoRouterChoice('o1-reasoning');
+          // Utiliser Gemini 2.5 Pro pour raisonnement complexe avec "thinking"
+          functionName = 'gemini-chat';
+          model = 'gemini-2.5-pro';
+          setAutoRouterChoice('gemini25-thinking');
         } else if (isCode) {
           functionName = 'deepseek-chat';
           model = 'deepseek-chat';
           setAutoRouterChoice('deepseek-code');
         } else if (needsVision) {
+          // Utiliser Gemini 2.5 Flash pour vision multimodale avancée
           functionName = 'gemini-chat';
-          model = 'gemini-1.5-flash'; // Gemini pour la vision
-          setAutoRouterChoice('gemini-vision');
+          model = 'gemini-2.5-flash';
+          setAutoRouterChoice('gemini25-vision');
+        } else if (needsCreativity || len > 1000) {
+          // Utiliser Gemini 2.5 Flash pour créativité et longues conversations
+          functionName = 'gemini-chat';
+          model = 'gemini-2.5-flash';
+          setAutoRouterChoice('gemini25-creative');
         } else {
           // Par défaut: GPT-5 pour usage général
           functionName = 'openai-chat';
@@ -614,7 +624,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         }
       } else if (selectedModel.includes('gemini')) {
         functionName = 'gemini-chat';
-        model = selectedModel; // gemini-1.5-flash ou gemini-1.5-pro
+        model = selectedModel; // Support complet des modèles Gemini 1.5 et 2.5
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
