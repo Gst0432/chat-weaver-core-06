@@ -23,12 +23,25 @@ serve(async (req) => {
 
     const { messages, model, temperature, max_tokens, max_completion_tokens } = await req.json();
 
-    // Support nouveaux modèles OpenAI (GPT-5, O3, etc.)
-    const isNewModel = model && (model.startsWith('gpt-5') || model.startsWith('gpt-4.1') || 
-                                model.startsWith('o3-') || model.startsWith('o4-'));
+    // Mapper GPT-5 vers GPT-4.1 en backend
+    let actualModel = model || "gpt-4.1-2025-04-14";
+    if (model && model.startsWith('gpt-5')) {
+      if (model.includes('mini')) {
+        actualModel = "gpt-4.1-mini-2025-04-14";
+      } else if (model.includes('nano')) {
+        actualModel = "gpt-4.1-mini-2025-04-14"; // Utiliser mini pour nano aussi
+      } else {
+        actualModel = "gpt-4.1-2025-04-14"; // GPT-5 standard -> GPT-4.1
+      }
+      console.log(`🔄 Mapping ${model} -> ${actualModel}`);
+    }
+
+    // Support nouveaux modèles OpenAI (GPT-4.1, O3, etc.)
+    const isNewModel = actualModel && (actualModel.startsWith('gpt-4.1') || 
+                                actualModel.startsWith('o3-') || actualModel.startsWith('o4-'));
     
     const payload: any = {
-      model: model || "gpt-5-2025-08-07",
+      model: actualModel,
       messages: Array.isArray(messages) ? messages : [],
     };
 

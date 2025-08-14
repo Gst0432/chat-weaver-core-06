@@ -22,11 +22,25 @@ serve(async (req) => {
       });
     }
 
-    const { messages, model = "gpt-4o", temperature, max_tokens, max_completion_tokens } = await req.json();
+    const { messages, model = "gpt-4.1-2025-04-14", temperature, max_tokens, max_completion_tokens } = await req.json();
 
-    console.log(`Processing request for model: ${model}`);
+    // Mapper GPT-5 vers GPT-4.1 en backend
+    let actualModel = model;
+    if (model && model.startsWith('gpt-5')) {
+      if (model.includes('mini')) {
+        actualModel = "gpt-4.1-mini-2025-04-14";
+      } else if (model.includes('nano')) {
+        actualModel = "gpt-4.1-mini-2025-04-14"; // Utiliser mini pour nano aussi
+      } else {
+        actualModel = "gpt-4.1-2025-04-14"; // GPT-5 standard -> GPT-4.1
+      }
+      console.log(`🔄 Mapping ${model} -> ${actualModel}`);
+    }
+
+    console.log(`Processing request for model: ${actualModel} (original: ${model})`);
     console.log(`Request parameters:`, { 
-      model, 
+      model: actualModel,
+      originalModel: model,
       temperature, 
       max_tokens, 
       max_completion_tokens, 
@@ -34,18 +48,17 @@ serve(async (req) => {
     });
 
     // Détection correcte des modèles o1 (qui requièrent max_completion_tokens et interdisent temperature)
-    const isO1Model = model && (model.includes('o1-preview') || model.includes('o1-mini'));
+    const isO1Model = actualModel && (actualModel.includes('o1-preview') || actualModel.includes('o1-mini'));
     
-    // Détection des modèles qui ne supportent PAS temperature (GPT-5, O3, O4)
-    const isRestrictedModel = model && (model.startsWith('gpt-5') || 
-                                       model.startsWith('o3-') || 
-                                       model.startsWith('o4-'));
+    // Détection des modèles qui ne supportent PAS temperature (O3, O4)
+    const isRestrictedModel = actualModel && (actualModel.startsWith('o3-') || 
+                                       actualModel.startsWith('o4-'));
     
     // Détection des modèles modernes qui supportent temperature (GPT-4.1)
-    const isModernModel = model && model.startsWith('gpt-4.1');
+    const isModernModel = actualModel && actualModel.startsWith('gpt-4.1');
     
     const payload: any = {
-      model,
+      model: actualModel,
       messages: Array.isArray(messages) ? messages : [],
       stream: true,
     };
