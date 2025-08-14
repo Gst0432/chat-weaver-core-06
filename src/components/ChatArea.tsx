@@ -638,8 +638,57 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       const temperature = safeMode ? 0.3 : 0.7;
       const maxTokens = 1500;
       
-      // Streaming uniquement pour OpenAI
+      // Streaming OpenAI avec détection des modèles non compatibles
       if (functionName === 'openai-chat') {
+        // Modèles qui ne supportent pas le streaming (organisation non vérifiée)
+        const isNonStreamingModel = model.startsWith('gpt-5') || 
+                                   model.startsWith('o3-') || 
+                                   model.startsWith('o4-');
+
+        if (isNonStreamingModel) {
+          // Utiliser la fonction non-streaming pour GPT-5, O3, O4
+          console.log("🚀 Using non-streaming mode for:", model);
+          
+          const requestBody: any = {
+            messages: chatMessages,
+            model,
+            [maxTokensParam]: maxTokens
+          };
+
+          // Ne pas inclure temperature pour ces modèles
+          if (!isO1Model && !model.startsWith('gpt-5') && !model.startsWith('o3-') && !model.startsWith('o4-')) {
+            requestBody.temperature = temperature;
+          }
+
+          const { data, error } = await supabase.functions.invoke('openai-chat', {
+            body: requestBody
+          });
+
+          if (error) {
+            console.error("❌ Erreur OpenAI non-streaming:", { model, error });
+            throw error;
+          }
+
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: data?.generatedText || 'Aucune réponse.',
+            role: 'assistant',
+            timestamp: new Date(),
+            model,
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: assistantMessage.content,
+            model
+          });
+          return;
+        }
+
+        // Streaming pour les autres modèles OpenAI compatibles
+        console.log("🌊 Using streaming mode for:", model);
         const SUPABASE_URL = "https://jeurznrjcohqbevrzses.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI";
         const url = `${SUPABASE_URL}/functions/v1/openai-chat-stream`;
