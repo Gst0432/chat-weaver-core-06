@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.openai-image-variations]
 verify_jwt = false
+
+[functions.gemini-chat]
+verify_jwt = true
+
+[functions.perplexity-chat]
+verify_jwt = true

@@ -21,14 +21,25 @@ serve(async (req) => {
       });
     }
 
-    const { messages, model, temperature = 0.7, max_tokens = 800 } = await req.json();
+    const { messages, model, temperature, max_tokens, max_completion_tokens } = await req.json();
 
-    const payload = {
-      model: model || "gpt-4o-mini",
+    // Support nouveaux modèles OpenAI (GPT-5, O3, etc.)
+    const isNewModel = model && (model.startsWith('gpt-5') || model.startsWith('gpt-4.1') || 
+                                model.startsWith('o3-') || model.startsWith('o4-'));
+    
+    const payload: any = {
+      model: model || "gpt-5-2025-08-07",
       messages: Array.isArray(messages) ? messages : [],
-      temperature,
-      max_tokens,
     };
+
+    // Nouveaux modèles utilisent max_completion_tokens, anciens max_tokens
+    if (isNewModel) {
+      if (max_completion_tokens) payload.max_completion_tokens = max_completion_tokens;
+      // Ne pas inclure temperature pour les nouveaux modèles
+    } else {
+      if (temperature !== undefined) payload.temperature = temperature;
+      if (max_tokens) payload.max_tokens = max_tokens;
+    }
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

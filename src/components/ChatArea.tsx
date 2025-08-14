@@ -5,6 +5,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ImageControls } from "./ImageControls";
+import { ModelStatusIndicator } from "./ModelStatusIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
@@ -162,6 +163,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [showImageControls, setShowImageControls] = useState(false);
+  const [autoRouterChoice, setAutoRouterChoice] = useState<string>('');
   const { toast } = useToast();
 
   const createNewConversation = async () => {
@@ -567,43 +569,74 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         { role: 'user', content }
       ];
 
-      // Normalisation du modèle côté front pour correspondre aux fonctions backend disponibles
-      let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' = 'openai-chat';
-      let model = 'gpt-4o-mini'; // modèle supporté par openai-chat (chat/completions)
+      // Déterminer le modèle et la fonction à utiliser
+      let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' | 'gemini-chat' = 'openai-chat';
+      let model = 'gpt-5-2025-08-07'; // modèle par défaut plus récent
 
-      // Adapter selon la sélection de l'utilisateur sans casser la compatibilité backend
+      // Auto-router intelligent optimisé
       if (selectedModel === 'auto-router') {
         const text = content.toLowerCase();
         const len = content.length;
-        const wantsWeb = /\b(actualité|actualités|news|web|recherche|internet|http|www|google|source|récent|update|temps réel|aujourd'hui|maintenant|2024|2025|prix|cours|bourse|météo|info|événement|que se passe|qu'est-ce qui|dernières nouvelles|breaking news|live|direct|current|latest)\b/.test(text);
-        const isQuestion = /^(qui|que|quoi|où|quand|comment|pourquoi|combien|quel|quelle|est-ce que|what|when|where|how|why|which|who)/i.test(content.trim());
-        const hardTask = len > 600 || /(analyse approfondie|preuve|démonstration|math complexe|optimiser|refactor|architecture|raisonne|reasoning|algorithmique|code review|debug complexe)/i.test(content);
         
-        if (wantsWeb || (isQuestion && !hardTask)) {
+        // Détection recherche web améliorée
+        const wantsWeb = /\b(actualité|actualités|news|web|recherche|internet|http|www|google|source|récent|update|temps réel|aujourd'hui|maintenant|2024|2025|prix|cours|bourse|météo|info|événement|que se passe|qu'est-ce qui|dernières nouvelles|breaking news|live|direct|current|latest)\b/.test(text);
+        
+        // Détection raisonnement complexe
+        const needsReasoning = /(analyse|raisonn|logique|complex|problème|déduire|démonstration|preuve|math|calcul|équation|algorithmique|optimiser)/i.test(text);
+        
+        // Détection code/programmation
+        const isCode = /(code|programm|debug|fonction|script|python|javascript|sql|html|css|react|api|database|git|github)/i.test(text);
+        
+        // Détection vision/image
+        const needsVision = /(image|photo|vision|voir|analyser une image|screenshot|diagramme|graphique)/i.test(text);
+        
+        if (wantsWeb) {
           functionName = 'perplexity-chat';
           model = 'llama-3.1-sonar-small-128k-online';
-        } else if (hardTask) {
+          setAutoRouterChoice('perplexity');
+        } else if (needsReasoning && len > 200) {
+          functionName = 'openai-chat';
+          model = 'o3-2025-04-16'; // O3 pour le raisonnement complexe
+          setAutoRouterChoice('o3-reasoning');
+        } else if (isCode) {
           functionName = 'deepseek-chat';
           model = 'deepseek-chat';
+          setAutoRouterChoice('deepseek-code');
+        } else if (needsVision) {
+          functionName = 'gemini-chat';
+          model = 'gemini-1.5-flash'; // Gemini pour la vision
+          setAutoRouterChoice('gemini-vision');
         } else {
+          // Par défaut: GPT-5 pour usage général
           functionName = 'openai-chat';
-          model = 'gpt-4o-mini';
+          model = 'gpt-5-2025-08-07';
+          setAutoRouterChoice('gpt5-general');
         }
-      } else if (selectedModel === 'gpt-4.1') {
-        functionName = 'openai-chat';
-        model = 'gpt-4o-mini';
       } else if (selectedModel === 'perplexity' || selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
         model = 'llama-3.1-sonar-small-128k-online';
+      } else if (selectedModel.includes('gemini')) {
+        functionName = 'gemini-chat';
+        model = selectedModel; // gemini-1.5-flash ou gemini-1.5-pro
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
-      } else {
-        // Par défaut, utiliser OpenAI
+      } else if (selectedModel.startsWith('gpt-') || selectedModel.startsWith('o3-') || selectedModel.startsWith('o4-')) {
         functionName = 'openai-chat';
-        model = 'gpt-4o-mini';
+        model = selectedModel;
+      } else {
+        // Fallback amélioré
+        functionName = 'openai-chat';
+        model = 'gpt-5-2025-08-07';
       }
 
+      // Paramètres optimisés selon le modèle
+      const isNewOpenAIModel = model.startsWith('gpt-5') || model.startsWith('gpt-4.1') || 
+                               model.startsWith('o3-') || model.startsWith('o4-');
+      const maxTokensParam = isNewOpenAIModel ? 'max_completion_tokens' : 'max_tokens';
+      const temperature = safeMode ? 0.3 : 0.7;
+      const maxTokens = functionName === 'perplexity-chat' ? 1000 : 1500; // Plus généreux
+      
       // Streaming uniquement pour OpenAI
       if (functionName === 'openai-chat') {
         const SUPABASE_URL = "https://jeurznrjcohqbevrzses.supabase.co";
@@ -622,7 +655,12 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ messages: chatMessages, model, temperature: (safeMode ? 0.2 : 0.5), max_tokens: 400 })
+          body: JSON.stringify({
+            messages: chatMessages,
+            model,
+            temperature: isNewOpenAIModel ? undefined : temperature,
+            [maxTokensParam]: maxTokens
+          })
         });
 
         if (!res.ok || !res.body) throw new Error(`Stream init failed: ${res.status}`);
@@ -678,13 +716,20 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         return;
       }
 
+      const requestBody: any = {
+        messages: chatMessages,
+        model,
+        temperature,
+        [maxTokensParam]: maxTokens
+      };
+
+      // Pour les nouveaux modèles OpenAI, ne pas envoyer temperature
+      if (functionName === ('openai-chat' as string) && isNewOpenAIModel) {
+        delete requestBody.temperature;
+      }
+
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: {
-          messages: chatMessages,
-          model,
-          temperature: (safeMode ? 0.2 : 0.5),
-          max_tokens: 400
-        }
+        body: requestBody
       });
 
       if (error) throw error;
@@ -833,16 +878,23 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             <ChatMessage key={message.id} message={message} onSpeak={synthesizeAndPlay} onDownloadTts={synthesizeAndDownload} />
           ))}
           {isLoading && (
-            <ChatMessage 
-              message={{
-                id: "loading",
-                content: "En train de réfléchir...",
-                role: "assistant",
-                timestamp: new Date(),
-                model: selectedModel
-              }}
-              isLoading={true}
-            />
+            <>
+              <ModelStatusIndicator 
+                selectedModel={selectedModel}
+                isLoading={isLoading}
+                autoRouterChoice={autoRouterChoice}
+              />
+              <ChatMessage 
+                message={{
+                  id: "loading",
+                  content: "En train de réfléchir...",
+                  role: "assistant",
+                  timestamp: new Date(),
+                  model: selectedModel
+                }}
+                isLoading={true}
+              />
+            </>
           )}
         </div>
       </ScrollArea>

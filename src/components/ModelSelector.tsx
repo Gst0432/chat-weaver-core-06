@@ -12,48 +12,72 @@ const models = [
     provider: "Intelligent",
     icon: Search,
     color: "perplexity",
-    description: "Choisit le meilleur modèle selon la tâche"
+    description: "Choisit automatiquement le meilleur modèle selon la tâche"
   },
   {
-    id: "gpt-4-turbo",
-    name: "GPT-4 Turbo",
+    id: "gpt-5-2025-08-07",
+    name: "GPT-5 Flagship",
     provider: "OpenAI",
     icon: Sparkles,
     color: "openai",
-    description: "Le plus capable pour les tâches complexes"
+    description: "Le modèle le plus avancé d'OpenAI - Excellence généraliste"
   },
   {
-    id: "gemini-pro",
-    name: "Gemini Pro",
+    id: "gpt-4.1-2025-04-14",
+    name: "GPT-4.1",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "Modèle robuste et fiable pour tous les usages"
+  },
+  {
+    id: "o3-2025-04-16",
+    name: "O3 Reasoning",
+    provider: "OpenAI",
+    icon: Cpu,
+    color: "openai",
+    description: "Raisonnement complexe et analyse multi-étapes"
+  },
+  {
+    id: "gemini-1.5-flash",
+    name: "Gemini 1.5 Flash",
     provider: "Google",
     icon: Zap,
     color: "gemini",
-    description: "Rapide et polyvalent"
+    description: "IA multimodale rapide avec vision et compréhension"
   },
   {
-    id: "deepseek-v3",
-    name: "DeepSeek V3",
+    id: "gemini-1.5-pro",
+    name: "Gemini 1.5 Pro",
+    provider: "Google",
+    icon: Sparkles,
+    color: "gemini",
+    description: "Version pro avec capacités étendues et vision"
+  },
+  {
+    id: "deepseek-chat",
+    name: "DeepSeek Chat",
     provider: "DeepSeek",
     icon: Cpu,
     color: "openai",
-    description: "Généraliste hautes performances (128k contexte)"
+    description: "Généraliste hautes performances pour le code"
   },
   {
-    id: "gpt-4.1",
-    name: "GTP-5",
-    provider: "OpenAI",
-    icon: Sparkles,
-    color: "openai",
-    description: "Modèle généraliste de pointe"
+    id: "perplexity",
+    name: "Perplexity Search",
+    provider: "Perplexity",
+    icon: Search,
+    color: "perplexity",
+    description: "Recherche web IA en temps réel avec sources"
   },
-  // {
-  //   id: "perplexity",
-  //   name: "Perplexity",
-  //   provider: "Perplexity",
-  //   icon: Search,
-  //   color: "perplexity",
-  //   description: "Recherche web avec IA en temps réel"
-  // },
+  {
+    id: "gpt-4o-mini",
+    name: "GPT-4o Mini",
+    provider: "OpenAI",
+    icon: Zap,
+    color: "openai",
+    description: "Rapide et économique (Legacy)"
+  },
 ];
 interface ModelSelectorProps {
   selectedModel: string;
