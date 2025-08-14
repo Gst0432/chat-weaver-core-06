@@ -571,9 +571,6 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' = 'openai-chat';
       let model = 'gpt-4o-mini'; // modèle supporté par openai-chat (chat/completions)
 
-      // Debug: Afficher le modèle sélectionné
-      console.log('🔍 DEBUG - selectedModel reçu:', selectedModel);
-
       // Adapter selon la sélection de l'utilisateur sans casser la compatibilité backend
       if (selectedModel === 'auto-router') {
         const text = content.toLowerCase();
@@ -598,7 +595,6 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       } else if (selectedModel === 'perplexity' || selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
         model = 'llama-3.1-sonar-small-128k-online';
-        console.log('✅ PERPLEXITY sélectionné - functionName:', functionName, 'model:', model);
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
@@ -607,8 +603,6 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         functionName = 'openai-chat';
         model = 'gpt-4o-mini';
       }
-
-      console.log('📋 Résultat final - functionName:', functionName, 'model:', model);
 
       // Streaming uniquement pour OpenAI
       if (functionName === 'openai-chat') {
@@ -684,8 +678,6 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         return;
       }
 
-      console.log('🚀 Appel à la fonction:', functionName, 'avec modèle:', model);
-      
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           messages: chatMessages,
@@ -694,8 +686,6 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           max_tokens: 400
         }
       });
-
-      console.log('📥 Réponse de', functionName, '- data:', data, 'error:', error);
 
       if (error) throw error;
 
