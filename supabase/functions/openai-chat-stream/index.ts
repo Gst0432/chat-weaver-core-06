@@ -36,9 +36,13 @@ serve(async (req) => {
     // Détection correcte des modèles o1 (qui requièrent max_completion_tokens et interdisent temperature)
     const isO1Model = model && (model.includes('o1-preview') || model.includes('o1-mini'));
     
-    // Détection des nouveaux modèles GPT-5 et reasoning models
-    const isNewModel = model && (model.startsWith('gpt-5') || model.startsWith('gpt-4.1') || 
-                                model.startsWith('o3-') || model.startsWith('o4-'));
+    // Détection des modèles qui ne supportent PAS temperature (GPT-5, O3, O4)
+    const isRestrictedModel = model && (model.startsWith('gpt-5') || 
+                                       model.startsWith('o3-') || 
+                                       model.startsWith('o4-'));
+    
+    // Détection des modèles modernes qui supportent temperature (GPT-4.1)
+    const isModernModel = model && model.startsWith('gpt-4.1');
     
     const payload: any = {
       model,
@@ -52,11 +56,15 @@ serve(async (req) => {
       console.log("Using o1 model parameters");
       if (max_completion_tokens) payload.max_completion_tokens = max_completion_tokens;
       // Ne pas inclure temperature pour les modèles o1 (cause une erreur 400)
-    } else if (isNewModel) {
-      // Nouveaux modèles GPT-5+ : max_completion_tokens optionnel
-      console.log("Using new model parameters");
+    } else if (isRestrictedModel) {
+      // Modèles GPT-5, O3, O4 : max_completion_tokens mais PAS de temperature
+      console.log("Using restricted model parameters (no temperature)");
       if (max_completion_tokens) payload.max_completion_tokens = max_completion_tokens;
-      // Temperature optionnel pour les nouveaux modèles
+      // Ne pas inclure temperature pour ces modèles (cause une erreur 400)
+    } else if (isModernModel) {
+      // Modèles GPT-4.1 : max_completion_tokens ET temperature
+      console.log("Using modern model parameters");
+      if (max_completion_tokens) payload.max_completion_tokens = max_completion_tokens;
       if (temperature !== undefined) payload.temperature = temperature;
     } else {
       // Modèles classiques : max_tokens et temperature
