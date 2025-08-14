@@ -37,7 +37,7 @@ serve(async (req) => {
     console.log("🔍 Appel API RunwayML pour statut tâche:", taskId);
     
     // Vérifier le statut de la tâche RunwayML
-    const response = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
+    const response = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${RUNWAYML_API_KEY}`,
@@ -59,20 +59,20 @@ serve(async (req) => {
     const data = await response.json();
     console.log("📦 Statut de la tâche:", JSON.stringify(data, null, 2));
     
-    // Analyser le statut de la tâche
-    const status = data.status;
-    const result = {
+    // Analyser le statut de la tâche selon le nouveau format API
+    const status = data.status?.toLowerCase() || 'unknown';
+    const result: any = {
       taskId: taskId,
-      status: status,
+      status: status === 'succeeded' ? 'completed' : status === 'failed' ? 'failed' : 'processing',
       progress: data.progress || 0
     };
 
-    if (status === "SUCCEEDED" && data.output) {
-      result.videoUrl = data.output[0];
+    if (status === "succeeded" && data.output) {
+      result.videoUrl = Array.isArray(data.output) ? data.output[0] : data.output;
       result.duration = data.metadata?.duration || 10;
       console.log("✅ Vidéo RunwayML générée avec succès:", result.videoUrl);
-    } else if (status === "FAILED") {
-      result.error = data.failure_reason || "Generation failed";
+    } else if (status === "failed") {
+      result.error = data.failure_reason || data.error || "Generation failed";
       console.error("❌ Échec de génération RunwayML:", result.error);
     } else {
       console.log("⏳ Génération en cours...", status, `${data.progress || 0}%`);

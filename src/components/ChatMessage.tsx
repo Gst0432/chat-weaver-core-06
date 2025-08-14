@@ -42,7 +42,8 @@ const getModelInfo = (modelId?: string) => {
     "deepseek-chat": { name: "DeepSeek Chat", provider: "DeepSeek", icon: Cpu, color: "openai" },
     "auto-router": { name: "Auto Router", provider: "Smart", icon: Sparkles, color: "openai" },
     "ai-image": { name: "Image AI", provider: "AI", icon: Sparkles, color: "openai" },
-    "veo-3": { name: "Veo 3", provider: "Google AI", icon: Sparkles, color: "gemini" }
+    "veo-3": { name: "Veo 3", provider: "Google AI", icon: Sparkles, color: "gemini" },
+    "runwayml": { name: "vo3", provider: "RunwayML Gen-3 Turbo", icon: Sparkles, color: "runway" }
   } as const;
 
   return models[modelId as keyof typeof models] || null;
@@ -79,6 +80,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
               variant="secondary" 
               className={`text-xs ${
                 modelInfo.color === 'gemini' ? 'bg-gemini/20 text-gemini border-gemini/30' :
+                modelInfo.color === 'runway' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
                 'bg-openai/20 text-openai border-openai/30'
               }`}
             >

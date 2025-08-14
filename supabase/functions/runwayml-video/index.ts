@@ -41,27 +41,37 @@ serve(async (req) => {
 
     // Préparer la requête pour l'API RunwayML
     const requestBody: any = {
-      text_prompt: prompt,
-      duration_seconds: duration,
-      resolution: quality === "high" ? "1280x768" : "768x512",
-      watermark: false
+      promptText: prompt,
+      seed: Math.floor(Math.random() * 1000000),
+      exploreMode: false
     };
 
-    // Si une image est fournie pour image-to-video
+    // Configuration pour image-to-video vs text-to-video
     if (image) {
-      requestBody.image_prompt = image;
+      requestBody.promptImage = image;
+      requestBody.model = "gen3a_turbo";
+    } else {
+      requestBody.seconds = duration;
+      requestBody.ratio = quality === "high" ? "16:9" : "9:16";
     }
 
     console.log("🚀 Appel API RunwayML avec:", JSON.stringify(requestBody, null, 2));
     
-    // Appel à l'API RunwayML Gen-3 Alpha
-    const response = await fetch("https://api.runwayml.com/v1/image_to_video", {
-      method: "POST",
+    // Détermine le bon endpoint selon le type de génération
+    const endpoint = image ? "/v1/image_to_video" : "/v1/generations";
+    
+    // Appel à l'API RunwayML Gen-3 Turbo
+    const response = await fetch(`https://api.dev.runwayml.com${endpoint}`, {
+      method: "POST", 
       headers: {
         "Authorization": `Bearer ${RUNWAYML_API_KEY}`,
         "Content-Type": "application/json",
+        "X-Runway-Version": "2024-11-06"
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        ...requestBody,
+        model: "gen3a_turbo"
+      }),
     });
     
     console.log("📡 Réponse RunwayML API:", response.status, response.statusText);
