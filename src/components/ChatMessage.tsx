@@ -29,12 +29,13 @@ const getModelInfo = (modelId?: string) => {
     "o1-mini": { name: "o1-mini", provider: "OpenAI", icon: Cpu, color: "openai" },
     "gemini-1.5-flash": { name: "Gemini 1.5 Flash", provider: "Google", icon: Zap, color: "gemini" },
     "gemini-1.5-pro": { name: "Gemini 1.5 Pro", provider: "Google", icon: Zap, color: "gemini" },
-    "perplexity-sonar": { name: "Perplexity Sonar", provider: "Perplexity", icon: Search, color: "perplexity" },
-    "deepseek-v3": { name: "DeepSeek V3", provider: "DeepSeek", icon: Cpu, color: "openai" },
+    "perplexity": { name: "Perplexity Search", provider: "Perplexity", icon: Search, color: "perplexity" },
+    "deepseek-chat": { name: "DeepSeek Chat", provider: "DeepSeek", icon: Cpu, color: "openai" },
     "auto-router": { name: "Auto Router", provider: "Smart", icon: Sparkles, color: "openai" }
   } as const;
 
-  return models[modelId as keyof typeof models] || models["gpt-4o"];
+  // Retourner null si le modèle n'est pas reconnu (pas de badge affiché)
+  return models[modelId as keyof typeof models] || null;
 };
 
 const sanitizeContent = (text: string) => {
@@ -61,7 +62,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
       </Avatar>
 
       <div className={`flex-1 max-w-[70%] ${isUser ? "text-right" : "text-left"}`}>
-        {!isUser && (
+        {!isUser && modelInfo && (
           <div className="flex items-center gap-2 mb-2">
             <modelInfo.icon className="w-3 h-3 text-muted-foreground" />
             <Badge 
@@ -113,7 +114,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
             <div className="space-y-3">
               <img
                 src={message.content}
-                alt={`Image générée par ${modelInfo.name}`}
+                alt={`Image générée par ${modelInfo?.name || 'IA'}`}
                 loading="lazy"
                 className="max-w-full h-auto rounded-md shadow-md"
               />
