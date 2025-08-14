@@ -15,24 +15,24 @@ const models = [
     description: "Choisit automatiquement le meilleur modèle selon la tâche"
   },
   {
-    id: "gpt-5-2025-08-07",
-    name: "GPT-5 Flagship",
+    id: "gpt-4o",
+    name: "GPT-4o",
     provider: "OpenAI",
     icon: Sparkles,
     color: "openai",
     description: "Le modèle le plus avancé d'OpenAI - Excellence généraliste"
   },
   {
-    id: "gpt-4.1-2025-04-14",
-    name: "GPT-4.1",
+    id: "gpt-4o-mini",
+    name: "GPT-4o Mini",
     provider: "OpenAI",
-    icon: Sparkles,
+    icon: Zap,
     color: "openai",
-    description: "Modèle robuste et fiable pour tous les usages"
+    description: "Modèle rapide et économique"
   },
   {
-    id: "o3-2025-04-16",
-    name: "O3 Reasoning",
+    id: "o1-preview",
+    name: "O1 Preview",
     provider: "OpenAI",
     icon: Cpu,
     color: "openai",
@@ -69,14 +69,6 @@ const models = [
     icon: Search,
     color: "perplexity",
     description: "Recherche web IA en temps réel avec sources"
-  },
-  {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    provider: "OpenAI",
-    icon: Zap,
-    color: "openai",
-    description: "Rapide et économique (Legacy)"
   },
 ];
 interface ModelSelectorProps {

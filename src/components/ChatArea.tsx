@@ -571,7 +571,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
 
       // Déterminer le modèle et la fonction à utiliser
       let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' | 'gemini-chat' = 'openai-chat';
-      let model = 'gpt-5-2025-08-07'; // modèle par défaut plus récent
+      let model = 'gpt-4o'; // modèle par défaut réel
 
       // Auto-router intelligent optimisé
       if (selectedModel === 'auto-router') {
@@ -596,8 +596,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           setAutoRouterChoice('perplexity');
         } else if (needsReasoning && len > 200) {
           functionName = 'openai-chat';
-          model = 'o3-2025-04-16'; // O3 pour le raisonnement complexe
-          setAutoRouterChoice('o3-reasoning');
+          model = 'o1-preview'; // O1 pour le raisonnement complexe
+          setAutoRouterChoice('o1-reasoning');
         } else if (isCode) {
           functionName = 'deepseek-chat';
           model = 'deepseek-chat';
@@ -607,10 +607,10 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           model = 'gemini-1.5-flash'; // Gemini pour la vision
           setAutoRouterChoice('gemini-vision');
         } else {
-          // Par défaut: GPT-5 pour usage général
+          // Par défaut: GPT-4o pour usage général
           functionName = 'openai-chat';
-          model = 'gpt-5-2025-08-07';
-          setAutoRouterChoice('gpt5-general');
+          model = 'gpt-4o';
+          setAutoRouterChoice('gpt4o-general');
         }
       } else if (selectedModel === 'perplexity' || selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
@@ -621,13 +621,13 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
-      } else if (selectedModel.startsWith('gpt-') || selectedModel.startsWith('o3-') || selectedModel.startsWith('o4-')) {
+      } else if (selectedModel.startsWith('gpt-') || selectedModel.startsWith('o1-')) {
         functionName = 'openai-chat';
         model = selectedModel;
       } else {
-        // Fallback amélioré
+        // Fallback amélioré - utiliser GPT-4o par défaut
         functionName = 'openai-chat';
-        model = 'gpt-5-2025-08-07';
+        model = 'gpt-4o';
       }
 
       // Debug: Afficher le modèle et la fonction utilisés
@@ -635,9 +635,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       console.log("🔧 MODEL ROUTING:", { selectedModel, functionName, model, isAutoRouter });
 
       // Paramètres optimisés selon le modèle
-      const isNewOpenAIModel = model.startsWith('gpt-5') || model.startsWith('gpt-4.1') || 
-                               model.startsWith('o3-') || model.startsWith('o4-');
-      const maxTokensParam = isNewOpenAIModel ? 'max_completion_tokens' : 'max_tokens';
+      const isO1Model = model.startsWith('o1-');
+      const maxTokensParam = isO1Model ? 'max_completion_tokens' : 'max_tokens';
       const temperature = safeMode ? 0.3 : 0.7;
       const maxTokens = functionName === 'perplexity-chat' ? 1000 : 1500; // Plus généreux
       
@@ -662,7 +661,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           body: JSON.stringify({
             messages: chatMessages,
             model,
-            temperature: isNewOpenAIModel ? undefined : temperature,
+            temperature: isO1Model ? undefined : temperature,
             [maxTokensParam]: maxTokens
           })
         });
@@ -727,8 +726,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         [maxTokensParam]: maxTokens
       };
 
-      // Pour les nouveaux modèles OpenAI, ne pas envoyer temperature
-      if (functionName === ('openai-chat' as string) && isNewOpenAIModel) {
+      // Pour les modèles O1, ne pas envoyer temperature
+      if (functionName === ('openai-chat' as string) && isO1Model) {
         delete requestBody.temperature;
       }
 
