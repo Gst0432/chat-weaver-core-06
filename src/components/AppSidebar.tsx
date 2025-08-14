@@ -154,10 +154,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton 
-                  onClick={() => {
-                    console.log('🎯 SaaS Generator button clicked!');
-                    window.dispatchEvent(new CustomEvent('chat:toggle-saas-generator'));
-                  }} 
+                  onClick={() => window.dispatchEvent(new CustomEvent('chat:toggle-saas-generator'))} 
                   className="w-full justify-start bg-gradient-primary text-primary-foreground hover:shadow-glow"
                 >
                   <Wand2 className="w-4 h-4" />

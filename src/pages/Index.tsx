@@ -83,22 +83,24 @@ const Index = () => {
     };
     window.addEventListener('chat:prefs-updated', onPrefs);
 
-    // Écoute événement pour basculer vers le générateur SaaS
-    const handleToggleSaaS = () => {
-      console.log('🚀 Toggle SaaS Generator event received, current state:', showSaaSGenerator);
-      setShowSaaSGenerator(prev => {
-        console.log('🚀 Changing from', prev, 'to', !prev);
-        return !prev;
-      });
-    };
-    window.addEventListener('chat:toggle-saas-generator', handleToggleSaaS);
-
     return () => {
       window.removeEventListener('chat:prefs-updated', onPrefs);
-      window.removeEventListener('chat:toggle-saas-generator', handleToggleSaaS);
       subscription.unsubscribe();
     };
   }, [navigate]);
+
+  // Effet séparé pour gérer l'événement SaaS Generator
+  useEffect(() => {
+    const handleToggleSaaS = () => {
+      setShowSaaSGenerator(prev => !prev);
+    };
+    
+    window.addEventListener('chat:toggle-saas-generator', handleToggleSaaS);
+    
+    return () => {
+      window.removeEventListener('chat:toggle-saas-generator', handleToggleSaaS);
+    };
+  }, []);
 
   if (!authReady) return null;
 
@@ -178,17 +180,12 @@ const Index = () => {
           
           <main className="flex-1 flex flex-col bg-background">
             {showSaaSGenerator ? (
-              <div>
-                <p style={{padding: '10px', background: 'yellow', color: 'black'}}>
-                  DEBUG: SaaS Generator is now active! State: {showSaaSGenerator.toString()}
-                </p>
-                <SaaSGenerator 
-                  onGenerate={(app) => {
-                    console.log('App générée:', app);
-                    setShowSaaSGenerator(false);
-                  }}
-                />
-              </div>
+              <SaaSGenerator 
+                onGenerate={(app) => {
+                  console.log('App générée:', app);
+                  setShowSaaSGenerator(false);
+                }}
+              />
             ) : (
               <>
                 <ModelSelector 
