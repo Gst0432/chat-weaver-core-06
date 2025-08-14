@@ -607,7 +607,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
 
         // Message assistant provisoire pour le stream
         let streamingId = `stream-${Date.now()}`;
-        setMessages(prev => [...prev, { id: streamingId, content: '', role: 'assistant', timestamp: new Date(), model: selectedModel }]);
+        setMessages(prev => [...prev, { id: streamingId, content: '', role: 'assistant', timestamp: new Date(), model }]);
 
         const res = await fetch(url, {
           method: 'POST',
@@ -661,14 +661,14 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           content: acc || 'Aucune réponse.',
           role: 'assistant',
           timestamp: new Date(),
-          model: selectedModel,
+          model,
         };
         setMessages(prev => prev.map(m => m.id === streamingId ? finalAssistant : m));
         await supabase.from('messages').insert({
           conversation_id: convoId,
           role: 'assistant',
           content: finalAssistant.content,
-          model: selectedModel
+          model
         });
         return;
       }
@@ -689,7 +689,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         content: data?.generatedText || 'Aucune réponse.',
         role: "assistant",
         timestamp: new Date(),
-        model: selectedModel
+        model
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -698,7 +698,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         conversation_id: convoId,
         role: 'assistant',
         content: assistantMessage.content,
-        model: selectedModel
+        model
       });
     } catch (e: any) {
       const assistantMessage: Message = {
