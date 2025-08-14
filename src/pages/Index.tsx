@@ -183,8 +183,9 @@ const Index = () => {
               <SaaSGenerator 
                 onGenerate={(app) => {
                   console.log('App générée:', app);
-                  setShowSaaSGenerator(false);
+                  // Ne plus fermer automatiquement le générateur
                 }}
+                onClose={() => setShowSaaSGenerator(false)}
               />
             ) : (
               <>

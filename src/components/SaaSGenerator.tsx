@@ -31,9 +31,10 @@ interface Message {
 
 interface SaaSGeneratorProps {
   onGenerate?: (app: GeneratedApp) => void;
+  onClose?: () => void;
 }
 
-export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
+export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedApp, setGeneratedApp] = useState<GeneratedApp | null>(null);
   const [activeTab, setActiveTab] = useState("chat");
@@ -105,8 +106,18 @@ export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
       }
 
       setGeneratedApp(app);
+      // Basculer automatiquement vers l'onglet Code après génération
       setActiveTab("code");
       onGenerate?.(app);
+      
+      // Ajouter un message informatif dans le chat
+      const successMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: "✅ Application générée avec succès ! Vous pouvez maintenant voir le code dans l'onglet 'Code' et tester l'aperçu dans l'onglet 'Aperçu'. Continuez à chatter pour modifier votre application !",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, successMessage]);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -191,7 +202,7 @@ ${generatedApp.databaseSchema}
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header avec settings */}
+      {/* Header avec settings et bouton fermer */}
       <div className="border-b bg-background p-4 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Générateur SaaS IA</h2>
@@ -200,7 +211,8 @@ ${generatedApp.databaseSchema}
           </p>
         </div>
         
-        <Sheet>
+        <div className="flex items-center gap-2">
+          <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm">
               <Settings className="w-4 h-4 mr-2" />
@@ -293,7 +305,18 @@ ${generatedApp.databaseSchema}
               </div>
             </div>
           </SheetContent>
-        </Sheet>
+          </Sheet>
+          
+          {onClose && (
+            <Button
+              variant="outline"
+              onClick={onClose}
+              size="sm"
+            >
+              Retour au Chat
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
