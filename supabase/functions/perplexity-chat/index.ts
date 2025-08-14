@@ -33,17 +33,14 @@ serve(async (req) => {
       "llama-3.1-sonar-huge-128k-online": "llama-3.1-sonar-huge-128k-online",
       "perplexity": "llama-3.1-sonar-small-128k-online", // Fallback pour ID simple
     };
-    const resolvedModel = modelMap[model] || model || "sonar-small-online";
+    const resolvedModel = modelMap[model] || model || "llama-3.1-sonar-small-128k-online";
     console.log("🔄 Modèle mappé:", model, "->", resolvedModel);
 
     const payload = {
       model: resolvedModel,
       messages: Array.isArray(messages) ? messages : [],
       temperature,
-      top_p: 0.9,
       max_tokens,
-      return_images: false,
-      return_related_questions: false,
       frequency_penalty: 0,
       presence_penalty: 0,
     };
@@ -63,6 +60,13 @@ serve(async (req) => {
 
     if (!response.ok) {
       const err = await response.text();
+      console.error("❌ Erreur Perplexity API:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: err,
+        model: resolvedModel,
+        messagesCount: messages?.length
+      });
       return new Response(JSON.stringify({ error: err }), {
         status: response.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
