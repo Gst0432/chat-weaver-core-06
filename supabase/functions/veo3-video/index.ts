@@ -68,9 +68,9 @@ serve(async (req) => {
 
     console.log("🚀 Appel API Veo 3 avec:", JSON.stringify(requestBody, null, 2));
     
-    // Utiliser l'endpoint generateContent standard avec le modèle veo-3
+    // Utiliser l'endpoint generateContent standard avec le modèle veo-3-fast
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateContent?key=${GOOGLE_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/veo-3-fast:generateContent?key=${GOOGLE_API_KEY}`,
       {
         method: "POST",
         headers: {

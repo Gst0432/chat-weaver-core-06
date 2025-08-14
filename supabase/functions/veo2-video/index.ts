@@ -39,13 +39,15 @@ serve(async (req) => {
       });
     }
 
-    // Préparer la requête pour l'API Veo 2 au format Gemini standard
+    // Préparer la requête pour l'API Veo 2 - format simplifié
     const contents = [];
     
-    // Ajouter le prompt de génération vidéo
+    // Intégrer tous les paramètres directement dans le prompt
+    const enhancedPrompt = `Generate a ${duration}-second ${quality} quality video with audio: ${prompt}`;
+    
     contents.push({
       parts: [{
-        text: `Generate a ${duration}-second video with ${quality} quality: ${prompt}`
+        text: enhancedPrompt
       }]
     });
 
@@ -59,19 +61,16 @@ serve(async (req) => {
       });
     }
 
+    // Requête simplifiée sans generationConfig problématique
     const requestBody = {
-      contents,
-      generationConfig: {
-        videoLength: `${duration}s`,
-        includeAudio: true
-      }
+      contents
     };
 
     console.log("🚀 Appel API Veo 2 avec:", JSON.stringify(requestBody, null, 2));
     
-    // Utiliser l'endpoint generateContent standard avec le modèle veo-2
+    // Utiliser l'endpoint generateContent standard avec le modèle gemini-2.0-flash-exp-veo
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/veo-2:generateContent?key=${GOOGLE_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-veo:generateContent?key=${GOOGLE_API_KEY}`,
       {
         method: "POST",
         headers: {
