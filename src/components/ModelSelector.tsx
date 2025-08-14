@@ -111,13 +111,38 @@ const models = [
     color: "deepseek",
     description: "🚀 Généraliste hautes performances pour le code"
   },
+  // === MISTRAL AI ===
+  {
+    id: "mistral-large-latest",
+    name: "Mistral Large",
+    provider: "Mistral AI",
+    icon: Sparkles,
+    color: "mistral",
+    description: "🇫🇷 Modèle généraliste français premium"
+  },
   {
     id: "codestral-latest",
     name: "Codestral",
     provider: "Mistral AI",
+    icon: Code2,
+    color: "mistral",
+    description: "🔧 Expert français en programmation et code"
+  },
+  {
+    id: "mistral-small-latest",
+    name: "Mistral Small",
+    provider: "Mistral AI",
+    icon: Zap,
+    color: "mistral",
+    description: "⚡ Modèle français rapide et économique"
+  },
+  {
+    id: "mistral-nemo",
+    name: "Mistral Nemo",
+    provider: "Mistral AI",
     icon: Wrench,
     color: "mistral",
-    description: "🔧 Expert français en programmation et outils"
+    description: "🛠️ Spécialisé pour tâches françaises spécifiques"
   },
   {
     id: "llama-3.1-sonar-small-128k-online",

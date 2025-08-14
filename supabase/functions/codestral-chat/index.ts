@@ -25,8 +25,18 @@ serve(async (req) => {
 
     console.log(`Processing Codestral request for model: ${model}`);
 
+    // Mapping des modèles Mistral
+    const modelMap: { [key: string]: string } = {
+      'codestral-latest': 'codestral-latest',
+      'mistral-large-latest': 'mistral-large-latest',
+      'mistral-small-latest': 'mistral-small-latest',
+      'mistral-nemo': 'mistral-nemo'
+    };
+
+    const finalModel = modelMap[model] || 'codestral-latest';
+
     const payload = {
-      model: model || "codestral-latest",
+      model: finalModel,
       messages: Array.isArray(messages) ? messages : [],
       temperature,
       max_tokens,

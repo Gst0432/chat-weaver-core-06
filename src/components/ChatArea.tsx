@@ -702,7 +702,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       ];
 
       // Déterminer le modèle et la fonction à utiliser
-      let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' | 'gemini-chat' = 'openai-chat';
+      let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' | 'gemini-chat' | 'codestral-chat' | 'claude-chat' = 'openai-chat';
       let model = 'gpt-4o'; // modèle par défaut réel
 
       // Auto-router intelligent optimisé
@@ -719,6 +719,10 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         // Détection code/programmation
         const isCode = /(code|programm|debug|fonction|script|python|javascript|sql|html|css|react|api|database|git|github)/i.test(text);
         
+        // Détection français/francophone
+        const isFrench = /(français|francais|france|québec|belgique|suisse|français|en français|traduire|traduction)/i.test(text) || 
+                         /\b(le|la|les|un|une|des|ce|cette|ces|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|dans|avec|sans|pour|par|sur|sous|entre|chez|depuis|pendant|avant|après|mais|ou|et|donc|car|ni|quand|que|qui|dont|où|si|comme|bien|très|plus|moins|assez|trop|beaucoup|peu|jamais|toujours|souvent|parfois|hier|aujourd'hui|demain|maintenant|ici|là|là-bas|partout|nulle|part|quelque|chose|rien|tout|tous|toute|toutes|chaque|plusieurs|certains|autres|même|autre|encore|déjà|enfin|alors|ainsi|donc|cependant|pourtant|néanmoins|toutefois|malgré|grâce|selon|d'après|vers|jusqu'à|au-dessus|au-dessous|à|côté|en|face|autour|loin|près|devant|derrière|entre|parmi|contre|malgré|sauf|excepté|hormis|outre|suivant|durant|moyennant|nonobstant|concernant|touchant|quant|eu|égard|vis-à-vis|plutôt|sinon|autrement|c'est-à-dire|soit|c'est|ce|qu|il|elle|on|nous|vous|ils|elles|je|tu|me|te|se|nous|vous|moi|toi|lui|elle|eux|elles|ça|cela|ceci|celui|celle|ceux|celles|lequel|laquelle|lesquels|lesquelles|duquel|de|laquelle|desquels|desquelles|auquel|à|laquelle|auxquels|auxquelles)\b/.test(text);
+        
         // Détection vision/image
         const needsVision = /(image|photo|vision|voir|analyser une image|screenshot|diagramme|graphique)/i.test(text);
         
@@ -729,6 +733,11 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           functionName = 'perplexity-chat';
           model = 'llama-3.1-sonar-small-128k-online';
           setAutoRouterChoice('perplexity');
+        } else if (isCode && isFrench) {
+          // Privilégier Codestral pour code + français
+          functionName = 'codestral-chat';
+          model = 'codestral-latest';
+          setAutoRouterChoice('codestral-french');
         } else if (needsReasoning && len > 200) {
           // Utiliser Gemini 2.5 Pro pour raisonnement complexe avec "thinking"
           functionName = 'gemini-chat';
@@ -738,6 +747,11 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           functionName = 'deepseek-chat';
           model = 'deepseek-chat';
           setAutoRouterChoice('deepseek-code');
+        } else if (isFrench) {
+          // Privilégier Mistral pour français général
+          functionName = 'codestral-chat';
+          model = 'mistral-large-latest';
+          setAutoRouterChoice('mistral-french');
         } else if (needsVision) {
           // Utiliser Gemini 2.5 Flash pour vision multimodale avancée
           functionName = 'gemini-chat';
@@ -760,6 +774,12 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       } else if (selectedModel.includes('deepseek')) {
         functionName = 'deepseek-chat';
         model = 'deepseek-chat';
+      } else if (selectedModel.includes('claude')) {
+        functionName = 'claude-chat';
+        model = selectedModel;
+      } else if (selectedModel.includes('mistral') || selectedModel.includes('codestral')) {
+        functionName = 'codestral-chat';
+        model = selectedModel;
       } else if (selectedModel.startsWith('gpt-') || selectedModel.startsWith('o')) {
         functionName = 'openai-chat';
         model = selectedModel;
