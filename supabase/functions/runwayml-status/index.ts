@@ -37,7 +37,7 @@ serve(async (req) => {
     console.log("🔍 Appel API RunwayML pour statut tâche:", taskId);
     
     // Vérifier le statut de la tâche RunwayML
-    const response = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
+    const response = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${RUNWAYML_API_KEY}`,

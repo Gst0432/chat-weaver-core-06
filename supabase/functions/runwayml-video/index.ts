@@ -41,22 +41,27 @@ serve(async (req) => {
 
     // Préparer la requête pour l'API RunwayML Gen-3
     const requestBody: any = {
-      model: "gen3a_turbo",
-      prompt: prompt,
-      duration: duration,
-      aspect_ratio: quality === "high" ? "16:9" : "9:16",
-      seed: Math.floor(Math.random() * 1000000)
+      taskType: image ? "gen3a_turbo_image_to_video" : "gen3a_turbo_text_to_video",
+      internal: false,
+      options: {
+        text_prompt: prompt,
+        duration: duration,
+        image_as_end_frame: false,
+        seed: Math.floor(Math.random() * 1000000),
+        exploreMode: false,
+        watermark: false
+      }
     };
 
     // Ajouter l'image si c'est une génération image-to-video
     if (image) {
-      requestBody.image = image;
+      requestBody.options.init_image = image;
     }
 
     console.log("🚀 Appel API RunwayML avec:", JSON.stringify(requestBody, null, 2));
     
     // Utiliser le bon endpoint RunwayML Gen-3
-    const response = await fetch(`https://api.runwayml.com/v1/image_to_video`, {
+    const response = await fetch(`https://api.dev.runwayml.com/v1/tasks`, {
       method: "POST", 
       headers: {
         "Authorization": `Bearer ${RUNWAYML_API_KEY}`,
