@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { User, Bot, Sparkles, Cpu, Zap, Search, Download, FileText, File as FileIcon, Copy, Volume2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { CodePreview } from "./CodePreview";
 
 interface Message {
   id: string;
@@ -306,9 +307,10 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                {sanitizeContent(String(message.content))}
-              </div>
+              <CodePreview 
+                content={String(message.content)} 
+                isUser={isUser} 
+              />
               <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2 flex-wrap`}>
                 <Button
                   type="button"
