@@ -39,13 +39,15 @@ serve(async (req) => {
       });
     }
 
-    // Préparer la requête pour l'API Veo 3 au format Gemini standard
+    // Préparer la requête pour l'API Veo 3 - format simplifié
     const contents = [];
     
-    // Ajouter le prompt de génération vidéo
+    // Intégrer tous les paramètres directement dans le prompt
+    const enhancedPrompt = `Generate a ${duration}-second ${quality} quality video with audio: ${prompt}`;
+    
     contents.push({
       parts: [{
-        text: `Generate a ${duration}-second video with ${quality} quality: ${prompt}`
+        text: enhancedPrompt
       }]
     });
 
@@ -59,12 +61,9 @@ serve(async (req) => {
       });
     }
 
+    // Requête simplifiée sans generationConfig problématique
     const requestBody = {
-      contents,
-      generationConfig: {
-        videoLength: `${duration}s`,
-        includeAudio: true
-      }
+      contents
     };
 
     console.log("🚀 Appel API Veo 3 avec:", JSON.stringify(requestBody, null, 2));
