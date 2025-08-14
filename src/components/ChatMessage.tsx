@@ -23,15 +23,18 @@ interface ChatMessageProps {
 
 const getModelInfo = (modelId?: string) => {
   const models = {
-    "gpt-4-turbo": { name: "GPT-4 Turbo", provider: "OpenAI", icon: Sparkles, color: "openai" },
-    "gpt-4.1": { name: "GTP-5", provider: "OpenAI", icon: Sparkles, color: "openai" },
-    "claude-3-sonnet": { name: "Claude 3 Sonnet", provider: "Anthropic", icon: Cpu, color: "claude" },
-    "gemini-pro": { name: "Gemini Pro", provider: "Google", icon: Zap, color: "gemini" },
-    "perplexity-pro": { name: "Perplexity Pro", provider: "Perplexity", icon: Search, color: "perplexity" },
-    "deepseek-v3": { name: "DeepSeek V3", provider: "DeepSeek", icon: Cpu, color: "openai" }
+    "gpt-4o": { name: "GPT-4o", provider: "OpenAI", icon: Sparkles, color: "openai" },
+    "gpt-4o-mini": { name: "GPT-4o Mini", provider: "OpenAI", icon: Sparkles, color: "openai" },
+    "o1-preview": { name: "o1-preview", provider: "OpenAI", icon: Cpu, color: "openai" },
+    "o1-mini": { name: "o1-mini", provider: "OpenAI", icon: Cpu, color: "openai" },
+    "gemini-1.5-flash": { name: "Gemini 1.5 Flash", provider: "Google", icon: Zap, color: "gemini" },
+    "gemini-1.5-pro": { name: "Gemini 1.5 Pro", provider: "Google", icon: Zap, color: "gemini" },
+    "perplexity-sonar": { name: "Perplexity Sonar", provider: "Perplexity", icon: Search, color: "perplexity" },
+    "deepseek-v3": { name: "DeepSeek V3", provider: "DeepSeek", icon: Cpu, color: "openai" },
+    "auto-router": { name: "Auto Router", provider: "Smart", icon: Sparkles, color: "openai" }
   } as const;
 
-  return models[modelId as keyof typeof models] || models["gpt-4-turbo"];
+  return models[modelId as keyof typeof models] || models["gpt-4o"];
 };
 
 const sanitizeContent = (text: string) => {
@@ -65,9 +68,9 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
               variant="secondary" 
               className={`text-xs ${
                 modelInfo.color === 'openai' ? 'bg-openai/20 text-openai border-openai/30' :
-                modelInfo.color === 'claude' ? 'bg-claude/20 text-claude border-claude/30' :
                 modelInfo.color === 'gemini' ? 'bg-gemini/20 text-gemini border-gemini/30' :
-                'bg-perplexity/20 text-perplexity border-perplexity/30'
+                modelInfo.color === 'perplexity' ? 'bg-perplexity/20 text-perplexity border-perplexity/30' :
+                'bg-openai/20 text-openai border-openai/30'
               }`}
             >
               {modelInfo.name}

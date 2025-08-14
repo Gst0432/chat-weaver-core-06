@@ -13,16 +13,18 @@ export const ModelStatusIndicator = ({ selectedModel, isLoading, autoRouterChoic
   const getModelIcon = (model: string) => {
     if (model.includes('perplexity')) return Search;
     if (model.includes('gemini')) return Sparkles;
-    if (model.includes('o3-')) return Brain;
+    if (model.includes('o1-') || model.includes('o3-')) return Brain;
     if (model.includes('deepseek')) return Zap;
+    if (model.includes('gpt-4o')) return Sparkles;
     return Sparkles;
   };
 
   const getStatusText = (model: string) => {
     if (model.includes('perplexity')) return 'Recherche web en cours...';
     if (model.includes('gemini')) return 'Traitement multimodal...';
-    if (model.includes('o3-')) return 'Raisonnement complexe...';
+    if (model.includes('o1-') || model.includes('o3-')) return 'Raisonnement complexe...';
     if (model.includes('deepseek')) return 'Analyse de code...';
+    if (model.includes('gpt-4o')) return 'Génération intelligente...';
     if (model.includes('gpt-5')) return 'Génération avancée...';
     return 'Génération en cours...';
   };
@@ -31,6 +33,7 @@ export const ModelStatusIndicator = ({ selectedModel, isLoading, autoRouterChoic
     if (model.includes('perplexity')) return 'bg-perplexity/10 text-perplexity border-perplexity/20';
     if (model.includes('gemini')) return 'bg-gemini/10 text-gemini border-gemini/20';
     if (model.includes('deepseek')) return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+    if (model.includes('o1-') || model.includes('o3-')) return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
     return 'bg-openai/10 text-openai border-openai/20';
   };
 
