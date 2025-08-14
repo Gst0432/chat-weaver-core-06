@@ -53,7 +53,7 @@ const NewLanding = () => {
     {
       icon: Infinity,
       title: "IA de dernière génération",
-      description: "ChatGPT-5, ChatGPT-4, Deepseek V3, Gemini Pro"
+      description: "ChatGPT-5, ChatGPT-4, Deepseek V3, Gemini Pro, Perplexity"
     },
     {
       icon: Image,
@@ -116,7 +116,7 @@ const NewLanding = () => {
       price: 7500,
       features: [
         'Utilisateurs: 1',
-        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini illimité',
+        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini + Perplexity illimité',
         'Images DALL·E 3: 10 images / mois',
         'Text-to-Voice: OpenAI Standard TTS uniquement',
         'Minutes TTS: 100 min inclus',
@@ -133,7 +133,7 @@ const NewLanding = () => {
       price: 22000,
       features: [
         'Utilisateurs: Jusqu\'à 5',
-        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini illimité',
+        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini + Perplexity illimité',
         'Images DALL·E 3: 50 images / mois',
         'Text-to-Voice: OpenAI HD TTS + Google WaveNet',
         'Minutes TTS: 500 min inclus',
@@ -150,7 +150,7 @@ const NewLanding = () => {
       price: 55000,
       features: [
         'Utilisateurs: Jusqu\'à 20',
-        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini illimité',
+        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini + Perplexity illimité',
         'Images DALL·E 3: Illimité',
         'Text-to-Voice: OpenAI HD + Google WaveNet + voix premium',
         'Minutes TTS: Illimité',
@@ -309,7 +309,7 @@ const NewLanding = () => {
           </h1>
           
           <p className="text-xl sm:text-2xl text-muted-foreground mb-12 max-w-4xl mx-auto leading-relaxed">
-            ChatGPT-5, ChatGPT-4, Deepseek V3, Gemini Pro, génération d'images, voix off, transcription… 
+            ChatGPT-5, ChatGPT-4, Deepseek V3, Gemini Pro, Perplexity, génération d'images, voix off, transcription… 
             <span className="font-semibold">Tout en un, sans limites.</span>
           </p>
 
@@ -436,8 +436,8 @@ const NewLanding = () => {
         </div>
       </section>
 
-      {/* 4. Section Vidéo Démonstration */}
-      <section id="video" className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/20">
+      {/* 4. Section Vidéo Démonstration - Masquée */}
+      <section id="video" className="hidden py-20 px-4 sm:px-6 lg:px-8 bg-secondary/20">
         <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-3xl sm:text-5xl font-bold mb-8">
             Voir Chatelix en Action
