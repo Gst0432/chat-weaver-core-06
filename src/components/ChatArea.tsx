@@ -395,10 +395,17 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       const wantsImage = !isUpload && ImageService.isImageRequest(content);
       const wantsVideo = !isUpload && isVideoRequest(content);
       
-      // Génération vidéo avec Veo 3
+      // Génération vidéo avec Veo 2 ou Veo 3
       if (wantsVideo) {
         try {
-          const { data, error } = await supabase.functions.invoke('veo3-video', {
+          // Détecter si l'utilisateur demande spécifiquement Veo 2
+          const useVeo2 = content.toLowerCase().includes('veo-2') || 
+                         content.toLowerCase().includes('veo 2');
+          
+          const veoModel = useVeo2 ? 'veo-2' : 'veo-3';
+          const veoFunction = useVeo2 ? 'veo2-video' : 'veo3-video';
+          
+          const { data, error } = await supabase.functions.invoke(veoFunction, {
             body: {
               prompt: content,
               duration: 8,
@@ -415,7 +422,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             content: data?.video || 'Erreur: Vidéo non générée',
             role: 'assistant',
             timestamp: new Date(),
-            model: 'veo-3'
+            model: veoModel
           };
 
           setMessages(prev => [...prev, assistantMessage]);
@@ -423,7 +430,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             conversation_id: convoId,
             role: 'assistant',
             content: assistantMessage.content,
-            model: 'veo-3'
+            model: veoModel
           });
           return;
         } catch (error) {
