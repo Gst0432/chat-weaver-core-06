@@ -12,6 +12,12 @@ verify_jwt = false
 [functions.openai-image-variations]
 verify_jwt = false
 
+[functions.veo2-video]
+verify_jwt = false
+
+[functions.veo3-video]
+verify_jwt = false
+
 [functions.gemini-chat]
 verify_jwt = true
 
