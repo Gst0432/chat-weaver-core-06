@@ -12,6 +12,7 @@ import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ImageService } from "@/services/imageService";
 import { RunwayService } from "@/services/runwayService";
+import { AppGeneratorService } from "@/services/appGeneratorService";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -380,12 +381,83 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         return;
       }
 
-      // Déclenchement prioritaire: génération d'image si le message le demande
-      // Utilise automatiquement le meilleur provider disponible (Runware si configuré, sinon DALL-E)
-      const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
-      const wantsImage = !isUpload && ImageService.isImageRequest(content);
-      const wantsVideo = !isUpload && isVideoRequest(content);
+  // Déclenchement prioritaire: génération d'image si le message le demande
+  // Utilise automatiquement le meilleur provider disponible (Runware si configuré, sinon DALL-E)
+  const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
+  const wantsImage = !isUpload && ImageService.isImageRequest(content);
+  const wantsVideo = !isUpload && isVideoRequest(content);
+  const wantsApp = !isUpload && AppGeneratorService.isAppGenerationRequest(content);
       
+          // Génération d'application complète
+      if (wantsApp) {
+        try {
+          console.log("🏗️ Début génération application complète");
+          
+          const tempMessage: Message = {
+            id: `temp-${Date.now()}`,
+            content: "🏗️ Génération de l'application en cours... Cela peut prendre quelques minutes.",
+            role: "assistant",
+            timestamp: new Date(),
+            model: "app-generator"
+          };
+          setMessages(prev => [...prev, tempMessage]);
+
+          const generatedApp = await AppGeneratorService.generateApp(content);
+          
+          // Supprimer le message temporaire
+          setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
+          
+          // Créer le contenu web complet
+          const webContent = `${generatedApp.html}\n<style>${generatedApp.css}</style>\n<script>${generatedApp.javascript}</script>`;
+          
+          const appMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: webContent,
+            role: "assistant",
+            timestamp: new Date(),
+            model: "app-generator"
+          };
+          
+          setMessages(prev => [...prev, appMessage]);
+          
+          // Sauvegarder dans la base
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: webContent,
+            model: "app-generator"
+          });
+          
+          toast({
+            title: "Application générée !",
+            description: "Votre application complète est prête.",
+          });
+          
+          return; // Arrêter le traitement pour la génération d'app
+        } catch (error) {
+          console.error("❌ Erreur génération app:", error);
+          
+          // Supprimer le message temporaire en cas d'erreur
+          setMessages(prev => prev.filter(m => m.id.startsWith('temp-')));
+          
+          const errorMessage: Message = {
+            id: (Date.now() + 2).toString(),
+            content: `Erreur génération application: ${error instanceof Error ? error.message : "Échec de la génération"}`,
+            role: "assistant",
+            timestamp: new Date(),
+            model: "app-generator"
+          };
+          setMessages(prev => [...prev, errorMessage]);
+          
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: errorMessage.content,
+            model: "app-generator"
+          });
+        }
+      }
+
       // Génération vidéo avec RunwayML Gen-3 Turbo
       if (wantsVideo) {
         try {
