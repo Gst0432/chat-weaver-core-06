@@ -46,6 +46,14 @@ const models = [
     color: "openai",
     description: "Modèle généraliste de pointe"
   },
+  {
+    id: "perplexity",
+    name: "Perplexity",
+    provider: "Perplexity",
+    icon: Search,
+    color: "perplexity",
+    description: "Recherche web avec IA en temps réel"
+  },
 ];
 interface ModelSelectorProps {
   selectedModel: string;

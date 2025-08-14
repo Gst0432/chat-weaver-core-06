@@ -575,9 +575,11 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       if (selectedModel === 'auto-router') {
         const text = content.toLowerCase();
         const len = content.length;
-        const wantsWeb = /\b(actualité|news|web|recherche|internet|http|www|google|source|récent|update)\b/.test(text);
-        const hardTask = len > 600 || /(analyse|preuve|démonstration|math|optimiser|refactor|architecture|raisonne|reason|long)/i.test(content);
-        if (wantsWeb) {
+        const wantsWeb = /\b(actualité|actualités|news|web|recherche|internet|http|www|google|source|récent|update|temps réel|aujourd'hui|maintenant|2024|2025|prix|cours|bourse|météo|info|événement|que se passe|qu'est-ce qui|dernières nouvelles|breaking news|live|direct|current|latest)\b/.test(text);
+        const isQuestion = /^(qui|que|quoi|où|quand|comment|pourquoi|combien|quel|quelle|est-ce que|what|when|where|how|why|which|who)/i.test(content.trim());
+        const hardTask = len > 600 || /(analyse approfondie|preuve|démonstration|math complexe|optimiser|refactor|architecture|raisonne|reasoning|algorithmique|code review|debug complexe)/i.test(content);
+        
+        if (wantsWeb || (isQuestion && !hardTask)) {
           functionName = 'perplexity-chat';
           model = 'llama-3.1-sonar-small-128k-online';
         } else if (hardTask) {
@@ -589,7 +591,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         }
       } else if (selectedModel === 'gpt-4.1') {
         model = 'gpt-4o-mini';
-      } else if (selectedModel.includes('perplexity')) {
+      } else if (selectedModel === 'perplexity' || selectedModel.includes('perplexity')) {
         functionName = 'perplexity-chat';
         model = 'llama-3.1-sonar-small-128k-online';
       } else if (selectedModel.includes('deepseek')) {
