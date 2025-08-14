@@ -20,6 +20,8 @@ export interface AppGenerationOptions {
   includeChat?: boolean;
   seoOptimized?: boolean;
   pwaEnabled?: boolean;
+  sourceType?: 'text' | 'figma' | 'screenshot';
+  sourceUrl?: string;
 }
 
 export interface GeneratedApp {

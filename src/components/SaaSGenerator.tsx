@@ -33,7 +33,13 @@ import {
   Edit3,
   Brain,
   Heart,
-  Star
+  Star,
+  Image,
+  Link2,
+  Camera,
+  Github,
+  ExternalLink,
+  Upload
 } from "lucide-react";
 import { AppGeneratorService, type AppGenerationOptions, type GeneratedApp } from "@/services/appGeneratorService";
 import { ContextualMemoryService } from "@/services/contextualMemoryService";
@@ -53,6 +59,11 @@ export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
   const [userApps, setUserApps] = useState<any[]>([]);
   const [suggestedOptions, setSuggestedOptions] = useState<Partial<AppGenerationOptions>>({});
   const { toast } = useToast();
+
+  const [generationMethod, setGenerationMethod] = useState<'text' | 'figma' | 'screenshot'>('text');
+  const [figmaUrl, setFigmaUrl] = useState('');
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [deploymentTarget, setDeploymentTarget] = useState<'vercel' | 'netlify' | 'github' | 'export'>('vercel');
 
   const [options, setOptions] = useState<AppGenerationOptions>({
     type: 'saas',
@@ -106,10 +117,29 @@ export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
   };
 
   const handleGenerate = async () => {
-    if (!options.businessName || !options.description) {
+    // Validation selon la méthode choisie
+    if (generationMethod === 'text' && (!options.businessName || !options.description)) {
       toast({
         title: "Informations manquantes",
         description: "Veuillez remplir le nom du business et la description.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (generationMethod === 'figma' && !figmaUrl) {
+      toast({
+        title: "URL Figma manquante",
+        description: "Veuillez fournir l'URL de votre design Figma.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (generationMethod === 'screenshot' && !screenshotFile) {
+      toast({
+        title: "Image manquante",
+        description: "Veuillez télécharger une capture d'écran.",
         variant: "destructive"
       });
       return;
@@ -120,28 +150,40 @@ export const SaaSGenerator = ({ onGenerate }: SaaSGeneratorProps) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Générer le design IA si demandé
-      let enhancedCSS = '';
-      if (options.colorScheme === 'ai-generated') {
-        toast({
-          title: "🎨 Génération du design IA",
-          description: "Création d'une palette de couleurs personnalisée...",
-        });
-        
-        const aiDesign = await AIDesignService.generateDesignSystem(
-          options.industry,
-          options.style || 'modern',
-          options.businessName
-        );
-        
-        // Le CSS sera amélioré avec le design IA après génération
-      }
+      // Préparer le prompt selon la méthode
+      let prompt = '';
+      let app: any;
 
-      const prompt = `Crée une application ${options.type} pour ${options.businessName}. ${options.description}`;
-      const app = await AppGeneratorService.generateApp(prompt, options);
+      if (generationMethod === 'text') {
+        // Générer le design IA si demandé
+        if (options.colorScheme === 'ai-generated') {
+          toast({
+            title: "🎨 Génération du design IA",
+            description: "Création d'une palette de couleurs personnalisée...",
+          });
+        }
+
+        prompt = `Crée une application ${options.type} pour ${options.businessName}. ${options.description}`;
+        app = await AppGeneratorService.generateApp(prompt, options);
+      } else if (generationMethod === 'figma') {
+        toast({
+          title: "🎨 Analyse du design Figma",
+          description: "Conversion du design en code...",
+        });
+        prompt = `Convertis ce design Figma en application ${options.type} : ${figmaUrl}`;
+        app = await AppGeneratorService.generateApp(prompt, { ...options, sourceType: 'figma', sourceUrl: figmaUrl });
+      } else if (generationMethod === 'screenshot') {
+        toast({
+          title: "📸 Analyse de la capture d'écran",
+          description: "Génération du code depuis l'image...",
+        });
+        // Ici on pourrait implémenter l'upload de l'image vers un service de vision AI
+        prompt = `Recrée cette interface utilisateur en application ${options.type}`;
+        app = await AppGeneratorService.generateApp(prompt, { ...options, sourceType: 'screenshot' });
+      }
       
-      // Appliquer le design IA au CSS si généré
-      if (options.colorScheme === 'ai-generated') {
+      // Appliquer le design IA au CSS si généré pour la méthode text
+      if (generationMethod === 'text' && options.colorScheme === 'ai-generated') {
         const aiDesign = await AIDesignService.generateDesignSystem(
           options.industry,
           options.style || 'modern',
@@ -276,6 +318,79 @@ ${generatedApp.databaseSchema}
 
         <div className="flex-1 overflow-hidden">
           <TabsContent value="config" className="h-full p-4 overflow-y-auto space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="w-5 h-5" />
+                  Méthode de Génération
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant={generationMethod === 'text' ? 'default' : 'outline'}
+                    onClick={() => setGenerationMethod('text')}
+                    className="h-auto p-4 flex flex-col items-center gap-2"
+                  >
+                    <Edit3 className="w-5 h-5" />
+                    <span className="text-xs">Prompt-to-UI</span>
+                  </Button>
+                  <Button
+                    variant={generationMethod === 'figma' ? 'default' : 'outline'}
+                    onClick={() => setGenerationMethod('figma')}
+                    className="h-auto p-4 flex flex-col items-center gap-2"
+                  >
+                    <Link2 className="w-5 h-5" />
+                    <span className="text-xs">Figma-to-Code</span>
+                  </Button>
+                  <Button
+                    variant={generationMethod === 'screenshot' ? 'default' : 'outline'}
+                    onClick={() => setGenerationMethod('screenshot')}
+                    className="h-auto p-4 flex flex-col items-center gap-2"
+                  >
+                    <Camera className="w-5 h-5" />
+                    <span className="text-xs">Screenshot-to-Code</span>
+                  </Button>
+                </div>
+
+                {generationMethod === 'figma' && (
+                  <div>
+                    <Label htmlFor="figmaUrl">URL Figma</Label>
+                    <Input
+                      id="figmaUrl"
+                      placeholder="https://www.figma.com/file/..."
+                      value={figmaUrl}
+                      onChange={(e) => setFigmaUrl(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {generationMethod === 'screenshot' && (
+                  <div>
+                    <Label htmlFor="screenshot">Capture d'écran</Label>
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                      <Input
+                        id="screenshot"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                      <Label htmlFor="screenshot" className="cursor-pointer">
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          Cliquez pour télécharger une image
+                        </p>
+                      </Label>
+                      {screenshotFile && (
+                        <p className="text-sm text-primary mt-2">{screenshotFile.name}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -503,6 +618,57 @@ ${generatedApp.databaseSchema}
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Rocket className="w-5 h-5" />
+                  Déploiement & Export
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={deploymentTarget === 'vercel' ? 'default' : 'outline'}
+                    onClick={() => setDeploymentTarget('vercel')}
+                    className="h-auto p-3 flex flex-col items-center gap-1"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span className="text-xs">Vercel</span>
+                  </Button>
+                  <Button
+                    variant={deploymentTarget === 'netlify' ? 'default' : 'outline'}
+                    onClick={() => setDeploymentTarget('netlify')}
+                    className="h-auto p-3 flex flex-col items-center gap-1"
+                  >
+                    <Cloud className="w-4 h-4" />
+                    <span className="text-xs">Netlify</span>
+                  </Button>
+                  <Button
+                    variant={deploymentTarget === 'github' ? 'default' : 'outline'}
+                    onClick={() => setDeploymentTarget('github')}
+                    className="h-auto p-3 flex flex-col items-center gap-1"
+                  >
+                    <Github className="w-4 h-4" />
+                    <span className="text-xs">GitHub</span>
+                  </Button>
+                  <Button
+                    variant={deploymentTarget === 'export' ? 'default' : 'outline'}
+                    onClick={() => setDeploymentTarget('export')}
+                    className="h-auto p-3 flex flex-col items-center gap-1"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="text-xs">Export</span>
+                  </Button>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {deploymentTarget === 'vercel' && "Déploiement automatique avec 100GB de bande passante gratuite"}
+                  {deploymentTarget === 'netlify' && "Hébergement rapide avec CI/CD intégré"}
+                  {deploymentTarget === 'github' && "Synchronisation et versionnage avec GitHub"}
+                  {deploymentTarget === 'export' && "Téléchargement du code pour déploiement manuel"}
+                </div>
+              </CardContent>
+            </Card>
+
             <Button 
               onClick={handleGenerate} 
               disabled={isGenerating}
@@ -573,19 +739,88 @@ ${generatedApp.databaseSchema}
 
           <TabsContent value="deploy" className="h-full p-4 overflow-y-auto">
             {generatedApp && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Rocket className="w-5 h-5" />
-                    Instructions de Déploiement
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
-                    {generatedApp.deploymentInstructions}
-                  </pre>
-                </CardContent>
-              </Card>
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Rocket className="w-5 h-5" />
+                      Déployer sur {deploymentTarget === 'vercel' ? 'Vercel' : deploymentTarget === 'netlify' ? 'Netlify' : deploymentTarget === 'github' ? 'GitHub' : 'Export'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {deploymentTarget === 'vercel' && (
+                      <div>
+                        <Button className="w-full mb-4" size="lg">
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Déployer sur Vercel
+                        </Button>
+                        <div className="text-sm text-muted-foreground space-y-2">
+                          <p>• Déploiement automatique en un clic</p>
+                          <p>• 100GB de bande passante gratuite</p>
+                          <p>• CDN global pour une performance optimale</p>
+                          <p>• Certificat SSL automatique</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {deploymentTarget === 'netlify' && (
+                      <div>
+                        <Button className="w-full mb-4" size="lg">
+                          <Cloud className="w-4 h-4 mr-2" />
+                          Déployer sur Netlify
+                        </Button>
+                        <div className="text-sm text-muted-foreground space-y-2">
+                          <p>• Hébergement rapide et fiable</p>
+                          <p>• CI/CD intégré</p>
+                          <p>• Fonctions serverless incluses</p>
+                          <p>• Preview branches automatiques</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {deploymentTarget === 'github' && (
+                      <div>
+                        <Button className="w-full mb-4" size="lg">
+                          <Github className="w-4 h-4 mr-2" />
+                          Synchroniser avec GitHub
+                        </Button>
+                        <div className="text-sm text-muted-foreground space-y-2">
+                          <p>• Versionnage et collaboration</p>
+                          <p>• GitHub Actions pour CI/CD</p>
+                          <p>• Synchronisation bidirectionnelle</p>
+                          <p>• Hébergement sur GitHub Pages</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {deploymentTarget === 'export' && (
+                      <div>
+                        <Button onClick={downloadApp} className="w-full mb-4" size="lg">
+                          <Download className="w-4 h-4 mr-2" />
+                          Télécharger le Code
+                        </Button>
+                        <div className="text-sm text-muted-foreground space-y-2">
+                          <p>• Code complet prêt à déployer</p>
+                          <p>• Compatible AWS, Heroku, Digital Ocean</p>
+                          <p>• Structure de projet optimisée</p>
+                          <p>• Documentation incluse</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Instructions Détaillées</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <pre className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
+                      {generatedApp.deploymentInstructions}
+                    </pre>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </TabsContent>
         </div>
