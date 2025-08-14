@@ -6,6 +6,7 @@ import { User, Bot, Sparkles, Cpu, Zap, Search, Download, FileText, File as File
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CodePreview } from "./CodePreview";
+import { WebPreview } from "./WebPreview";
 
 interface Message {
   id: string;
@@ -307,6 +308,7 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
             </div>
           ) : (
             <div className="space-y-3">
+              <WebPreview content={String(message.content)} />
               <CodePreview 
                 content={String(message.content)} 
                 isUser={isUser} 
