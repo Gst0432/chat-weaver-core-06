@@ -14,7 +14,10 @@ serve(async (req) => {
   }
 
   try {
+    console.log("🔍 PERPLEXITY-CHAT: Fonction appelée");
+    
     if (!PERPLEXITY_API_KEY) {
+      console.error("❌ PERPLEXITY_API_KEY manquante");
       return new Response(JSON.stringify({ error: "PERPLEXITY_API_KEY is not set" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -22,6 +25,7 @@ serve(async (req) => {
     }
 
     const { messages, model, temperature = 0.2, max_tokens = 1000 } = await req.json();
+    console.log("📥 Paramètres reçus:", { model, temperature, max_tokens, messagesCount: messages?.length });
 
     const modelMap: Record<string, string> = {
       "llama-3.1-sonar-small-128k-online": "sonar-small-online",
@@ -29,6 +33,7 @@ serve(async (req) => {
       "llama-3.1-sonar-huge-128k-online": "sonar-huge-online",
     };
     const resolvedModel = modelMap[model] || model || "sonar-small-online";
+    console.log("🔄 Modèle mappé:", model, "->", resolvedModel);
 
     const payload = {
       model: resolvedModel,
@@ -42,6 +47,8 @@ serve(async (req) => {
       presence_penalty: 0,
     };
 
+    console.log("🚀 Appel API Perplexity avec payload:", JSON.stringify(payload, null, 2));
+
     const response = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
@@ -50,6 +57,8 @@ serve(async (req) => {
       },
       body: JSON.stringify(payload),
     });
+
+    console.log("📡 Réponse Perplexity API:", response.status, response.statusText);
 
     if (!response.ok) {
       const err = await response.text();
@@ -61,6 +70,7 @@ serve(async (req) => {
 
     const data = await response.json();
     const generatedText = data?.choices?.[0]?.message?.content ?? "";
+    console.log("✅ Texte généré par Perplexity:", generatedText?.substring(0, 100) + "...");
 
     return new Response(JSON.stringify({ generatedText, raw: data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

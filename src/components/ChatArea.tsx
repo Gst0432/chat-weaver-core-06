@@ -684,6 +684,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         return;
       }
 
+      console.log('🚀 Appel à la fonction:', functionName, 'avec modèle:', model);
+      
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           messages: chatMessages,
@@ -692,6 +694,8 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           max_tokens: 400
         }
       });
+
+      console.log('📥 Réponse de', functionName, '- data:', data, 'error:', error);
 
       if (error) throw error;
 
