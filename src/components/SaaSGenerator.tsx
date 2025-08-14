@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { WebPreview } from "@/components/WebPreview";
 import { ChatInput } from "@/components/ChatInput";
 import { ChatMessage } from "@/components/ChatMessage";
@@ -16,10 +18,17 @@ import {
   Database,
   Shield,
   CreditCard,
-  BarChart3
+  BarChart3,
+  Save,
+  History,
+  FolderOpen,
+  Trash2,
+  Calendar
 } from "lucide-react";
 import { AppGeneratorService, type AppGenerationOptions, type GeneratedApp } from "@/services/appGeneratorService";
 import { AIDesignService } from "@/services/aiDesignService";
+import { ContextualMemoryService } from "@/services/contextualMemoryService";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -37,12 +46,17 @@ interface SaaSGeneratorProps {
 export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedApp, setGeneratedApp] = useState<GeneratedApp | null>(null);
+  const [currentAppId, setCurrentAppId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("chat");
+  const [isSaving, setIsSaving] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [previousApps, setPreviousApps] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Bonjour ! Je suis votre assistant IA pour créer des applications SaaS. Décrivez-moi simplement ce que vous voulez créer et je générerai le code pour vous.',
+      content: 'Bonjour ! Je suis votre assistant IA pour créer des applications SaaS. Décrivez-moi simplement ce que vous voulez créer et je générerai le code pour vous. Vous pouvez aussi me demander de modifier le code existant !',
       timestamp: new Date()
     }
   ]);
@@ -69,6 +83,102 @@ export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
     pwaEnabled: false
   });
 
+  // Initialisation et récupération de l'utilisateur
+  useEffect(() => {
+    const initializeUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        loadPreviousApps(user.id);
+      }
+    };
+    initializeUser();
+  }, []);
+
+  // Chargement des apps précédentes
+  const loadPreviousApps = async (userId: string) => {
+    try {
+      const apps = await ContextualMemoryService.getUserGeneratedApps(userId);
+      setPreviousApps(apps);
+    } catch (error) {
+      console.error('Erreur chargement apps:', error);
+    }
+  };
+
+  // Sauvegarde automatique
+  const saveCurrentApp = async (app: GeneratedApp, appName: string) => {
+    if (!userId) {
+      toast({
+        title: "Connexion requise",
+        description: "Vous devez être connecté pour sauvegarder",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    setIsSaving(true);
+    try {
+      const appId = await ContextualMemoryService.saveGeneratedApp(
+        userId,
+        appName,
+        options.type,
+        options.industry,
+        app,
+        options
+      );
+
+      if (appId) {
+        setCurrentAppId(appId);
+        await loadPreviousApps(userId);
+        toast({
+          title: "💾 App sauvegardée",
+          description: `${appName} a été sauvegardée avec succès`
+        });
+      }
+      return appId;
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      toast({
+        title: "Erreur sauvegarde",
+        description: "Impossible de sauvegarder l'application",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Chargement d'une app existante
+  const loadApp = (appData: any) => {
+    setGeneratedApp(appData.generated_content);
+    setOptions(appData.generation_options);
+    setCurrentAppId(appData.id);
+    setActiveTab("code");
+    setShowHistory(false);
+    
+    const loadMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: `📁 Application "${appData.app_name}" chargée ! Vous pouvez maintenant la modifier en me donnant des instructions.`,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, loadMessage]);
+  };
+
+  // Détection de modification vs nouvelle génération
+  const isModificationRequest = (message: string) => {
+    const modificationKeywords = [
+      'modifie', 'change', 'remplace', 'corrige', 'améliore', 'ajuste',
+      'modifier', 'changer', 'remplacer', 'corriger', 'améliorer', 'ajuster',
+      'mets à jour', 'update', 'edit', 'fix', 'refactor'
+    ];
+    
+    return modificationKeywords.some(keyword => 
+      message.toLowerCase().includes(keyword)
+    ) && generatedApp !== null;
+  };
+
   const handleChatMessage = async (message: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -81,62 +191,111 @@ export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
     setIsGenerating(true);
 
     try {
-      // Analyser le message pour extraire les infos
-      const businessName = extractBusinessName(message);
-      const description = message;
-      
-      const updatedOptions = {
-        ...options,
-        businessName: businessName || `App-${Date.now()}`,
-        description
-      };
-      
-      setOptions(updatedOptions);
+      // Déterminer si c'est une modification ou une nouvelle génération
+      if (isModificationRequest(message) && generatedApp) {
+        // Mode modification
+        const modificationPrompt = `
+Voici le code actuel de l'application :
 
-      // Générer l'application
-      const app = await AppGeneratorService.generateApp(message, updatedOptions);
-      
-      if (updatedOptions.colorScheme === 'ai-generated') {
-        const aiDesign = await AIDesignService.generateDesignSystem(
-          updatedOptions.industry,
-          updatedOptions.style || 'modern',
-          updatedOptions.businessName
-        );
-        app.css = AIDesignService.applyDesignToCSS(aiDesign, app.css);
+HTML:
+${generatedApp.html}
+
+CSS:
+${generatedApp.css}
+
+JavaScript:
+${generatedApp.javascript}
+
+MODIFICATION DEMANDÉE: ${message}
+
+Modifie le code en appliquant les changements demandés. Réponds avec le format exact:
+
+\`\`\`html
+[Code HTML modifié]
+\`\`\`
+
+\`\`\`css
+[Code CSS modifié]
+\`\`\`
+
+\`\`\`javascript
+[Code JavaScript modifié]
+\`\`\`
+        `;
+
+        const modifiedApp = await AppGeneratorService.generateApp(modificationPrompt, options);
+        
+        setGeneratedApp(modifiedApp);
+        
+        // Sauvegarder automatiquement la modification
+        if (currentAppId && userId) {
+          await saveCurrentApp(modifiedApp, options.businessName);
+        }
+
+        const modificationMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `✏️ Modification appliquée ! L'application a été mise à jour selon vos instructions. ${currentAppId ? 'Les changements ont été sauvegardés automatiquement.' : ''}`,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, modificationMessage]);
+
+      } else {
+        // Mode génération nouvelle app
+        const businessName = extractBusinessName(message);
+        const description = message;
+        
+        const updatedOptions = {
+          ...options,
+          businessName: businessName || `App-${Date.now()}`,
+          description
+        };
+        
+        setOptions(updatedOptions);
+
+        const app = await AppGeneratorService.generateApp(message, updatedOptions);
+        
+        if (updatedOptions.colorScheme === 'ai-generated') {
+          const aiDesign = await AIDesignService.generateDesignSystem(
+            updatedOptions.industry,
+            updatedOptions.style || 'modern',
+            updatedOptions.businessName
+          );
+          app.css = AIDesignService.applyDesignToCSS(aiDesign, app.css);
+        }
+
+        setGeneratedApp(app);
+        setActiveTab("code");
+        onGenerate?.(app);
+        
+        // Sauvegarder automatiquement la nouvelle app
+        const appId = await saveCurrentApp(app, updatedOptions.businessName);
+        
+        // Mettre à jour l'historique et les préférences
+        if (userId) {
+          await ContextualMemoryService.updateGenerationHistory(userId, message, updatedOptions, true);
+          await ContextualMemoryService.updatePreferencesFromUsage(userId, updatedOptions, true);
+        }
+
+        const successMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          role: 'assistant',
+          content: `✅ Application "${updatedOptions.businessName}" générée avec succès ! ${appId ? 'Elle a été sauvegardée automatiquement.' : ''} Vous pouvez voir le code dans l'onglet 'Code' et tester l'aperçu. Continuez à chatter pour la modifier !`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, successMessage]);
       }
 
-      setGeneratedApp(app);
-      // Basculer automatiquement vers l'onglet Code après génération
-      setActiveTab("code");
-      onGenerate?.(app);
-      
-      // Ajouter un message informatif dans le chat
-      const successMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        role: 'assistant',
-        content: "✅ Application générée avec succès ! Vous pouvez maintenant voir le code dans l'onglet 'Code' et tester l'aperçu dans l'onglet 'Aperçu'. Continuez à chatter pour modifier votre application !",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, successMessage]);
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `✨ J'ai généré votre application "${updatedOptions.businessName}" ! Le code est maintenant disponible dans l'onglet Code. Vous pouvez le prévisualiser ou le déployer.`,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-
       toast({
-        title: "Application générée !",
-        description: `${updatedOptions.businessName} est prêt`,
+        title: generatedApp ? "Modification appliquée !" : "Application générée !",
+        description: generatedApp ? "Code mis à jour avec succès" : `${options.businessName} est prêt`,
       });
     } catch (error: any) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant', 
-        content: `Désolé, j'ai rencontré une erreur lors de la génération : ${error.message}`,
+        content: `Désolé, j'ai rencontré une erreur : ${error.message}`,
         timestamp: new Date()
       };
       
@@ -205,13 +364,113 @@ ${generatedApp.databaseSchema}
       {/* Header avec settings et bouton fermer */}
       <div className="border-b bg-background p-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Générateur SaaS IA</h2>
+          <h2 className="text-xl font-semibold">
+            Générateur SaaS IA
+            {currentAppId && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {options.businessName}
+              </Badge>
+            )}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Décrivez votre idée, je génère le code
+            {generatedApp ? 'Modifiez votre app via le chat ou générez-en une nouvelle' : 'Décrivez votre idée, je génère le code'}
           </p>
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Bouton Historique */}
+          <Sheet open={showHistory} onOpenChange={setShowHistory}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm">
+                <History className="w-4 h-4 mr-2" />
+                Apps ({previousApps.length})
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-96">
+              <SheetHeader>
+                <SheetTitle>Mes Applications</SheetTitle>
+                <SheetDescription>
+                  Vos applications SaaS générées précédemment
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                {previousApps.length === 0 ? (
+                  <p className="text-center text-muted-foreground">
+                    Aucune application générée pour le moment
+                  </p>
+                ) : (
+                  previousApps.map((app) => (
+                    <Card key={app.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-sm font-medium">{app.app_name}</CardTitle>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                {app.app_type}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {app.industry}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Logique de suppression ici si nécessaire
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                          {app.generated_content?.features?.slice(0, 2).join(', ') || 'Application SaaS'}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(app.created_at).toLocaleDateString()}
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => loadApp(app)}
+                            className="h-6 text-xs"
+                          >
+                            <FolderOpen className="w-3 h-3 mr-1" />
+                            Ouvrir
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* Bouton Sauvegarder */}
+          {generatedApp && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => saveCurrentApp(generatedApp, options.businessName)}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Sauvegarder
+            </Button>
+          )}
+
+          {/* Paramètres */}
           <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm">
