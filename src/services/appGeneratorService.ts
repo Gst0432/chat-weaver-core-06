@@ -6,11 +6,20 @@ export interface AppGenerationOptions {
   businessName: string;
   description: string;
   industry: string;
-  style?: 'modern' | 'classic' | 'minimalist' | 'bold';
-  colorScheme?: 'blue' | 'green' | 'purple' | 'orange' | 'custom';
+  style?: 'modern' | 'classic' | 'minimalist' | 'bold' | 'gradient' | 'glass';
+  colorScheme?: 'ai-generated' | 'blue' | 'green' | 'purple' | 'orange' | 'pink' | 'teal' | 'custom';
   includeAuth?: boolean;
+  authProviders?: ('email' | 'google' | 'github' | 'facebook')[];
   includeDatabase?: boolean;
+  includeStripe?: boolean;
+  includeAnalytics?: boolean;
+  includeStorage?: boolean;
+  includeRealtime?: boolean;
+  includeNotifications?: boolean;
   includeCMS?: boolean;
+  includeChat?: boolean;
+  seoOptimized?: boolean;
+  pwaEnabled?: boolean;
 }
 
 export interface GeneratedApp {
@@ -192,8 +201,12 @@ export class AppGeneratorService {
       throw new Error(`Erreur génération code: ${error.message}`);
     }
 
+    if (!data?.generatedText) {
+      throw new Error('Aucun contenu généré par l\'IA');
+    }
+
     // Parser la réponse pour extraire HTML, CSS, JS
-    return this.parseGeneratedCode(data.content);
+    return this.parseGeneratedCode(data.generatedText);
   }
 
   /**
@@ -331,7 +344,11 @@ Réponds uniquement avec du SQL valide PostgreSQL.`;
       return '-- Erreur génération schéma de base de données';
     }
 
-    return data.content;
+    if (!data?.generatedText) {
+      throw new Error('Aucun schéma généré par l\'IA');
+    }
+
+    return data.generatedText;
   }
 
   /**
