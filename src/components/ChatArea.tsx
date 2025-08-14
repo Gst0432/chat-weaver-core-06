@@ -599,7 +599,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         model = 'deepseek-chat';
       }
 
-      // Streaming pour OpenAI
+      // Streaming uniquement pour OpenAI
       if (functionName === 'openai-chat') {
         const SUPABASE_URL = "https://jeurznrjcohqbevrzses.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI";
