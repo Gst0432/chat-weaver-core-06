@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WebPreview } from "@/components/WebPreview";
+import { CodeEditor } from "@/components/CodeEditor";
 import { ChatInput } from "@/components/ChatInput";
 import { ChatMessage } from "@/components/ChatMessage";
 import { 
@@ -23,7 +24,8 @@ import {
   History,
   FolderOpen,
   Trash2,
-  Calendar
+  Calendar,
+  FileCode
 } from "lucide-react";
 import { AppGeneratorService, type AppGenerationOptions, type GeneratedApp } from "@/services/appGeneratorService";
 import { AIDesignService } from "@/services/aiDesignService";
@@ -626,63 +628,28 @@ ${generatedApp.databaseSchema}
 
           <TabsContent value="code" className="h-full p-4 overflow-y-auto">
             {generatedApp ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Code généré</h3>
-                  <Button onClick={downloadApp} variant="outline" size="sm">
-                    <Code className="w-4 h-4 mr-2" />
-                    Télécharger
-                  </Button>
-                </div>
-                
-                <Tabs defaultValue="html" className="w-full">
-                  <TabsList>
-                    <TabsTrigger value="html">HTML</TabsTrigger>
-                    <TabsTrigger value="css">CSS</TabsTrigger>
-                    <TabsTrigger value="js">JavaScript</TabsTrigger>
-                    {generatedApp.databaseSchema && (
-                      <TabsTrigger value="db">Database</TabsTrigger>
-                    )}
-                  </TabsList>
-                  
-                  <TabsContent value="html">
-                    <pre className="bg-muted p-4 rounded-lg overflow-auto text-sm">
-                      <code>{generatedApp.html}</code>
-                    </pre>
-                  </TabsContent>
-                  
-                  <TabsContent value="css">
-                    <pre className="bg-muted p-4 rounded-lg overflow-auto text-sm">
-                      <code>{generatedApp.css}</code>
-                    </pre>
-                  </TabsContent>
-                  
-                  <TabsContent value="js">
-                    <pre className="bg-muted p-4 rounded-lg overflow-auto text-sm">
-                      <code>{generatedApp.javascript}</code>
-                    </pre>
-                  </TabsContent>
-                  
-                  {generatedApp.databaseSchema && (
-                    <TabsContent value="db">
-                      <pre className="bg-muted p-4 rounded-lg overflow-auto text-sm">
-                        <code>{generatedApp.databaseSchema}</code>
-                      </pre>
-                    </TabsContent>
-                  )}
-                </Tabs>
-              </div>
+              <CodeEditor
+                html={generatedApp.html}
+                css={generatedApp.css}
+                javascript={generatedApp.javascript}
+                database={generatedApp.databaseSchema}
+                onDownload={downloadApp}
+              />
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                Générez d'abord une application pour voir le code
-              </div>
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  <FileCode className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Aucun code généré pour le moment</p>
+                  <p className="text-sm mt-2">Générez votre première application pour voir le code ici</p>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
           <TabsContent value="preview" className="h-full">
             {generatedApp ? (
               <WebPreview 
-                content={`${generatedApp.html}\n<style>${generatedApp.css}</style>\n<script>${generatedApp.javascript}</script>`}
+                content={`\`\`\`html\n${generatedApp.html}\n\`\`\`\n\n\`\`\`css\n${generatedApp.css}\n\`\`\`\n\n\`\`\`javascript\n${generatedApp.javascript}\n\`\`\``}
               />
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground">
