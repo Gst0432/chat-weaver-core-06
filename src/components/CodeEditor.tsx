@@ -10,9 +10,9 @@ import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/
 import { useTheme } from "next-themes";
 
 interface CodeEditorProps {
-  html: string;
-  css: string;
-  javascript: string;
+  html?: string;
+  css?: string;
+  javascript?: string;
   database?: string;
   onDownload?: () => void;
 }
@@ -32,28 +32,28 @@ export const CodeEditor = ({ html, css, javascript, database = "", onDownload }:
   const files: FileData[] = [
     {
       name: "index.html",
-      content: html || "<!-- HTML content will appear here -->",
+      content: (html && typeof html === 'string') ? html : "<!-- HTML content will appear here -->",
       language: "html",
       icon: <File className="w-4 h-4 text-orange-500" />,
       extension: "html"
     },
     {
       name: "styles.css",
-      content: css || "/* CSS styles will appear here */",
+      content: (css && typeof css === 'string') ? css : "/* CSS styles will appear here */",
       language: "css",
       icon: <FileCode2 className="w-4 h-4 text-blue-500" />,
       extension: "css"
     },
     {
       name: "script.js",
-      content: javascript || "// JavaScript code will appear here",
+      content: (javascript && typeof javascript === 'string') ? javascript : "// JavaScript code will appear here",
       language: "javascript",
       icon: <FileCode2 className="w-4 h-4 text-yellow-500" />,
       extension: "js"
     }
   ];
 
-  if (database && database.trim()) {
+  if (database && typeof database === 'string' && database.trim()) {
     files.push({
       name: "database.sql",
       content: database,
