@@ -191,6 +191,9 @@ export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
     
     setMessages(prev => [...prev, userMessage]);
     setIsGenerating(true);
+    
+    // Basculer immédiatement vers l'onglet Code pour voir la génération en streaming
+    setActiveTab("code");
 
     try {
       // Déterminer si c'est une modification ou une nouvelle génération
@@ -268,7 +271,7 @@ Modifie le code en appliquant les changements demandés. Réponds avec le format
         }
 
         setGeneratedApp(app);
-        setActiveTab("code");
+        // L'onglet code est déjà actif depuis le début de la génération
         onGenerate?.(app);
         
         // Sauvegarder automatiquement la nouvelle app

@@ -26,32 +26,68 @@ interface FileData {
 }
 
 export const CodeEditor = ({ html, css, javascript, database = "", onDownload }: CodeEditorProps) => {
-  const [selectedFile, setSelectedFile] = useState<string>("index.html");
+  const [selectedFile, setSelectedFile] = useState<string>("├── index.html");
   const { theme } = useTheme();
 
   const files: FileData[] = [
     {
-      name: "index.html",
-      content: (html && typeof html === 'string') ? html : "<!-- HTML content will appear here -->",
+      name: "📂 src/",
+      content: "",
+      language: "text",
+      icon: <File className="w-4 h-4 text-gray-500" />,
+      extension: "folder"
+    },
+    {
+      name: "├── index.html",
+      content: (html && typeof html === 'string') ? html : "<!-- 🔄 Génération en cours... -->",
       language: "html",
       icon: <File className="w-4 h-4 text-orange-500" />,
       extension: "html"
     },
     {
-      name: "styles.css",
-      content: (css && typeof css === 'string') ? css : "/* CSS styles will appear here */",
+      name: "├── styles.css",
+      content: (css && typeof css === 'string') ? css : "/* 🎨 Styles en cours de génération... */",
       language: "css",
       icon: <FileCode2 className="w-4 h-4 text-blue-500" />,
       extension: "css"
     },
     {
-      name: "script.js",
-      content: (javascript && typeof javascript === 'string') ? javascript : "// JavaScript code will appear here",
+      name: "├── script.js",
+      content: (javascript && typeof javascript === 'string') ? javascript : "// ⚡ JavaScript en cours de génération...",
       language: "javascript",
       icon: <FileCode2 className="w-4 h-4 text-yellow-500" />,
       extension: "js"
+    },
+    {
+      name: "└── README.md",
+      content: `# 🚀 Application SaaS
+
+## Structure du projet
+- \`index.html\` - Interface utilisateur principale
+- \`styles.css\` - Feuilles de style CSS
+- \`script.js\` - Logique JavaScript
+${database ? '- `database.sql` - Schéma de base de données' : ''}
+
+## Fonctionnalités
+- Interface moderne et responsive
+- Composants interactifs
+- Design system cohérent
+${database ? '- Base de données intégrée' : ''}
+
+## Déploiement
+Vous pouvez déployer cette application sur:
+- Netlify (recommandé)
+- Vercel
+- GitHub Pages
+`,
+      language: "markdown",
+      icon: <FileCode2 className="w-4 h-4 text-green-500" />,
+      extension: "md"
     }
   ];
+
+  // Filtrer le dossier pour la sélection
+  const selectableFiles = files.filter(f => f.extension !== "folder");
 
   if (database && typeof database === 'string' && database.trim()) {
     files.push({
@@ -63,7 +99,7 @@ export const CodeEditor = ({ html, css, javascript, database = "", onDownload }:
     });
   }
 
-  const currentFile = files.find(f => f.name === selectedFile) || files[0];
+  const currentFile = selectableFiles.find(f => f.name === selectedFile) || selectableFiles[0];
 
   const copyCode = async (code: string) => {
     try {
@@ -94,15 +130,20 @@ export const CodeEditor = ({ html, css, javascript, database = "", onDownload }:
               {files.map((file) => (
                 <div
                   key={file.name}
-                  onClick={() => setSelectedFile(file.name)}
-                  className={`flex items-center gap-2 px-2 py-2 rounded cursor-pointer text-sm transition-colors hover:bg-accent/50 ${
-                    selectedFile === file.name 
-                      ? 'bg-accent text-accent-foreground' 
-                      : 'text-muted-foreground hover:text-foreground'
+                  onClick={() => file.extension !== "folder" && setSelectedFile(file.name)}
+                  className={`flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors font-mono ${
+                    file.extension === "folder" 
+                      ? 'text-muted-foreground/70 cursor-default' 
+                      : selectedFile === file.name 
+                        ? 'bg-accent text-accent-foreground cursor-pointer' 
+                        : 'text-muted-foreground hover:text-foreground cursor-pointer hover:bg-accent/30'
                   }`}
                 >
                   {file.icon}
-                  <span>{file.name}</span>
+                  <span className={file.extension === "folder" ? "font-semibold" : ""}>{file.name}</span>
+                  {file.extension !== "folder" && file.extension !== "md" && (
+                    <span className="ml-auto text-xs opacity-60">{file.extension.toUpperCase()}</span>
+                  )}
                 </div>
               ))}
             </div>
