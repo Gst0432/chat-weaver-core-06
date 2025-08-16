@@ -88,10 +88,20 @@ export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
   // Initialisation et récupération de l'utilisateur
   useEffect(() => {
     const initializeUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        loadPreviousApps(user.id);
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.warn('Auth error:', error);
+          // Continue in offline mode
+          return;
+        }
+        if (user) {
+          setUserId(user.id);
+          loadPreviousApps(user.id);
+        }
+      } catch (error) {
+        console.error('Failed to initialize user:', error);
+        // Continue in offline mode
       }
     };
     initializeUser();
@@ -101,9 +111,15 @@ export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
   const loadPreviousApps = async (userId: string) => {
     try {
       const apps = await ContextualMemoryService.getUserGeneratedApps(userId);
-      setPreviousApps(apps);
+      setPreviousApps(apps || []);
     } catch (error) {
       console.error('Erreur chargement apps:', error);
+      setPreviousApps([]);
+      toast({
+        title: "Mode hors ligne",
+        description: "Impossible de charger l'historique, mais vous pouvez continuer à générer",
+        variant: "destructive"
+      });
     }
   };
 
@@ -170,6 +186,10 @@ export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
 
   // Détection de modification vs nouvelle génération
   const isModificationRequest = (message: string) => {
+    if (!message || typeof message !== 'string') {
+      return false;
+    }
+    
     const modificationKeywords = [
       'modifie', 'change', 'remplace', 'corrige', 'améliore', 'ajuste',
       'modifier', 'changer', 'remplacer', 'corriger', 'améliorer', 'ajuster',
@@ -182,6 +202,15 @@ export const SaaSGenerator = ({ onGenerate, onClose }: SaaSGeneratorProps) => {
   };
 
   const handleChatMessage = async (message: string) => {
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      toast({
+        title: "Message vide",
+        description: "Veuillez saisir un message",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -652,7 +681,7 @@ ${generatedApp.databaseSchema}
           <TabsContent value="preview" className="h-full">
             {generatedApp ? (
               <WebPreview 
-                content={`\`\`\`html\n${generatedApp.html}\n\`\`\`\n\n\`\`\`css\n${generatedApp.css}\n\`\`\`\n\n\`\`\`javascript\n${generatedApp.javascript}\n\`\`\``}
+                content={generatedApp}
               />
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground">

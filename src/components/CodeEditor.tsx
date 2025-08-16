@@ -25,7 +25,7 @@ interface FileData {
   extension: string;
 }
 
-export const CodeEditor = ({ html, css, javascript, database = "", onDownload }: CodeEditorProps) => {
+export const CodeEditor = ({ html, css, javascript, database, onDownload }: CodeEditorProps) => {
   const [selectedFile, setSelectedFile] = useState<string>("├── index.html");
   const { theme } = useTheme();
 
@@ -90,11 +90,11 @@ Vous pouvez déployer cette application sur:
   const selectableFiles = files.filter(f => f.extension !== "folder");
 
   if (database && typeof database === 'string' && database.trim()) {
-    files.push({
-      name: "database.sql",
+    files.splice(-1, 0, {  // Insert before README.md
+      name: "├── database.sql",
       content: database,
       language: "sql",
-      icon: <Database className="w-4 h-4 text-green-500" />,
+      icon: <Database className="w-4 h-4 text-purple-500" />,
       extension: "sql"
     });
   }

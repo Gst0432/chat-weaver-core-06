@@ -6,7 +6,12 @@ import { Monitor, Smartphone, Tablet, Maximize, ExternalLink, RotateCcw, Code2 }
 import { toast } from "@/hooks/use-toast";
 
 interface WebPreviewProps {
-  content: string;
+  content: string | {
+    html?: string;
+    css?: string;
+    javascript?: string;
+    databaseSchema?: string;
+  };
 }
 
 interface WebContent {
@@ -16,20 +21,31 @@ interface WebContent {
   isWebContent: boolean;
 }
 
-const detectWebContent = (content: string): WebContent => {
-  // Détecter les blocs de code HTML, CSS, JS
-  const htmlMatch = content.match(/```html\s*\n?([\s\S]*?)```/i) || content.match(/```\s*\n?([\s\S]*?<html[\s\S]*?<\/html>[\s\S]*?)```/i);
-  const cssMatch = content.match(/```css\s*\n?([\s\S]*?)```/i);
-  const jsMatch = content.match(/```(?:javascript|js)\s*\n?([\s\S]*?)```/i);
+const detectWebContent = (content: string | { html?: string; css?: string; javascript?: string; databaseSchema?: string }): WebContent => {
+  // Si c'est un objet GeneratedApp
+  if (typeof content === 'object' && content !== null) {
+    return {
+      html: content.html || '',
+      css: content.css || '',
+      js: content.javascript || '',
+      isWebContent: !!(content.html || content.css || content.javascript)
+    };
+  }
+  
+  // Si c'est une string, détecter les blocs de code HTML, CSS, JS
+  const contentStr = String(content || '');
+  const htmlMatch = contentStr.match(/```html\s*\n?([\s\S]*?)```/i) || contentStr.match(/```\s*\n?([\s\S]*?<html[\s\S]*?<\/html>[\s\S]*?)```/i);
+  const cssMatch = contentStr.match(/```css\s*\n?([\s\S]*?)```/i);
+  const jsMatch = contentStr.match(/```(?:javascript|js)\s*\n?([\s\S]*?)```/i);
   
   let html = htmlMatch ? htmlMatch[1].trim() : '';
   let css = cssMatch ? cssMatch[1].trim() : '';
   let js = jsMatch ? jsMatch[1].trim() : '';
   
-  // Si pas de HTML explicite mais qu'on a des éléments HTML dans le contenu
-  if (!html && (content.includes('<html>') || content.includes('<!DOCTYPE') || content.includes('<div') || content.includes('<button') || content.includes('<p>'))) {
+  // Si pas de HTML explicite mais qu'on a des éléments HTML dans le contenu (pour les strings seulement)
+  if (!html && typeof content === 'string' && (contentStr.includes('<html>') || contentStr.includes('<!DOCTYPE') || contentStr.includes('<div') || contentStr.includes('<button') || contentStr.includes('<p>'))) {
     // Extraire le HTML du contenu
-    const htmlContent = content.match(/<(?:html|!DOCTYPE|div|button|p|span|h[1-6]|ul|ol|li|img|a|form|input|textarea|select|table|tr|td|th|head|body|script|style)[^>]*>[\s\S]*?<\/(?:html|div|button|p|span|h[1-6]|ul|ol|li|a|form|textarea|select|table|tr|td|th|head|body|script|style)>|<(?:!DOCTYPE|br|hr|img|input|meta|link)[^>]*\/?>/gi);
+    const htmlContent = contentStr.match(/<(?:html|!DOCTYPE|div|button|p|span|h[1-6]|ul|ol|li|img|a|form|input|textarea|select|table|tr|td|th|head|body|script|style)[^>]*>[\s\S]*?<\/(?:html|div|button|p|span|h[1-6]|ul|ol|li|a|form|textarea|select|table|tr|td|th|head|body|script|style)>|<(?:!DOCTYPE|br|hr|img|input|meta|link)[^>]*\/?>/gi);
     if (htmlContent) {
       html = htmlContent.join('\n');
     }
