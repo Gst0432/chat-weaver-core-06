@@ -53,7 +53,7 @@ const NewLanding = () => {
     {
       icon: Infinity,
       title: "IA de dernière génération",
-      description: "ChatGPT-5, ChatGPT-4, Deepseek V3, Gemini Pro, Perplexity"
+      description: "GPT-5, GPT-4.1, O3, O4, Deepseek V3, Gemini Pro, Perplexity et plus"
     },
     {
       icon: Image,
@@ -77,7 +77,7 @@ const NewLanding = () => {
     {
       icon: MessageSquare,
       title: "Chat IA illimité",
-      description: "Accès illimité à ChatGPT-5, ChatGPT-4, Deepseek V3 et Gemini Pro pour toutes vos conversations.",
+      description: "Accès illimité aux meilleurs modèles : GPT-5, GPT-4.1, O3, O4-Mini, Deepseek V3, Gemini Pro, Perplexity et plus pour toutes vos conversations.",
       image: "/lovable-uploads/18559761-9d7a-4f88-b792-3c402d548818.png"
     },
     {
@@ -116,7 +116,7 @@ const NewLanding = () => {
       price: 7500,
       features: [
         'Utilisateurs: 1',
-        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini + Perplexity illimité',
+        'Modèles IA: GPT-5 + GPT-4.1 + O3 + O4-Mini + Deepseek V3 + Gemini Pro + Perplexity illimité',
         'Images DALL·E 3: 10 images / mois',
         'Text-to-Voice: OpenAI Standard TTS uniquement',
         'Minutes TTS: 100 min inclus',
@@ -133,7 +133,7 @@ const NewLanding = () => {
       price: 22000,
       features: [
         'Utilisateurs: Jusqu\'à 5',
-        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini + Perplexity illimité',
+        'Modèles IA: GPT-5 + GPT-4.1 + O3 + O4-Mini + Deepseek V3 + Gemini Pro + Perplexity illimité',
         'Images DALL·E 3: 50 images / mois',
         'Text-to-Voice: OpenAI HD TTS + Google WaveNet',
         'Minutes TTS: 500 min inclus',
@@ -150,7 +150,7 @@ const NewLanding = () => {
       price: 55000,
       features: [
         'Utilisateurs: Jusqu\'à 20',
-        'Modèles IA: GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini + Perplexity illimité',
+        'Modèles IA: GPT-5 + GPT-4.1 + O3 + O4-Mini + Deepseek V3 + Gemini Pro + Perplexity illimité',
         'Images DALL·E 3: Illimité',
         'Text-to-Voice: OpenAI HD + Google WaveNet + voix premium',
         'Minutes TTS: Illimité',
@@ -209,7 +209,7 @@ const NewLanding = () => {
     },
     {
       question: "Quels outils sont inclus ?",
-      answer: "Chatelix inclut ChatGPT-5, ChatGPT-4, Deepseek V3, Gemini Pro, DALL-E 3, Runware pour les images, OpenAI et Google TTS pour la voix, plus la transcription audio avancée."
+      answer: "Chatelix inclut les meilleurs modèles IA : GPT-5 (flagship), GPT-4.1, O3 (raisonnement avancé), O4-Mini (raisonnement rapide), Deepseek V3, Gemini Pro, Perplexity, DALL-E 3, Runware pour les images, OpenAI et Google TTS pour la voix, plus la transcription audio avancée."
     },
     {
       question: "Puis-je annuler à tout moment ?",
@@ -309,7 +309,7 @@ const NewLanding = () => {
           </h1>
           
           <p className="text-xl sm:text-2xl text-muted-foreground mb-12 max-w-4xl mx-auto leading-relaxed">
-            ChatGPT-5, ChatGPT-4, Deepseek V3, Gemini Pro, Perplexity, génération d'images, voix off, transcription… 
+            GPT-5, GPT-4.1, O3, O4-Mini, Deepseek V3, Gemini Pro, Perplexity, génération d'images, voix off, transcription… 
             <span className="font-semibold">Tout en un, sans limites.</span>
           </p>
 
