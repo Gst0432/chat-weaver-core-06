@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Users, Zap } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SaaSGenerator } from "@/components/SaaSGenerator";
+import { ModernSaaSGenerator } from "@/components/ModernSaaSGenerator";
 import { useMobileNative } from "@/hooks/use-mobile-native";
 import MobileOptimizations from "@/components/MobileOptimizations";
 
@@ -180,11 +180,7 @@ const Index = () => {
           
           <main className="flex-1 flex flex-col bg-background">
             {showSaaSGenerator ? (
-              <SaaSGenerator 
-                onGenerate={(app) => {
-                  console.log('App générée:', app);
-                  // Ne plus fermer automatiquement le générateur
-                }}
+              <ModernSaaSGenerator 
                 onClose={() => setShowSaaSGenerator(false)}
               />
             ) : (
