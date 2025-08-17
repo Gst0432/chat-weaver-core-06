@@ -205,60 +205,62 @@ export const WebPreview = ({ content }: WebPreviewProps) => {
   }
   
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between p-3 bg-secondary/30 border-b">
-        <div className="flex items-center gap-2">
-          <Monitor className="w-4 h-4" />
-          <Badge variant="outline" className="text-xs">
-            Aperçu Web
+    <Card className="overflow-hidden shadow-elegant">
+      <div className="flex items-center justify-between p-4 bg-card border-b border-border">
+        <div className="flex items-center gap-3">
+          <Monitor className="w-4 h-4 text-primary" />
+          <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+            🌐 Aperçu Web
           </Badge>
           {webContent.html && (
             <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
-              HTML
+              📄 HTML
             </Badge>
           )}
           {webContent.css && (
             <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
-              CSS
+              🎨 CSS
             </Badge>
           )}
           {webContent.js && (
             <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-              JS
+              ⚡ JS
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant={viewMode === 'desktop' ? 'secondary' : 'ghost'}
-            onClick={() => setViewMode('desktop')}
-            className="h-7 px-2"
-          >
-            <Monitor className="w-3 h-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === 'tablet' ? 'secondary' : 'ghost'}
-            onClick={() => setViewMode('tablet')}
-            className="h-7 px-2"
-          >
-            <Tablet className="w-3 h-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === 'mobile' ? 'secondary' : 'ghost'}
-            onClick={() => setViewMode('mobile')}
-            className="h-7 px-2"
-          >
-            <Smartphone className="w-3 h-3" />
-          </Button>
-          <div className="h-4 w-px bg-border mx-1" />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-muted/50 rounded-lg p-1 gap-1">
+            <Button
+              size="sm"
+              variant={viewMode === 'desktop' ? 'secondary' : 'ghost'}
+              onClick={() => setViewMode('desktop')}
+              className="h-7 px-2 transition-smooth"
+            >
+              <Monitor className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'tablet' ? 'secondary' : 'ghost'}
+              onClick={() => setViewMode('tablet')}
+              className="h-7 px-2 transition-smooth"
+            >
+              <Tablet className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'mobile' ? 'secondary' : 'ghost'}
+              onClick={() => setViewMode('mobile')}
+              className="h-7 px-2 transition-smooth"
+            >
+              <Smartphone className="w-3 h-3" />
+            </Button>
+          </div>
+          <div className="h-4 w-px bg-border" />
           <Button
             size="sm"
             variant="ghost"
             onClick={refresh}
-            className="h-7 px-2"
+            className="h-8 px-3 hover:bg-accent hover:text-accent-foreground transition-smooth"
           >
             <RotateCcw className="w-3 h-3" />
           </Button>
@@ -266,7 +268,7 @@ export const WebPreview = ({ content }: WebPreviewProps) => {
             size="sm"
             variant="ghost"
             onClick={() => setIsFullscreen(true)}
-            className="h-7 px-2"
+            className="h-8 px-3 hover:bg-accent hover:text-accent-foreground transition-smooth"
           >
             <Maximize className="w-3 h-3" />
           </Button>
@@ -274,34 +276,34 @@ export const WebPreview = ({ content }: WebPreviewProps) => {
             size="sm"
             variant="ghost"
             onClick={openInNewTab}
-            className="h-7 px-2"
+            className="h-8 px-3 hover:bg-accent hover:text-accent-foreground transition-smooth"
           >
             <ExternalLink className="w-3 h-3" />
           </Button>
         </div>
       </div>
-      <div className="p-4 bg-muted/20">
+      <div className="p-6 bg-muted/10">
         <div className="flex justify-center">
-          <div className={`${getFrameSize()} max-w-full bg-white rounded-md border shadow-sm overflow-hidden`}>
+          <div className={`${getFrameSize()} max-w-full bg-background rounded-lg border border-border shadow-elegant overflow-hidden`}>
             <iframe
               key={refreshKey}
               srcDoc={fullHTML}
-              className="w-full h-full border-none"
+              className="w-full h-full border-none rounded-lg"
               sandbox="allow-scripts allow-same-origin allow-forms"
               loading="lazy"
             />
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-end gap-2 p-3 border-t bg-secondary/20">
+      <div className="flex items-center justify-end gap-2 p-4 border-t border-border bg-card/30">
         <Button
           size="sm"
           variant="outline"
           onClick={exportToCodePen}
-          className="h-8"
+          className="h-8 hover:bg-accent hover:text-accent-foreground transition-smooth"
         >
-          <ExternalLink className="w-3 h-3 mr-1" />
-          CodePen
+          <ExternalLink className="w-3 h-3 mr-2" />
+          Exporter vers CodePen
         </Button>
       </div>
     </Card>

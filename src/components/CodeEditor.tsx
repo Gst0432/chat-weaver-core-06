@@ -118,31 +118,33 @@ Vous pouvez déployer cette application sur:
   };
 
   return (
-    <Card className="h-[600px] overflow-hidden">
+    <Card className="h-[600px] overflow-hidden shadow-elegant">
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* File Explorer */}
+        {/* Modern File Explorer */}
         <ResizablePanel defaultSize={25} minSize={20}>
-          <div className="h-full border-r bg-muted/30">
-            <div className="p-3 border-b bg-muted/50">
-              <h3 className="text-sm font-medium text-foreground">Fichiers</h3>
+          <div className="h-full border-r border-border bg-card">
+            <div className="p-4 border-b border-border bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground">📂 Projet</h3>
             </div>
-            <div className="p-2 space-y-1">
+            <div className="p-3 space-y-1">
               {files.map((file) => (
                 <div
                   key={file.name}
                   onClick={() => file.extension !== "folder" && setSelectedFile(file.name)}
-                  className={`flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors font-mono ${
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-smooth font-mono ${
                     file.extension === "folder" 
-                      ? 'text-muted-foreground/70 cursor-default' 
+                      ? 'text-muted-foreground/70 cursor-default font-medium' 
                       : selectedFile === file.name 
-                        ? 'bg-accent text-accent-foreground cursor-pointer' 
-                        : 'text-muted-foreground hover:text-foreground cursor-pointer hover:bg-accent/30'
+                        ? 'bg-primary/10 text-primary border border-primary/20 cursor-pointer shadow-sm' 
+                        : 'text-muted-foreground hover:text-foreground cursor-pointer hover:bg-accent/50'
                   }`}
                 >
-                  {file.icon}
-                  <span className={file.extension === "folder" ? "font-semibold" : ""}>{file.name}</span>
+                  <span className="flex-shrink-0">{file.icon}</span>
+                  <span className="flex-1 truncate">{file.name}</span>
                   {file.extension !== "folder" && file.extension !== "md" && (
-                    <span className="ml-auto text-xs opacity-60">{file.extension.toUpperCase()}</span>
+                    <span className="text-xs px-1.5 py-0.5 bg-muted rounded opacity-60">
+                      {file.extension.toUpperCase()}
+                    </span>
                   )}
                 </div>
               ))}
@@ -152,15 +154,15 @@ Vous pouvez déployer cette application sur:
 
         <ResizableHandle withHandle />
 
-        {/* Code Editor */}
+        {/* Modern Code Editor */}
         <ResizablePanel defaultSize={75}>
-          <div className="h-full flex flex-col">
-            {/* Editor Header */}
-            <div className="flex items-center justify-between p-3 border-b bg-secondary/30">
-              <div className="flex items-center gap-2">
-                {currentFile.icon}
-                <span className="text-sm font-medium">{currentFile.name}</span>
-                <Badge variant="outline" className="text-xs">
+          <div className="h-full flex flex-col bg-background">
+            {/* Modern Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+              <div className="flex items-center gap-3">
+                <span className="flex-shrink-0">{currentFile.icon}</span>
+                <span className="font-medium text-foreground">{currentFile.name}</span>
+                <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">
                   {currentFile.extension.toUpperCase()}
                 </Badge>
               </div>
@@ -169,42 +171,49 @@ Vous pouvez déployer cette application sur:
                   size="sm"
                   variant="ghost"
                   onClick={() => copyCode(currentFile.content)}
-                  className="h-7 px-2"
+                  className="h-8 px-3 hover:bg-accent hover:text-accent-foreground transition-smooth"
                 >
-                  <Copy className="w-3 h-3 mr-1" />
+                  <Copy className="w-3 h-3 mr-2" />
                   Copier
                 </Button>
                 {onDownload && (
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                     onClick={onDownload}
-                    className="h-7 px-2"
+                    className="h-8 px-3 hover:bg-accent hover:text-accent-foreground transition-smooth"
                   >
-                    <Download className="w-3 h-3 mr-1" />
+                    <Download className="w-3 h-3 mr-2" />
                     Télécharger
                   </Button>
                 )}
               </div>
             </div>
 
-            {/* Editor Content */}
-            <div className="flex-1 overflow-hidden">
+            {/* Modern Editor Content */}
+            <div className="flex-1 overflow-hidden bg-background">
               <SyntaxHighlighter
                 language={currentFile.language}
                 style={theme === 'dark' ? vscDarkPlus : oneLight}
                 customStyle={{
                   margin: 0,
-                  padding: '1rem',
+                  padding: '1.5rem',
                   background: 'transparent',
                   fontSize: '0.875rem',
-                  lineHeight: '1.5',
+                  lineHeight: '1.6',
                   height: '100%',
-                  overflow: 'auto'
+                  overflow: 'auto',
+                  borderRadius: '0',
                 }}
                 showLineNumbers={true}
                 wrapLines={true}
                 wrapLongLines={true}
+                lineNumberStyle={{
+                  minWidth: '3em',
+                  paddingRight: '1em',
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: '0.75rem'
+                }}
               >
                 {currentFile.content}
               </SyntaxHighlighter>

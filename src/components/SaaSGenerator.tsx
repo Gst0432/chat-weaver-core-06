@@ -10,6 +10,7 @@ import { WebPreview } from "@/components/WebPreview";
 import { CodeEditor } from "@/components/CodeEditor";
 import { ChatInput } from "@/components/ChatInput";
 import { ChatMessage } from "@/components/ChatMessage";
+import { MessageSkeleton, CodeSkeleton, PreviewSkeleton } from "./ui/loading-skeleton";
 import { 
   Settings,
   Globe, 
@@ -25,7 +26,8 @@ import {
   FolderOpen,
   Trash2,
   Calendar,
-  FileCode
+  FileCode,
+  ArrowLeft
 } from "lucide-react";
 import { AppGeneratorService, type AppGenerationOptions, type GeneratedApp } from "@/services/appGeneratorService";
 import { AIDesignService } from "@/services/aiDesignService";
@@ -394,32 +396,47 @@ ${generatedApp.databaseSchema}
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header avec settings et bouton fermer */}
-      <div className="border-b bg-background p-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">
-            Générateur SaaS IA
-            {currentAppId && (
-              <Badge variant="secondary" className="ml-2 text-xs">
-                {options.businessName}
-              </Badge>
-            )}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {generatedApp ? 'Modifiez votre app via le chat ou générez-en une nouvelle' : 'Décrivez votre idée, je génère le code'}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Bouton Historique */}
-          <Sheet open={showHistory} onOpenChange={setShowHistory}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm">
-                <History className="w-4 h-4 mr-2" />
-                Apps ({previousApps.length})
+    <div className="h-full flex flex-col bg-background">
+      {/* Modern Header */}
+      <div className="border-b border-border bg-card p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="hover:bg-accent hover:text-accent-foreground transition-smooth"
+              >
+                <ArrowLeft className="w-4 h-4" />
               </Button>
-            </SheetTrigger>
+            )}
+            <div>
+              <h2 className="text-2xl font-bold text-foreground flex items-center space-x-3">
+                <span className="text-2xl">⚡</span>
+                <span>Générateur SaaS</span>
+                {currentAppId && (
+                  <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
+                    {options.businessName}
+                  </Badge>
+                )}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {generatedApp ? 'Modifiez votre app via le chat ou générez-en une nouvelle' : 'Décrivez votre idée, je génère le code complet'}
+              </p>
+            </div>
+          </div>
+        
+          <div className="flex items-center gap-3">
+            {/* Modern History Button */}
+            <Sheet open={showHistory} onOpenChange={setShowHistory}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="hover:bg-accent hover:text-accent-foreground transition-smooth">
+                  <History className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Apps ({previousApps.length})</span>
+                  <span className="sm:hidden">{previousApps.length}</span>
+                </Button>
+              </SheetTrigger>
             <SheetContent side="left" className="w-96">
               <SheetHeader>
                 <SheetTitle>Mes Applications</SheetTitle>
@@ -487,31 +504,32 @@ ${generatedApp.databaseSchema}
             </SheetContent>
           </Sheet>
 
-          {/* Bouton Sauvegarder */}
-          {generatedApp && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => saveCurrentApp(generatedApp, options.businessName)}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Sauvegarder
-            </Button>
-          )}
+            {/* Modern Save Button */}
+            {generatedApp && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => saveCurrentApp(generatedApp, options.businessName)}
+                disabled={isSaving}
+                className="hover:bg-accent hover:text-accent-foreground transition-smooth"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                <span className="hidden sm:inline">Sauvegarder</span>
+              </Button>
+            )}
 
-          {/* Paramètres */}
-          <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              Paramètres
-            </Button>
-          </SheetTrigger>
+            {/* Modern Settings */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="hover:bg-accent hover:text-accent-foreground transition-smooth">
+                  <Settings className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Paramètres</span>
+                </Button>
+              </SheetTrigger>
           <SheetContent>
             <SheetHeader>
               <SheetTitle>Configuration</SheetTitle>
@@ -600,37 +618,41 @@ ${generatedApp.databaseSchema}
           </SheetContent>
           </Sheet>
           
-          {onClose && (
-            <Button
-              variant="outline"
-              onClick={onClose}
-              size="sm"
-            >
-              Retour au Chat
-            </Button>
-          )}
+          </div>
         </div>
       </div>
 
+      {/* Modern Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="chat" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-3 bg-muted/30 p-1 rounded-lg mx-4 mt-4">
+          <TabsTrigger 
+            value="chat" 
+            className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-smooth"
+          >
             <Send className="w-4 h-4" />
-            <span className="hidden sm:inline">Chat</span>
+            <span className="hidden sm:inline">Chat IA</span>
           </TabsTrigger>
-          <TabsTrigger value="code" disabled={!generatedApp}>
+          <TabsTrigger 
+            value="code" 
+            disabled={!generatedApp}
+            className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-smooth"
+          >
             <Code className="w-4 h-4" />
             <span className="hidden sm:inline">Code</span>
           </TabsTrigger>
-          <TabsTrigger value="preview" disabled={!generatedApp}>
+          <TabsTrigger 
+            value="preview" 
+            disabled={!generatedApp}
+            className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-smooth"
+          >
             <Globe className="w-4 h-4" />
             <span className="hidden sm:inline">Aperçu</span>
           </TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-hidden">
-          <TabsContent value="chat" className="h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <TabsContent value="chat" className="h-full flex flex-col bg-background">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.map((message) => (
                 <ChatMessage 
                   key={message.id} 
@@ -642,14 +664,9 @@ ${generatedApp.databaseSchema}
                   }} 
                 />
               ))}
-              {isGenerating && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Génération en cours...
-                </div>
-              )}
+              {isGenerating && <MessageSkeleton />}
             </div>
-            <div className="border-t p-4">
+            <div className="border-t border-border p-4 bg-card/50">
               <ChatInput 
                 onSendMessage={handleChatMessage} 
                 disabled={isGenerating}
@@ -658,8 +675,10 @@ ${generatedApp.databaseSchema}
             </div>
           </TabsContent>
 
-          <TabsContent value="code" className="h-full p-4 overflow-y-auto">
-            {generatedApp ? (
+          <TabsContent value="code" className="h-full p-4 overflow-y-auto bg-background">
+            {isGenerating ? (
+              <CodeSkeleton />
+            ) : generatedApp ? (
               <CodeEditor
                 html={generatedApp.html}
                 css={generatedApp.css}
@@ -668,24 +687,32 @@ ${generatedApp.databaseSchema}
                 onDownload={downloadApp}
               />
             ) : (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  <FileCode className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Aucun code généré pour le moment</p>
-                  <p className="text-sm mt-2">Générez votre première application pour voir le code ici</p>
+              <Card className="border-dashed border-2 border-muted">
+                <CardContent className="p-12 text-center text-muted-foreground">
+                  <FileCode className="w-16 h-16 mx-auto mb-6 opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">Aucun code généré</h3>
+                  <p className="text-sm">Commencez par décrire votre application dans le chat</p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
 
-          <TabsContent value="preview" className="h-full">
-            {generatedApp ? (
-              <WebPreview 
-                content={generatedApp}
-              />
+          <TabsContent value="preview" className="h-full bg-background">
+            {isGenerating ? (
+              <PreviewSkeleton />
+            ) : generatedApp ? (
+              <div className="h-full p-4">
+                <WebPreview content={generatedApp} />
+              </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                Générez d'abord une application pour la prévisualiser
+              <div className="h-full flex items-center justify-center">
+                <Card className="border-dashed border-2 border-muted max-w-md">
+                  <CardContent className="p-12 text-center text-muted-foreground">
+                    <Globe className="w-16 h-16 mx-auto mb-6 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">Aperçu non disponible</h3>
+                    <p className="text-sm">Générez d'abord votre application pour la prévisualiser</p>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </TabsContent>
