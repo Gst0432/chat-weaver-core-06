@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Users, Zap } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ModernSaaSGenerator } from "@/components/ModernSaaSGenerator";
+import { SimpleCodeGenerator } from "@/components/SimpleCodeGenerator";
 import { useMobileNative } from "@/hooks/use-mobile-native";
 import MobileOptimizations from "@/components/MobileOptimizations";
 
@@ -180,7 +180,7 @@ const Index = () => {
           
           <main className="flex-1 flex flex-col bg-background">
             {showSaaSGenerator ? (
-              <ModernSaaSGenerator 
+              <SimpleCodeGenerator 
                 onClose={() => setShowSaaSGenerator(false)}
               />
             ) : (

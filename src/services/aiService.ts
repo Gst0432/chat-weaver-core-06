@@ -27,7 +27,15 @@ class AIService {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('OpenAI API Error Details:', error);
+        throw error;
+      }
+      
+      if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+        console.error('Invalid OpenAI response structure:', data);
+        throw new Error('Structure de réponse OpenAI invalide');
+      }
       
       return {
         generatedText: data.choices[0].message.content,
@@ -55,7 +63,15 @@ class AIService {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('DeepSeek API Error Details:', error);
+        throw error;
+      }
+      
+      if (!data || !data.generatedText) {
+        console.error('Invalid DeepSeek response structure:', data);
+        throw new Error('Structure de réponse DeepSeek invalide');
+      }
       
       return data;
     } catch (error) {
