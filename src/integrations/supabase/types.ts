@@ -283,6 +283,8 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          free_generations_limit: number | null
+          free_generations_used: number | null
           id: string
           minutes_balance: number | null
           stripe_customer_id: string | null
@@ -296,6 +298,8 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          free_generations_limit?: number | null
+          free_generations_used?: number | null
           id?: string
           minutes_balance?: number | null
           stripe_customer_id?: string | null
@@ -309,6 +313,8 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          free_generations_limit?: number | null
+          free_generations_used?: number | null
           id?: string
           minutes_balance?: number | null
           stripe_customer_id?: string | null
@@ -482,6 +488,10 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      check_free_generation_quota: {
+        Args: { user_email: string }
+        Returns: Json
+      }
       halfvec_avg: {
         Args: { "": number[] }
         Returns: unknown
@@ -520,6 +530,10 @@ export type Database = {
       hnswhandler: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      increment_free_generation: {
+        Args: { user_email: string }
+        Returns: boolean
       }
       is_super_admin: {
         Args: { _user_id: string }

@@ -14,12 +14,17 @@ import {
   ArrowLeft, 
   User, 
   FolderOpen,
-  Code2
+  Code2,
+  Download,
+  Lock
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { aiService } from "@/services/aiService";
 import { projectService, Project } from "@/services/projectService";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuota } from "@/hooks/useQuota";
+import { QuotaDisplay } from "./QuotaDisplay";
+import { UpgradePrompt } from "./UpgradePrompt";
 
 interface SimpleCodeGeneratorProps {
   onClose?: () => void;
@@ -33,7 +38,9 @@ export const SimpleCodeGenerator = ({ onClose }: SimpleCodeGeneratorProps) => {
   const [userId, setUserId] = useState<string>("");
   const [aiProvider, setAiProvider] = useState<'openai' | 'deepseek'>('openai');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const editorRef = useRef<any>(null);
+  const { quota, loading, checkQuota, incrementUsage, isTestMode, canGenerate } = useQuota();
 
   useEffect(() => {
     // Get current user
@@ -60,11 +67,22 @@ export const SimpleCodeGenerator = ({ onClose }: SimpleCodeGeneratorProps) => {
       return;
     }
 
+    // Check quota before generating
+    if (!canGenerate) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
       const generatedCode = await aiService.generateCode(prompt, aiProvider);
       setCode(generatedCode);
+      
+      // Increment usage for free users
+      if (isTestMode) {
+        await incrementUsage();
+      }
       
       // Create or update project
       if (currentProject === null) {
@@ -209,6 +227,23 @@ export const SimpleCodeGenerator = ({ onClose }: SimpleCodeGeneratorProps) => {
 
         {/* Zone principale */}
         <main className="flex-1 flex flex-col p-4 gap-4">
+          {/* Quota display */}
+          <QuotaDisplay />
+
+          {/* Upgrade prompt overlay */}
+          {showUpgradePrompt && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <UpgradePrompt
+                title={quota?.remaining_free === 0 ? "Quota épuisé" : "Quota insuffisant"}
+                description={quota?.remaining_free === 0 
+                  ? "Vous avez utilisé toutes vos générations gratuites. Choisissez un plan pour continuer."
+                  : "Vous ne pouvez plus générer en mode gratuit."
+                }
+                onClose={() => setShowUpgradePrompt(false)}
+              />
+            </div>
+          )}
+
           {/* Zone de saisie */}
           <Card className="shrink-0">
             <CardHeader className="pb-3">
@@ -234,12 +269,12 @@ export const SimpleCodeGenerator = ({ onClose }: SimpleCodeGeneratorProps) => {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 className="min-h-[80px] resize-none"
-                disabled={isGenerating}
+                disabled={isGenerating || !canGenerate}
               />
               <div className="flex gap-2">
                 <Button
                   onClick={onGenerate}
-                  disabled={isGenerating || !prompt.trim()}
+                  disabled={isGenerating || !prompt.trim() || !canGenerate}
                   className="flex-1"
                 >
                   {isGenerating ? (
@@ -250,7 +285,7 @@ export const SimpleCodeGenerator = ({ onClose }: SimpleCodeGeneratorProps) => {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 mr-2" />
-                      Générer avec {aiProvider.toUpperCase()}
+                      {canGenerate ? `Générer avec ${aiProvider.toUpperCase()}` : "Quota épuisé"}
                     </>
                   )}
                 </Button>
@@ -262,15 +297,32 @@ export const SimpleCodeGenerator = ({ onClose }: SimpleCodeGeneratorProps) => {
                   <Save className="w-4 h-4 mr-2" />
                   Sauver
                 </Button>
-                <Button
-                  onClick={shareProject}
-                  disabled={currentProject === null}
-                  variant="outline"
-                >
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Partager
-                </Button>
+                {isTestMode ? (
+                  <Button
+                    disabled
+                    variant="outline"
+                    className="opacity-50"
+                  >
+                    <Lock className="w-4 h-4 mr-2" />
+                    Télécharger (Premium)
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={shareProject}
+                    disabled={currentProject === null}
+                    variant="outline"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Télécharger
+                  </Button>
+                )}
               </div>
+              {isTestMode && (
+                <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-md text-xs text-amber-800">
+                  <Lock className="w-3 h-3" />
+                  Mode test : Téléchargement désactivé. Passez au Premium pour télécharger vos créations.
+                </div>
+              )}
             </CardContent>
           </Card>
 

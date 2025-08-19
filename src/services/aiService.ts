@@ -134,6 +134,28 @@ Retourne un objet JSON avec la structure suivante:
     provider: 'openai' | 'deepseek' = 'openai',
     fileType?: string
   ): Promise<string> {
+    // Check quota first
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) {
+      throw new Error('Authentication required');
+    }
+
+    // Check quota via edge function
+    const { data: quotaResult, error: quotaError } = await supabase.functions.invoke('quota-check', {
+      body: { 
+        action: 'increment',
+        type: 'code'
+      }
+    });
+
+    if (quotaError) {
+      throw new Error(`Quota check failed: ${quotaError.message}`);
+    }
+
+    if (!quotaResult.success) {
+      throw new Error(quotaResult.error || 'Quota exceeded');
+    }
+
     const messages = this.createCodeGenerationPrompt(description, fileType);
     
     if (provider === 'openai') {
@@ -177,4 +199,168 @@ Retourne un objet JSON avec la structure suivante:
   }
 }
 
-export const aiService = new AIService();
+export const aiService = {
+  async generateCode(prompt: string, provider: 'openai' | 'deepseek' = 'openai'): Promise<string> {
+    // Check quota first
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) {
+      throw new Error('Authentication required');
+    }
+
+    // Check quota via edge function
+    const { data: quotaResult, error: quotaError } = await supabase.functions.invoke('quota-check', {
+      body: { 
+        action: 'increment',
+        type: 'code'
+      }
+    });
+
+    if (quotaError) {
+      throw new Error(`Quota check failed: ${quotaError.message}`);
+    }
+
+    if (!quotaResult.success) {
+      throw new Error(quotaResult.error || 'Quota exceeded');
+    }
+
+    // Generate code based on provider
+    if (provider === 'deepseek') {
+      const { data, error } = await supabase.functions.invoke('deepseek-chat', {
+        body: {
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful coding assistant. Generate clean, well-commented code based on user requirements. Always provide complete, working code examples.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
+        }
+      });
+
+      if (error) throw error;
+      return data.response || data.content || 'No code generated';
+    } else {
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          messages: [
+            {
+              role: 'system', 
+              content: 'You are a helpful coding assistant. Generate clean, well-commented code based on user requirements. Always provide complete, working code examples.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          model: 'gpt-5-2025-08-07',
+          max_completion_tokens: 2000
+        }
+      });
+
+      if (error) throw error;
+      return data.content || 'No code generated';
+    }
+  },
+
+  async generateFullApp(
+    description: string,
+    provider: 'openai' | 'deepseek' = 'openai'
+  ): Promise<{ files: any; description: string }> {
+    // Check quota first
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) {
+      throw new Error('Authentication required');
+    }
+
+    // Check quota via edge function
+    const { data: quotaResult, error: quotaError } = await supabase.functions.invoke('quota-check', {
+      body: { 
+        action: 'increment',
+        type: 'code'
+      }
+    });
+
+    if (quotaError) {
+      throw new Error(`Quota check failed: ${quotaError.message}`);
+    }
+
+    if (!quotaResult.success) {
+      throw new Error(quotaResult.error || 'Quota exceeded');
+    }
+
+    const systemPrompt = `Tu es un expert développeur full-stack qui génère des applications web complètes.
+
+Instructions:
+1. Crée une structure de projet complète avec package.json, HTML, CSS, et JavaScript/React
+2. Utilise React avec JSX, Vite comme bundler
+3. Applique un design moderne avec Tailwind CSS
+4. Assure-toi que l'app est responsive et accessible
+5. Inclus toutes les dependencies nécessaires
+6. Le code doit être production-ready
+
+Format de réponse: 
+Retourne un objet JSON avec la structure suivante:
+{
+  "files": {
+    "package.json": { "content": "...", "language": "json" },
+    "index.html": { "content": "...", "language": "html" },
+    "src/main.jsx": { "content": "...", "language": "javascript" },
+    "src/App.jsx": { "content": "...", "language": "javascript" }
+  },
+  "description": "Description de l'application générée"
+}`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: description }
+    ];
+
+    let responseText: string;
+    if (provider === 'deepseek') {
+      const { data, error } = await supabase.functions.invoke('deepseek-chat', {
+        body: { messages }
+      });
+      if (error) throw error;
+      responseText = data.response || data.content || '';
+    } else {
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          messages,
+          model: 'gpt-5-2025-08-07',
+          max_completion_tokens: 4000
+        }
+      });
+      if (error) throw error;
+      responseText = data.content || '';
+    }
+
+    try {
+      // Try to parse as JSON first
+      const parsed = JSON.parse(responseText);
+      return parsed;
+    } catch {
+      // If not JSON, create a simple structure
+      return {
+        files: {
+          "src/App.jsx": {
+            content: responseText,
+            language: "javascript"
+          }
+        },
+        description: "Application générée par IA"
+      };
+    }
+  },
+
+  async checkQuota(): Promise<any> {
+    const { data, error } = await supabase.functions.invoke('quota-check', {
+      body: { action: 'check' }
+    });
+
+    if (error) throw error;
+    return data;
+  }
+};
