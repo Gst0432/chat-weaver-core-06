@@ -125,9 +125,14 @@ serve(async (req) => {
 
 async function getDashboardData(supabaseClient: any) {
   try {
-    // Get users count from auth.users with subscription info
-    const { data: authUsers, error: authError } = await supabaseClient.auth.admin.listUsers();
-    let users = authError ? [] : authUsers.users;
+        // Get users count from auth.users with subscription info
+        const { data: authUsers, error: authError } = await supabaseClient.auth.admin.listUsers();
+        if (authError) {
+          console.error('Auth users error:', authError);
+          throw authError;
+        }
+        
+        let users = authUsers.users || [];
 
     // Get subscription info for each user
     const usersWithSubscriptions = await Promise.all(
