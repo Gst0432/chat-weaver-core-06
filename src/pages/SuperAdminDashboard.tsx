@@ -195,7 +195,7 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const promoteUserToPremium = async (userId: string, tier: string = 'premium') => {
+  const promoteUserToPremium = async (userId: string, tier: string) => {
     try {
       const { data } = await supabase.functions.invoke('super-admin', {
         body: { 
@@ -381,23 +381,19 @@ export default function SuperAdminDashboard() {
                       </TableCell>
                       <TableCell>
                         {!user.subscription?.subscribed ? (
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              onClick={() => promoteUserToPremium(user.id, 'premium')}
-                              className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
-                            >
-                              <Crown className="h-3 w-3 mr-1" />
-                              Premium
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => promoteUserToPremium(user.id, 'pro')}
-                            >
-                              <UserCheck className="h-3 w-3 mr-1" />
-                              Pro
-                            </Button>
+                          <div className="flex gap-1 flex-wrap">
+                            {plans.filter(p => p.id !== 'enterprise').map((plan) => (
+                              <Button
+                                key={plan.id}
+                                size="sm"
+                                variant={plan.id === 'pro' ? 'default' : 'outline'}
+                                onClick={() => promoteUserToPremium(user.id, plan.id)}
+                                className={plan.id === 'pro' ? 'bg-gradient-to-r from-primary to-primary/80' : ''}
+                              >
+                                {plan.id === 'pro' && <Crown className="h-3 w-3 mr-1" />}
+                                {plan.name}
+                              </Button>
+                            ))}
                           </div>
                         ) : (
                           <Button
