@@ -27,6 +27,29 @@ export interface GeneratedImage {
   taskUUID: string;
 }
 
+export interface GenerateVideoParams {
+  positivePrompt: string;
+  model?: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  fps?: number;
+  motionScale?: number;
+  seed?: number | null;
+  initImage?: string; // Base64 or URL for image-to-video
+  guidance?: number;
+}
+
+export interface GeneratedVideo {
+  videoURL: string;
+  positivePrompt: string;
+  duration: number;
+  fps: number;
+  seed: number;
+  cost: number;
+  taskUUID: string;
+}
+
 export class RunwareService {
   private ws: WebSocket | null = null;
   private apiKey: string | null = null;
@@ -172,6 +195,55 @@ export class RunwareService {
           reject(new Error("Timeout de génération Runware"));
         }
       }, 30000);
+
+      this.ws.send(JSON.stringify(message));
+    });
+  }
+
+  async generateVideo(params: GenerateVideoParams): Promise<GeneratedVideo> {
+    await this.connectionPromise;
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isAuthenticated) {
+      this.connectionPromise = this.connect();
+      await this.connectionPromise;
+    }
+
+    const taskUUID = crypto.randomUUID();
+    
+    return new Promise((resolve, reject) => {
+      const message = [{
+        taskType: "videoInference",
+        taskUUID,
+        positivePrompt: params.positivePrompt,
+        model: params.model || "runware:101@1", // Modèle vidéo par défaut
+        width: params.width || 768,
+        height: params.height || 768,
+        duration: params.duration || 3, // 3 secondes par défaut
+        fps: params.fps || 24,
+        motionScale: params.motionScale || 127, // Échelle de mouvement (0-255)
+        guidance: params.guidance || 17.5, // Guidance CFG pour vidéo
+        ...(params.seed && { seed: params.seed }),
+        ...(params.initImage && { initImage: params.initImage }), // Pour image-to-video
+      }];
+
+      console.log("🎬 Génération vidéo Runware:", params.positivePrompt);
+
+      this.messageCallbacks.set(taskUUID, (data) => {
+        if (data.error) {
+          reject(new Error(data.errorMessage || "Erreur de génération vidéo"));
+        } else {
+          console.log("✅ Vidéo générée avec Runware");
+          resolve(data);
+        }
+      });
+
+      // Timeout de 60 secondes pour les vidéos (plus long)
+      setTimeout(() => {
+        if (this.messageCallbacks.has(taskUUID)) {
+          this.messageCallbacks.delete(taskUUID);
+          reject(new Error("Timeout de génération vidéo Runware"));
+        }
+      }, 60000);
 
       this.ws.send(JSON.stringify(message));
     });

@@ -10,6 +10,7 @@ import { CreditCard, Users, Zap } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SimpleCodeGenerator } from "@/components/SimpleCodeGenerator";
+import { VideoGenerator } from "@/components/VideoGenerator";
 import { useMobileNative } from "@/hooks/use-mobile-native";
 import MobileOptimizations from "@/components/MobileOptimizations";
 
@@ -24,6 +25,7 @@ const Index = () => {
   const [subscription, setSubscription] = useState<any>(null);
   const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
   const [showSaaSGenerator, setShowSaaSGenerator] = useState(false);
+  const [showVideoGenerator, setShowVideoGenerator] = useState(false);
   const { triggerHapticFeedback } = useMobileNative();
   const navigate = useNavigate();
 
@@ -95,10 +97,16 @@ const Index = () => {
       setShowSaaSGenerator(prev => !prev);
     };
     
+    const handleToggleVideo = () => {
+      setShowVideoGenerator(prev => !prev);
+    };
+    
     window.addEventListener('chat:toggle-saas-generator', handleToggleSaaS);
+    window.addEventListener('chat:toggle-video-generator', handleToggleVideo);
     
     return () => {
       window.removeEventListener('chat:toggle-saas-generator', handleToggleSaaS);
+      window.removeEventListener('chat:toggle-video-generator', handleToggleVideo);
     };
   }, []);
 
@@ -183,6 +191,21 @@ const Index = () => {
               <SimpleCodeGenerator 
                 onClose={() => setShowSaaSGenerator(false)}
               />
+            ) : showVideoGenerator ? (
+              <div className="flex-1 p-6">
+                <div className="max-w-4xl mx-auto">
+                  <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-2xl font-bold">Générateur de Vidéo</h1>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowVideoGenerator(false)}
+                    >
+                      Retour au chat
+                    </Button>
+                  </div>
+                  <VideoGenerator />
+                </div>
+              </div>
             ) : (
               <>
                 <ModelSelector 

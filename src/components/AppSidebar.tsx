@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2 } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2, Video } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -96,12 +96,20 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
     window.dispatchEvent(new CustomEvent('chat:new-conversation'));
   };
 
-  const handleNavigation = (path: string) => {
+          const handleNavigation = (path: string) => {
     if (isLandingMode && onAuthRequired) {
       onAuthRequired();
       return;
     }
     navigate(path);
+  };
+
+  const toggleVideoGenerator = () => {
+    if (isLandingMode && onAuthRequired) {
+      onAuthRequired();
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('chat:toggle-video-generator'));
   };
 
   const handleSignOut = async () => {
@@ -208,6 +216,13 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 <SidebarMenuButton onClick={() => handleNavigation('/team')} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Users className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Équipe</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={toggleVideoGenerator} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Video className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Générateur Vidéo</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
