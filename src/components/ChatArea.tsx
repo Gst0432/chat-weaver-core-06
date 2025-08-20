@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ImageService } from "@/services/imageService";
-import { RunwayService } from "@/services/runwayService";
+import { RunwareService } from "@/services/runwareService";
 import { AppGeneratorService } from "@/services/appGeneratorService";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,8 +25,18 @@ interface Message {
 
 const initialMessages: Message[] = [];
 
-// Helper: Video request detection - moved to RunwayService
-const isVideoRequest = RunwayService.isVideoRequest;
+// Helper: Video request detection
+const isVideoRequest = (message: string): boolean => {
+  const videoKeywords = [
+    'vidéo', 'video', 'film', 'clip', 'animation', 'séquence',
+    'génère une vidéo', 'crée une vidéo', 'fais une vidéo',
+    'video of', 'create video', 'generate video', 'make video'
+  ];
+  
+  return videoKeywords.some(keyword => 
+    message.toLowerCase().includes(keyword.toLowerCase())
+  );
+};
 
 // Helpers: generation of documents
 const wrapText = (text: string, max = 90) =>
@@ -458,106 +468,70 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         }
       }
 
-      // Génération vidéo avec RunwayML Gen-3 Turbo
+      // Génération vidéo avec Runware
       if (wantsVideo) {
         try {
-          console.log("🎬 Début génération vidéo RunwayML");
-          
-          // Parse les options de la requête
-          const options = RunwayService.parseVideoRequest(content);
+          console.log("🎬 Début génération vidéo Runware");
           
           // Afficher un message temporaire de génération
           const tempMessage: Message = {
             id: `temp-${Date.now()}`,
-            content: "🎬 Génération de la vidéo en cours avec RunwayML Gen-3 Turbo...",
+            content: "🎬 Génération de la vidéo en cours avec Runware...",
             role: "assistant",
             timestamp: new Date(),
-            model: "runwayml"
+            model: "runware"
           };
           setMessages(prev => [...prev, tempMessage]);
 
-          // Lancer la génération vidéo
-          const result = await RunwayService.generateVideo({
-            prompt: content,
-            ...options
+          // Récupérer la clé API Runware
+          const { data: keyData, error: keyError } = await supabase.functions.invoke('get-runware-key');
+          if (keyError || !keyData?.key) {
+            throw new Error('Clé API Runware non configurée');
+          }
+
+          // Créer le service et générer la vidéo
+          const runwareService = new RunwareService(keyData.key);
+          const result = await runwareService.generateVideo({
+            positivePrompt: content,
+            duration: 5,
+            fps: 24,
+            motionScale: 1.8
           });
 
           // Supprimer le message temporaire
           setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
 
-          if (result?.taskId) {
-            console.log("✅ Tâche RunwayML créée:", result.taskId);
+          if (result?.videoURL) {
+            console.log("✅ Vidéo Runware générée:", result.videoURL);
             
-            // Message de statut
-            const statusMessage: Message = {
-              id: `status-${Date.now()}`,
-              content: "⏳ Génération en cours... Cela peut prendre quelques minutes.",
+            const videoMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              content: result.videoURL,
               role: "assistant",
               timestamp: new Date(),
-              model: "runwayml"
+              model: "runware"
             };
-            setMessages(prev => [...prev, statusMessage]);
             
-            // Polling asynchrone pour vérifier le statut
-            RunwayService.pollVideoUntilComplete(result.taskId).then(async (finalResult) => {
-              console.log("✅ Vidéo RunwayML terminée:", finalResult);
-              
-              // Supprimer le message de statut
-              setMessages(prev => prev.filter(m => m.id !== statusMessage.id));
-              
-              if (finalResult.videoUrl) {
-                const videoMessage: Message = {
-                  id: (Date.now() + 1).toString(),
-                  content: finalResult.videoUrl,
-                  role: "assistant",
-                  timestamp: new Date(),
-                  model: "runwayml"
-                };
-                
-                setMessages(prev => [...prev, videoMessage]);
-                
-                // Sauvegarder dans la base
-                await supabase.from('messages').insert({
-                  conversation_id: convoId,
-                  role: 'assistant',
-                  content: finalResult.videoUrl,
-                  model: "runwayml"
-                });
-                
-                toast({
-                  title: "Vidéo générée !",
-                  description: "Votre vidéo RunwayML est prête.",
-                });
-              }
-            }).catch(async (error) => {
-              console.error("❌ Erreur génération RunwayML:", error);
-              
-              // Supprimer le message de statut
-              setMessages(prev => prev.filter(m => m.id !== statusMessage.id));
-              
-              const errorMessage: Message = {
-                id: (Date.now() + 2).toString(),
-                content: `Erreur génération vidéo: ${error?.message || "Échec de la génération"}`,
-                role: "assistant",
-                timestamp: new Date(),
-                model: "runwayml"
-              };
-              setMessages(prev => [...prev, errorMessage]);
-              
-              // Sauvegarder l'erreur
-              await supabase.from('messages').insert({
-                conversation_id: convoId,
-                role: 'assistant',
-                content: errorMessage.content,
-                model: "runwayml"
-              });
+            setMessages(prev => [...prev, videoMessage]);
+            
+            // Sauvegarder dans la base
+            await supabase.from('messages').insert({
+              conversation_id: convoId,
+              role: 'assistant',
+              content: result.videoURL,
+              model: "runware"
+            });
+            
+            toast({
+              title: "Vidéo générée !",
+              description: "Votre vidéo Runware est prête.",
             });
           } else {
-            throw new Error('Aucun ID de tâche reçu de RunwayML');
+            throw new Error('Aucune URL vidéo reçue de Runware');
           }
           return;
         } catch (e: any) {
-          console.error("❌ Erreur génération vidéo RunwayML:", e);
+          console.error("❌ Erreur génération vidéo Runware:", e);
           
           // Supprimer le message temporaire s'il existe encore
           setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
@@ -567,7 +541,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             content: `Erreur génération vidéo: ${e?.message || "Impossible de générer la vidéo"}`,
             role: "assistant",
             timestamp: new Date(),
-            model: "runwayml"
+            model: "runware"
           };
           setMessages(prev => [...prev, errorMessage]);
           
@@ -576,7 +550,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
             conversation_id: convoId,
             role: 'assistant',
             content: errorMessage.content,
-            model: "runwayml"
+            model: "runware"
           });
         } finally {
           setIsLoading(false);
