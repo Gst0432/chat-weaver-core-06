@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { ModelRouterService } from './modelRouterService';
+import { PromptEngineerService } from './promptEngineerService';
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
@@ -200,6 +202,65 @@ Retourne un objet JSON avec la structure suivante:
 }
 
 export const aiService = {
+  // Nouveau: Génération intelligente avec auto-routing
+  async generateIntelligent(
+    prompt: string, 
+    selectedModel: string = 'auto-router',
+    personality: string = 'default',
+    conversationHistory: string[] = []
+  ): Promise<{ text: string; model: string; analysis: any }> {
+    // Auto-routing si modèle automatique
+    let finalModel = selectedModel;
+    let analysis = null;
+    
+    if (selectedModel === 'auto-router') {
+      analysis = ModelRouterService.analyzeTask(prompt);
+      finalModel = ModelRouterService.selectBestModel(analysis);
+      console.log('🎯 Auto-router sélectionne:', finalModel);
+    }
+    
+    // Amélioration du prompt avec contexte
+    const taskType = analysis?.type || 'general';
+    const systemPrompt = PromptEngineerService.createSystemPrompt({
+      taskType,
+      userPersonality: personality as any,
+      conversationHistory,
+      isFirstMessage: conversationHistory.length === 0
+    });
+    
+    const enhancedPrompt = PromptEngineerService.enhanceUserPrompt(prompt, {
+      taskType,
+      conversationHistory,
+      isFirstMessage: conversationHistory.length === 0
+    });
+
+    // Paramètres optimaux
+    const params = analysis ? 
+      ModelRouterService.getOptimalParameters(finalModel, analysis) : 
+      { model: finalModel };
+
+    console.log('🚀 Génération avec:', { model: finalModel, analysis, params });
+
+    // Appel API avec paramètres optimisés
+    const { data, error } = await supabase.functions.invoke('openai-chat', {
+      body: {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: enhancedPrompt }
+        ],
+        ...params
+      }
+    });
+
+    if (error) throw error;
+    
+    return {
+      text: data.generatedText || data.content || 'Aucune réponse générée',
+      model: finalModel,
+      analysis
+    };
+  },
+
   async generateCode(prompt: string, provider: 'openai' | 'deepseek' = 'openai'): Promise<string> {
     // Check quota first
     const { data: { user } } = await supabase.auth.getUser();

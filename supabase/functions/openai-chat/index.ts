@@ -48,11 +48,13 @@ serve(async (req) => {
     // Nouveaux modèles utilisent max_completion_tokens, anciens max_tokens
     if (isNewModel) {
       if (max_completion_tokens) payload.max_completion_tokens = max_completion_tokens;
-      // Ne pas inclure temperature pour les nouveaux modèles
+      // Temperature par défaut 1.0 pour nouveaux modèles
     } else {
       if (temperature !== undefined) payload.temperature = temperature;
       if (max_tokens) payload.max_tokens = max_tokens;
     }
+
+    console.log(`🤖 Model: ${actualModel}, Payload:`, JSON.stringify(payload, null, 2));
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

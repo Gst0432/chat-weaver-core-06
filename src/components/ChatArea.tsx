@@ -9,11 +9,14 @@ import { ModelStatusIndicator } from "./ModelStatusIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ModelRouterService } from '@/services/modelRouterService';
+import { PromptEngineerService } from '@/services/promptEngineerService';
+import { aiService } from '@/services/aiService';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { ImageService } from "@/services/imageService";
 import { RunwareService } from "@/services/runwareService";
 import { AppGeneratorService } from "@/services/appGeneratorService";
-import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -171,15 +174,16 @@ interface ChatAreaProps {
   safeMode?: boolean;
   isLandingMode?: boolean;
   onAuthRequired?: () => void;
+  personality?: string;
 }
 
-export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt, safeMode, isLandingMode = false, onAuthRequired }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt, safeMode, isLandingMode = false, onAuthRequired, personality = 'default' }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [showImageControls, setShowImageControls] = useState(false);
   const [autoRouterChoice, setAutoRouterChoice] = useState<string>('');
-  const { toast } = useToast();
+  const { toast } = toast();
 
   const createNewConversation = async () => {
     try {
@@ -751,15 +755,56 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' | 'gemini-chat' | 'codestral-chat' | 'claude-chat' = 'openai-chat';
       let model = 'gpt-4o'; // modèle par défaut réel
 
-      // Auto-router intelligent optimisé
+      // Auto-router intelligent amélioré
+      if (selectedModel === 'auto-router') {
+        try {
+          console.log('🎯 Utilisation auto-router intelligent');
+          
+          const result = await aiService.generateIntelligent(
+            content, 
+            'auto-router', 
+            personality, 
+            messages.slice(-3).map(m => m.content)
+          );
+          
+          console.log('✅ Auto-router résultat:', result);
+          
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: result.text,
+            role: "assistant",
+            timestamp: new Date(),
+            model: `${result.model} (auto-router)`
+          };
+          
+          setMessages(prev => [...prev, assistantMessage]);
+          
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: result.text,
+            model: result.model
+          });
+          
+          // TTS si activé (à implémenter)
+          // if (currentUser?.tts_enabled) {
+          //   await synthesizeAndPlay(result.text);
+          // }
+          
+          setIsLoading(false);
+          return;
+        } catch (error) {
+          console.error("❌ Erreur auto-router:", error);
+          // Continuer avec l'ancien système en fallback
+        }
+      }
+
+      // Ancien auto-router en fallback
       if (selectedModel === 'auto-router') {
         const text = content.toLowerCase();
         const len = content.length;
-        
         // Détection recherche web améliorée
         const wantsWeb = /\b(actualité|actualités|news|web|recherche|internet|http|www|google|source|récent|update|temps réel|aujourd'hui|maintenant|2024|2025|prix|cours|bourse|météo|info|événement|que se passe|qu'est-ce qui|dernières nouvelles|breaking news|live|direct|current|latest)\b/.test(text);
-        
-        // Détection raisonnement complexe
         const needsReasoning = /(analyse|raisonn|logique|complex|problème|déduire|démonstration|preuve|math|calcul|équation|algorithmique|optimiser)/i.test(text);
         
         // Détection code/programmation
