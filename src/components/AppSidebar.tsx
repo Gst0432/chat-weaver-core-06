@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2, Video } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2, Video, Languages } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -223,6 +223,13 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 <SidebarMenuButton onClick={toggleVideoGenerator} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Video className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Générateur Vidéo</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/video-translator')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Languages className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Traducteur Vidéo</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
