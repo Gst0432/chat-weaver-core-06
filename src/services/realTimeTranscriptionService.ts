@@ -20,21 +20,41 @@ export class RealTimeTranscriptionService {
   private stream: MediaStream | null = null;
   private segments: TranscriptionSegment[] = [];
 
-  static async transcribeAudioChunk(audioBase64: string): Promise<string> {
-    try {
-      const { data, error } = await supabase.functions.invoke('voice-to-text', {
-        body: { audio: audioBase64 }
-      });
+  static async transcribeAudioChunk(audioBase64: string, retries: number = 3): Promise<string> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const { data, error } = await supabase.functions.invoke('voice-to-text', {
+          body: { audio: audioBase64 }
+        });
 
-      if (error) {
-        throw new Error(`Transcription error: ${error.message}`);
+        if (error) {
+          console.error(`Transcription attempt ${attempt} error:`, error);
+          if (attempt === retries) {
+            throw new Error('Transcription error: ' + error.message);
+          }
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Progressive delay
+          continue;
+        }
+
+        if (!data?.text) {
+          console.warn(`Transcription attempt ${attempt}: No text returned`);
+          if (attempt === retries) {
+            return ''; // Return empty string instead of throwing
+          }
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          continue;
+        }
+
+        return data.text.trim();
+      } catch (error) {
+        console.error(`Transcription attempt ${attempt} failed:`, error);
+        if (attempt === retries) {
+          return ''; // Return empty string on final failure
+        }
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt));
       }
-
-      return data.text || '';
-    } catch (error) {
-      console.error('Transcription chunk error:', error);
-      return '';
     }
+    return '';
   }
 
   static async translateText(text: string, sourceLang: string, targetLang: string): Promise<string> {
@@ -125,8 +145,8 @@ export class RealTimeTranscriptionService {
         }
       };
 
-      // Record in 3-second chunks
-      this.mediaRecorder.start(3000);
+      // Record in 1.5-second chunks for better responsiveness
+      this.mediaRecorder.start(1500);
     } catch (error) {
       console.error('Error starting system audio capture:', error);
       throw error;
@@ -156,8 +176,8 @@ export class RealTimeTranscriptionService {
         }
       };
 
-      // Record in 3-second chunks
-      this.mediaRecorder.start(3000);
+      // Record in 1.5-second chunks for better responsiveness
+      this.mediaRecorder.start(1500);
     } catch (error) {
       console.error('Error starting transcription-only audio capture:', error);
       throw error;
@@ -185,8 +205,8 @@ export class RealTimeTranscriptionService {
         }
       };
 
-      // Record in 3-second chunks
-      this.mediaRecorder.start(3000);
+      // Record in 1.5-second chunks for better responsiveness
+      this.mediaRecorder.start(1500);
     } catch (error) {
       console.error('Error starting microphone transcription-only capture:', error);
       throw error;
@@ -218,8 +238,8 @@ export class RealTimeTranscriptionService {
         }
       };
 
-      // Record in 3-second chunks
-      this.mediaRecorder.start(3000);
+      // Record in 1.5-second chunks for better responsiveness
+      this.mediaRecorder.start(1500);
     } catch (error) {
       console.error('Error starting microphone capture:', error);
       throw error;
@@ -256,30 +276,40 @@ export class RealTimeTranscriptionService {
 
   private async processAudioChunkTranscriptionOnly(audioChunk: Blob, sourceLang: string): Promise<void> {
     try {
-      // Convert blob to base64
+      // Skip very small chunks (likely silence)
+      if (audioChunk.size < 1000) {
+        return;
+      }
+
       const base64Audio = await this.blobToBase64(audioChunk);
+      const transcribedText = await RealTimeTranscriptionService.transcribeAudioChunk(base64Audio, 2);
       
-      // Transcribe the chunk
-      const text = await RealTimeTranscriptionService.transcribeAudioChunk(base64Audio);
-      
-      if (text.trim()) {
+      if (transcribedText && transcribedText.trim()) {
         const segment: TranscriptionSegment = {
           id: `segment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          text: text.trim(),
-          startTime: Date.now(),
-          endTime: Date.now() + 3000,
+          text: transcribedText.trim(),
+          startTime: Date.now() - 1500,
+          endTime: Date.now(),
           language: sourceLang
         };
         
         this.segments.push(segment);
         
-        // Emit transcription-only event
-        window.dispatchEvent(new CustomEvent('transcription-only', { 
-          detail: segment 
+        // Dispatch event for UI update with immediate feedback
+        window.dispatchEvent(new CustomEvent('transcription-only', {
+          detail: { 
+            segment,
+            isProcessing: false,
+            totalSegments: this.segments.length
+          }
         }));
       }
     } catch (error) {
-      console.error('Error processing transcription-only audio chunk:', error);
+      console.error('Transcription chunk error:', error);
+      // Dispatch error event for UI feedback
+      window.dispatchEvent(new CustomEvent('transcription-error', {
+        detail: { error: (error as Error).message }
+      }));
     }
   }
 

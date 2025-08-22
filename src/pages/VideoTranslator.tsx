@@ -66,6 +66,8 @@ export default function VideoTranslator() {
   const [workflowPhase, setWorkflowPhase] = useState<WorkflowPhase>('setup');
   const [translationProgress, setTranslationProgress] = useState({ current: 0, total: 0 });
   const [fullAudioUrl, setFullAudioUrl] = useState<string | null>(null);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleUrlValidation = (url: string) => {
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/)?([a-zA-Z0-9_-]{11})/;
@@ -94,12 +96,15 @@ export default function VideoTranslator() {
       setOriginalSegments([]);
       setTranslatedSegments([]);
       setFullAudioUrl(null);
+      setTranscriptionStatus('Initialisation...');
+      setIsProcessing(true);
       
       transcriptionServiceRef.current = new RealTimeTranscriptionService();
       
       // Try system audio capture first, fallback to microphone
       try {
         await transcriptionServiceRef.current.startTranscriptionOnly(sourceLang);
+        setTranscriptionStatus('Écoute audio système en cours...');
         toast({
           title: "Transcription activée",
           description: "Capture audio système en cours. Lancez la vidéo pour commencer.",
@@ -107,6 +112,7 @@ export default function VideoTranslator() {
       } catch (systemError) {
         console.warn('System audio not available, falling back to microphone:', systemError);
         await transcriptionServiceRef.current.startMicrophoneTranscriptionOnly(sourceLang);
+        setTranscriptionStatus('Écoute microphone en cours...');
         toast({
           title: "Microphone activé", 
           description: "Utilisez votre microphone près des haut-parleurs pour capturer l'audio.",
@@ -117,6 +123,8 @@ export default function VideoTranslator() {
       console.error('Error starting transcription:', error);
       setIsListening(false);
       setWorkflowPhase('setup');
+      setIsProcessing(false);
+      setTranscriptionStatus('Erreur');
       toast({
         title: "Erreur",
         description: "Impossible d'accéder à l'audio. Vérifiez les permissions.",
@@ -131,11 +139,13 @@ export default function VideoTranslator() {
       transcriptionServiceRef.current = null;
     }
     setIsListening(false);
+    setIsProcessing(false);
     if (playerRef.current) {
       playerRef.current.pauseVideo();
     }
     
     setWorkflowPhase(originalSegments.length > 0 ? 'ready-to-translate' : 'setup');
+    setTranscriptionStatus(originalSegments.length > 0 ? `Terminé - ${originalSegments.length} segments transcrits` : 'Aucun segment transcrit');
     
     toast({
       title: "Transcription terminée",
@@ -146,9 +156,21 @@ export default function VideoTranslator() {
   // Listen for transcription-only segments
   useEffect(() => {
     const handleTranscriptionOnly = (event: CustomEvent) => {
-      const segment = event.detail as TranscriptionSegment;
+      const { segment, isProcessing, totalSegments } = event.detail;
       setOriginalSegments(prev => [...prev, segment]);
       setCurrentSegment(segment);
+      setIsProcessing(isProcessing || false);
+      setTranscriptionStatus(totalSegments ? `${totalSegments} segments transcrits` : 'Transcription en cours...');
+    };
+
+    const handleTranscriptionError = (event: CustomEvent) => {
+      const { error } = event.detail;
+      toast({
+        title: "Erreur de transcription",
+        description: error,
+        variant: "destructive",
+      });
+      setTranscriptionStatus('Erreur de transcription');
     };
 
     const handleTranslationProgress = (event: CustomEvent) => {
@@ -158,10 +180,12 @@ export default function VideoTranslator() {
     };
 
     window.addEventListener('transcription-only', handleTranscriptionOnly as EventListener);
+    window.addEventListener('transcription-error', handleTranscriptionError as EventListener);
     window.addEventListener('translation-progress', handleTranslationProgress as EventListener);
     
     return () => {
       window.removeEventListener('transcription-only', handleTranscriptionOnly as EventListener);
+      window.removeEventListener('transcription-error', handleTranscriptionError as EventListener);
       window.removeEventListener('translation-progress', handleTranslationProgress as EventListener);
     };
   }, []);
@@ -427,39 +451,58 @@ export default function VideoTranslator() {
           {/* Original Text Column */}
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="w-5 h-5" />
-                <span>Texte Original</span>
-                <Badge variant="outline">
-                  {getLanguageByCode(sourceLang === 'auto' ? 'fr' : sourceLang)?.flag} 
-                  {getLanguageByCode(sourceLang === 'auto' ? 'fr' : sourceLang)?.name}
-                </Badge>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-5 h-5" />
+                  <span>Texte Original</span>
+                  <Badge variant="outline">
+                    {getLanguageByCode(sourceLang === 'auto' ? 'fr' : sourceLang)?.flag} 
+                    {getLanguageByCode(sourceLang === 'auto' ? 'fr' : sourceLang)?.name}
+                  </Badge>
+                </div>
+                {isListening && (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-muted-foreground">{transcriptionStatus}</span>
+                  </div>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {originalSegments.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Démarrez l'écoute pour voir la transcription en temps réel
-                  </p>
+                  <div className="text-center py-8">
+                    {isListening ? (
+                      <div className="space-y-2">
+                        <div className="animate-pulse flex justify-center">
+                          <div className="w-8 h-8 bg-primary/30 rounded-full"></div>
+                        </div>
+                        <p className="text-muted-foreground">{transcriptionStatus}</p>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">Démarrez l'écoute pour voir la transcription en temps réel</p>
+                    )}
+                  </div>
                 ) : (
-                  originalSegments.map((segment, index) => (
-                    <div
-                      key={index}
-                      className={`p-2 rounded-lg text-sm ${
-                        currentSegment === segment 
-                          ? 'bg-primary/20 border border-primary/30' 
-                          : 'bg-secondary/30'
-                      }`}
-                    >
-                      {segment.text}
-                    </div>
-                  ))
-                )}
-                {isListening && (
-                  <div className="flex items-center space-x-2 p-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Écoute en cours...</span>
+                  <div className="space-y-2">
+                    {originalSegments.map((segment, index) => (
+                      <div
+                        key={segment.id}
+                        className={`p-2 rounded-lg text-sm animate-fade-in ${
+                          currentSegment === segment 
+                            ? 'bg-primary/20 border border-primary/30' 
+                            : 'bg-secondary/30'
+                        }`}
+                      >
+                        <span className="text-primary/70 text-xs mr-2">#{index + 1}</span>
+                        {segment.text}
+                      </div>
+                    ))}
+                    {isProcessing && (
+                      <div className="text-muted-foreground text-sm italic animate-pulse p-2">
+                        Traitement en cours...
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
