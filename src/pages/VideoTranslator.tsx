@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +31,8 @@ import {
   Circle,
   Globe,
   Settings,
-  Sparkles
+  Sparkles,
+  ArrowLeft
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
@@ -38,6 +40,8 @@ import { RealTimeTranscriptionService } from "@/services/realTimeTranscriptionSe
 import { AudioRecorderService, AudioRecording, RecordingState } from "@/services/audioRecorderService";
 import { useRecordingStorage } from "@/hooks/useRecordingStorage";
 import { AudioRecordingControls } from "@/components/AudioRecordingControls";
+import { AudioPlayer } from "@/components/AudioPlayer";
+import { TextToSpeechService, TTSSettings } from "@/services/textToSpeechService";
 import YouTube from 'react-youtube';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -62,6 +66,7 @@ type AppMode = 'youtube' | 'recording';
 
 export default function VideoTranslator() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const recordingStorage = useRecordingStorage();
   const audioRecorderRef = useRef<AudioRecorderService | null>(null);
   
@@ -94,6 +99,17 @@ export default function VideoTranslator() {
     translation: null as Blob | null,
     voiceover: null as Blob | null,
   });
+
+  // TTS states
+  const [ttsSettings] = useState<TTSSettings>({
+    provider: 'openai',
+    voice: 'alloy',
+    language: targetLang,
+    speed: 1.0,
+    format: 'mp3'
+  });
+  const [generatingTTS, setGeneratingTTS] = useState<string | null>(null);
+  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
@@ -299,6 +315,67 @@ export default function VideoTranslator() {
     URL.revokeObjectURL(url);
   };
 
+  // TTS functions
+  const playSegmentAudio = async (segment: TranscriptionSegment) => {
+    const text = segment.translatedText || segment.originalText;
+    if (!text?.trim()) return;
+
+    try {
+      setGeneratingTTS(segment.id);
+      
+      const settings: TTSSettings = {
+        ...ttsSettings,
+        language: segment.translatedText ? targetLang : sourceLang
+      };
+
+      const audio = await TextToSpeechService.playTextAudio(text, settings);
+      
+      toast({
+        title: "Lecture audio",
+        description: "Audio en cours de lecture",
+      });
+    } catch (error) {
+      console.error('TTS error:', error);
+      toast({
+        title: "Erreur TTS",
+        description: error instanceof Error ? error.message : "Impossible de générer l'audio",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingTTS(null);
+    }
+  };
+
+  const generateFullVoiceover = async () => {
+    if (translatedSegments.length === 0) return;
+
+    try {
+      setGeneratingTTS('full');
+      
+      const settings: TTSSettings = {
+        ...ttsSettings,
+        language: targetLang
+      };
+
+      const voiceoverBlob = await TextToSpeechService.generateFullVoiceover(translatedSegments, settings);
+      setDownloadableFiles(prev => ({ ...prev, voiceover: voiceoverBlob }));
+      
+      toast({
+        title: "Voix off générée",
+        description: "La voix off complète a été générée avec succès",
+      });
+    } catch (error) {
+      console.error('Full voiceover error:', error);
+      toast({
+        title: "Erreur génération voix off",
+        description: error instanceof Error ? error.message : "Impossible de générer la voix off",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingTTS(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
       {/* Header */}
@@ -306,13 +383,21 @@ export default function VideoTranslator() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/')}
+                className="p-2 hover:bg-white/20"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Retour au chat</span>
+              </Button>
               <div className="flex items-center gap-2">
                 <img 
                   src="/lovable-uploads/4d23475f-fa47-4f1b-bba0-5b597d4be24b.png" 
                   alt="Chatelix" 
                   className="w-8 h-8 rounded-lg"
                 />
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   Traducteur Vidéo Avancé
                 </h1>
               </div>
@@ -323,24 +408,24 @@ export default function VideoTranslator() {
             </div>
 
             {/* Mode Selector */}
-            <div className="flex items-center gap-2 bg-white/60 rounded-lg p-1">
+            <div className="flex items-center gap-1 sm:gap-2 bg-white/60 rounded-lg p-1">
               <Button
                 variant={appMode === 'youtube' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setAppMode('youtube')}
-                className="text-xs"
+                className="text-xs px-2 sm:px-3"
               >
-                <Youtube className="w-4 h-4 mr-1" />
-                YouTube
+                <Youtube className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">YouTube</span>
               </Button>
               <Button
                 variant={appMode === 'recording' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setAppMode('recording')}
-                className="text-xs"
+                className="text-xs px-2 sm:px-3"
               >
-                <Mic className="w-4 h-4 mr-1" />
-                Enregistrement
+                <Mic className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Enregistrement</span>
               </Button>
             </div>
           </div>
@@ -357,7 +442,7 @@ export default function VideoTranslator() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {appMode === 'youtube' && (
                 <div className="space-y-2">
                   <Label htmlFor="youtube-url">URL YouTube</Label>
@@ -421,22 +506,24 @@ export default function VideoTranslator() {
             {appMode === 'youtube' && videoId && (
               <div className="mt-4 space-y-4">
                 <Label className="text-sm font-medium">Aperçu vidéo</Label>
-                <div className="aspect-video max-w-md">
-                  <YouTube
-                    videoId={videoId}
-                    opts={{
-                      width: '100%',
-                      height: '100%',
-                      playerVars: {
-                        autoplay: 0,
-                        controls: 1,
-                        rel: 0,
-                        showinfo: 0,
-                      },
-                    }}
-                    onReady={onPlayerReady}
-                    className="rounded-lg overflow-hidden"
-                  />
+                <div className="w-full max-w-2xl mx-auto">
+                  <div className="aspect-video w-full">
+                    <YouTube
+                      videoId={videoId}
+                      opts={{
+                        width: '100%',
+                        height: '100%',
+                        playerVars: {
+                          autoplay: 0,
+                          controls: 1,
+                          rel: 0,
+                          showinfo: 0,
+                        },
+                      }}
+                      onReady={onPlayerReady}
+                      className="w-full h-full rounded-lg overflow-hidden"
+                    />
+                  </div>
                 </div>
                 
                 {/* Ajout des contrôles d'enregistrement sous la vidéo */}
@@ -460,9 +547,9 @@ export default function VideoTranslator() {
         </Card>
 
         {/* Main Interface */}
-        <div className={`grid gap-6 ${
+        <div className={`grid gap-4 sm:gap-6 ${
           appMode === 'youtube' 
-            ? 'grid-cols-1 lg:grid-cols-3' 
+            ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' 
             : 'grid-cols-1 lg:grid-cols-2'
         }`}>
           
@@ -604,19 +691,36 @@ export default function VideoTranslator() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="h-96 overflow-y-auto bg-muted/30 rounded-lg p-4">
-                {translatedSegments.length > 0 ? (
-                  <div className="space-y-3">
-                    {translatedSegments.map((segment, index) => (
-                      <div key={index} className="bg-white/80 rounded-lg p-3 border border-border/20">
-                        <p className="text-sm">{segment.translatedText}</p>
-                        {segment.timestamp && (
-                          <span className="text-xs text-muted-foreground">
-                            {segment.timestamp}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                 {translatedSegments.length > 0 ? (
+                   <div className="space-y-3">
+                     {translatedSegments.map((segment, index) => (
+                       <div key={index} className="bg-white/80 rounded-lg p-3 border border-border/20">
+                         <div className="flex items-start justify-between gap-2">
+                           <div className="flex-1">
+                             <p className="text-sm">{segment.translatedText}</p>
+                             {segment.timestamp && (
+                               <span className="text-xs text-muted-foreground">
+                                 {segment.timestamp}
+                               </span>
+                             )}
+                           </div>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => playSegmentAudio(segment)}
+                             disabled={generatingTTS === segment.id}
+                             className="p-1 h-8 w-8 flex-shrink-0"
+                           >
+                             {generatingTTS === segment.id ? (
+                               <Loader2 className="w-3 h-3 animate-spin" />
+                             ) : (
+                               <Volume2 className="w-3 h-3" />
+                             )}
+                           </Button>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <Globe className="w-12 h-12 mb-4 opacity-50" />
@@ -647,17 +751,37 @@ export default function VideoTranslator() {
                 </Button>
               )}
 
-              {generateVoiceover && translatedSegments.length > 0 && (
+              {translatedSegments.length > 0 && (
                 <div className="space-y-2">
                   <Button
-                    onClick={downloadFullAudio}
-                    disabled={!downloadableFiles.voiceover}
+                    onClick={generateFullVoiceover}
+                    disabled={generatingTTS === 'full'}
                     variant="outline"
                     className="w-full"
                   >
-                    <Volume2 className="w-4 h-4 mr-2" />
-                    Télécharger la voix off complète
+                    {generatingTTS === 'full' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Génération voix off...
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-4 h-4 mr-2" />
+                        Générer voix off complète
+                      </>
+                    )}
                   </Button>
+                  
+                  {downloadableFiles.voiceover && (
+                    <Button
+                      onClick={downloadFullAudio}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Télécharger la voix off
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
