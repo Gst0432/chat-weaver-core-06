@@ -236,23 +236,35 @@ export class AudioRecorderService {
 
   static async transcribeRecording(recording: AudioRecording): Promise<string> {
     try {
-      // Convert blob to base64
+      // Check file size (limit to 25MB)
+      const maxSize = 25 * 1024 * 1024;
+      if (recording.blob.size > maxSize) {
+        throw new Error('Fichier audio trop volumineux (max 25MB)');
+      }
+
+      // Convert blob to base64 using chunk method to avoid stack overflow
       const arrayBuffer = await recording.blob.arrayBuffer();
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const base64Audio = this.convertToBase64Chunks(arrayBuffer);
 
       // Import Supabase client
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL!,
-        import.meta.env.VITE_SUPABASE_ANON_KEY!
+        'https://jeurznrjcohqbevrzses.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI'
       );
 
-      // Call the voice-to-text function
-      const { data, error } = await supabase.functions.invoke('voice-to-text', {
+      // Call the voice-to-text function with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Transcription timeout')), 60000)
+      );
+
+      const transcriptionPromise = supabase.functions.invoke('voice-to-text', {
         body: {
           audio: base64Audio
         }
       });
+
+      const { data, error } = await Promise.race([transcriptionPromise, timeoutPromise]) as any;
 
       if (error) {
         throw new Error(error.message || 'Erreur de transcription');
@@ -261,7 +273,20 @@ export class AudioRecorderService {
       return data?.text || '';
     } catch (error) {
       console.error('Transcription error:', error);
-      throw new Error('Impossible de transcrire l\'audio. Réessayez.');
+      throw new Error(`Impossible de transcrire l'audio: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
+  }
+
+  private static convertToBase64Chunks(arrayBuffer: ArrayBuffer): string {
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const chunkSize = 0x8000; // 32KB chunks to avoid stack overflow
+    let result = '';
+    
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      result += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    
+    return btoa(result);
   }
 }
