@@ -48,7 +48,7 @@ export class AudioRecorderService {
   private getCurrentDuration(): number {
     if (!this.startTime || this.startTime <= 0) return 0;
     
-    const now = Date.now();
+    const now = performance.now();
     if (this.mediaRecorder?.state === 'recording') {
       return Math.max(0, now - this.startTime - this.totalPausedTime);
     } else if (this.mediaRecorder?.state === 'paused' && this.pauseTime > 0) {
@@ -90,7 +90,7 @@ export class AudioRecorderService {
 
       this.mediaRecorder = new MediaRecorder(this.stream, options);
       this.chunks = [];
-      this.startTime = Date.now();
+      this.startTime = performance.now();
       this.totalPausedTime = 0;
 
       this.mediaRecorder.addEventListener('dataavailable', (event) => {
@@ -102,19 +102,19 @@ export class AudioRecorderService {
 
       this.mediaRecorder.addEventListener('start', () => {
         this.updateState();
-        // Start timer update
+        // Start timer update with more frequent updates
         this.intervalId = setInterval(() => {
           this.updateState();
-        }, 100);
+        }, 50);
       });
 
       this.mediaRecorder.addEventListener('pause', () => {
-        this.pauseTime = Date.now();
+        this.pauseTime = performance.now();
         this.updateState();
       });
 
       this.mediaRecorder.addEventListener('resume', () => {
-        this.totalPausedTime += Date.now() - this.pauseTime;
+        this.totalPausedTime += performance.now() - this.pauseTime;
         this.updateState();
       });
 
@@ -126,8 +126,8 @@ export class AudioRecorderService {
         this.updateState();
       });
 
-      // Start recording with 100ms chunks for better responsiveness
-      this.mediaRecorder.start(100);
+      // Start recording with 1000ms chunks for better transcription quality
+      this.mediaRecorder.start(1000);
       
     } catch (error) {
       console.error('Error starting recording:', error);

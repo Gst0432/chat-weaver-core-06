@@ -416,7 +416,7 @@ export default function VideoTranslator() {
                   className="w-8 h-8 rounded-lg"
                 />
                 <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  Traducteur Vidéo Avancé
+                  Studio Voix Off
                 </h1>
               </div>
               <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
