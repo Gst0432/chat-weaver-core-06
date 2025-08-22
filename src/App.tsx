@@ -14,6 +14,7 @@ import NewLanding from "./pages/NewLanding";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import ResetPassword from "./pages/ResetPassword";
 import UpdatePassword from "./pages/UpdatePassword";
+import AcceptInvitation from "./pages/AcceptInvitation";
 
 const App = () => (
   <TooltipProvider>
@@ -29,6 +30,7 @@ const App = () => (
         <Route path="/update-password" element={<UpdatePassword />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/team" element={<Team />} />
+        <Route path="/team/accept-invitation" element={<AcceptInvitation />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/super-admin" element={<SuperAdminDashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

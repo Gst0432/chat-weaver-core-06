@@ -19,12 +19,30 @@ const Auth = () => {
     document.title = "Chatelix – Connexion";
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate("/app", { replace: true });
+      if (session) {
+        // Check if there's a redirect URL from an invitation
+        const redirectUrl = sessionStorage.getItem('redirectAfterAuth');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterAuth');
+          window.location.href = redirectUrl;
+          return;
+        }
+        navigate("/app", { replace: true });
+      }
     });
 
     // If already logged in, redirect
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/app", { replace: true });
+      if (session) {
+        // Check if there's a redirect URL from an invitation
+        const redirectUrl = sessionStorage.getItem('redirectAfterAuth');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterAuth');
+          window.location.href = redirectUrl;
+          return;
+        }
+        navigate("/app", { replace: true });
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -36,7 +54,15 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast({ title: "Connecté", description: "Connexion réussie." });
+      
+      // Check if there's a redirect URL from an invitation
+      const redirectUrl = sessionStorage.getItem('redirectAfterAuth');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterAuth');
+        window.location.href = redirectUrl;
+      } else {
         navigate("/app", { replace: true });
+      }
     } catch (error: any) {
       toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
     } finally {

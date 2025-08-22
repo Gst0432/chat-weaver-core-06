@@ -1,5 +1,11 @@
 project_id = "jeurznrjcohqbevrzses"
 
+[functions.team-management]
+verify_jwt = true
+
+[functions.send-invitation]
+verify_jwt = false
+
 [functions.openrouter-chat]
 verify_jwt = true
 

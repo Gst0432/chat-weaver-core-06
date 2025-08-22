@@ -242,8 +242,11 @@ serve(async (req) => {
 
         if (inviteError) throw inviteError;
 
-        // Generate invitation URL
-        const inviteUrl = `${Deno.env.get("SUPABASE_URL")?.replace('/rest/v1', '')}/team/accept-invitation?token=${invitation.id}&email=${encodeURIComponent(memberEmail)}`;
+        // Generate invitation URL  
+        const baseUrl = Deno.env.get("NODE_ENV") === "production" 
+          ? "https://your-production-domain.com" 
+          : "https://000c91c6-f980-4359-901b-7034686d3ba2.sandbox.lovable.dev";
+        const inviteUrl = `${baseUrl}/team/accept-invitation?token=${invitation.id}&email=${encodeURIComponent(memberEmail)}`;
 
         // Send invitation email
         try {
