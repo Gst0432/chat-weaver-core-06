@@ -1009,16 +1009,16 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
               }
             })();
             
-            // TTS en arrière-plan si activé
-            if (fullText && !fullText.startsWith('data:')) {
-              (async () => {
-                try {
-                  await synthesizeAndPlay(fullText);
-                } catch (e) {
-                  console.warn('TTS failed:', e);
-                }
-              })();
-            }
+            // TTS manuel uniquement (pas de lecture automatique)
+            // if (fullText && !fullText.startsWith('data:')) {
+            //   (async () => {
+            //     try {
+            //       await synthesizeAndPlay(fullText);
+            //     } catch (e) {
+            //       console.warn('TTS failed:', e);
+            //     }
+            //   })();
+            // }
           },
           onError: (error: Error) => {
             console.error('❌ OPTIMISED: Streaming failed:', error);
