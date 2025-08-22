@@ -79,18 +79,25 @@ export class ImageService {
    * Auto-sélection intelligente basée sur le type de demande
    */
   static async generateImage(options: ImageGenerationOptions): Promise<string> {
+    console.log('🎨 Image generation request:', options);
+    
     // 🎯 RESPECT FIDÈLE DES INSTRUCTIONS
     let prompt = options.prompt;
     
-    // Traduction française intelligente si demandée
-    if (options.autoTranslate !== false) {
-      prompt = this.intelligentTranslation(prompt);
-    }
-    
-    // Améliorations contextuelles optionnelles
-    if (!options.preserveOriginalPrompt) {
-      const fidelityLevel = options.promptFidelity ?? 50; // 50% par défaut
-      prompt = this.enhancePromptWithFidelity(prompt, fidelityLevel);
+    try {
+      // Traduction française intelligente si demandée
+      if (options.autoTranslate !== false) {
+        prompt = this.intelligentTranslation(prompt);
+      }
+      
+      // Améliorations contextuelles optionnelles
+      if (!options.preserveOriginalPrompt) {
+        const fidelityLevel = options.promptFidelity ?? 50; // 50% par défaut
+        prompt = this.enhancePromptWithFidelity(prompt, fidelityLevel);
+      }
+    } catch (processingError) {
+      console.warn('⚠️ Prompt processing failed, using original:', processingError);
+      prompt = options.prompt; // Fallback vers le prompt original
     }
     
     let finalProvider = options.provider;

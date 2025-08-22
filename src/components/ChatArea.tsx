@@ -583,7 +583,10 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           const imageUrl = await ImageService.generateImage({
             prompt: content,
             size: '1024x1024',
-            quality: 'hd'
+            quality: 'hd',
+            preserveOriginalPrompt: false, // Valeur par défaut pour le chat
+            promptFidelity: 0.3, // Légères améliorations
+            autoTranslate: true // Traduction française activée
             // Le service choisira automatiquement le meilleur provider
           });
           
