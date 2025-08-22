@@ -96,18 +96,19 @@ export class RealTimeTranscriptionService {
     return new Blob([byteArray], { type: mimeType });
   }
 
-  async startCapturingFromElement(audioElement: HTMLAudioElement): Promise<void> {
+  async startSystemAudioCapture(): Promise<void> {
     try {
-      // Create audio context to capture from video/audio element
-      this.audioContext = new AudioContext();
-      const source = this.audioContext.createMediaElementSource(audioElement);
-      const destination = this.audioContext.createMediaStreamDestination();
-      
-      source.connect(destination);
-      source.connect(this.audioContext.destination); // Still play audio
-      
-      this.stream = destination.stream;
-      
+      // Request system audio capture permission
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          // @ts-ignore - some browsers support this
+          mediaSource: 'system'
+        }
+      });
+
       this.mediaRecorder = new MediaRecorder(this.stream, {
         mimeType: 'audio/webm;codecs=opus'
       });
@@ -121,7 +122,36 @@ export class RealTimeTranscriptionService {
       // Record in 3-second chunks
       this.mediaRecorder.start(3000);
     } catch (error) {
-      console.error('Error starting audio capture:', error);
+      console.error('Error starting system audio capture:', error);
+      throw error;
+    }
+  }
+
+  async startMicrophoneCapture(): Promise<void> {
+    try {
+      // Fallback to microphone if system audio isn't available
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      this.mediaRecorder = new MediaRecorder(this.stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.processAudioChunk(event.data);
+        }
+      };
+
+      // Record in 3-second chunks
+      this.mediaRecorder.start(3000);
+    } catch (error) {
+      console.error('Error starting microphone capture:', error);
       throw error;
     }
   }

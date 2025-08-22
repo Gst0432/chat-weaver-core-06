@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Mic,
-  MicOff
+  MicOff,
+  Square
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
@@ -80,47 +81,33 @@ export default function VideoTranslator() {
   };
 
   const startListening = async () => {
-    if (!playerRef.current || !isPlayerReady) {
-      toast({
-        title: "Player non prêt",
-        description: "Veuillez attendre que la vidéo soit chargée",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      // Get the video element from YouTube player
-      const iframe = playerRef.current.getIframe();
-      const audioElement = iframe.contentDocument?.querySelector('video') || 
-                          iframe.contentWindow?.document?.querySelector('video');
-
-      if (!audioElement) {
-        toast({
-          title: "Erreur d'accès audio",
-          description: "Impossible d'accéder à l'audio de la vidéo",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      transcriptionServiceRef.current = new RealTimeTranscriptionService();
-      await transcriptionServiceRef.current.startCapturingFromElement(audioElement);
-      
       setIsListening(true);
-      playerRef.current.playVideo();
-
+      transcriptionServiceRef.current = new RealTimeTranscriptionService();
+      
+      // Try system audio capture first, fallback to microphone
+      try {
+        await transcriptionServiceRef.current.startSystemAudioCapture();
+        toast({
+          title: "Écoute activée",
+          description: "Capture audio système en cours. Lancez la vidéo pour commencer la transcription.",
+        });
+      } catch (systemError) {
+        console.warn('System audio not available, falling back to microphone:', systemError);
+        await transcriptionServiceRef.current.startMicrophoneCapture();
+        toast({
+          title: "Microphone activé",
+          description: "Utilisez votre microphone près des haut-parleurs pour capturer l'audio.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error('Error starting transcription:', error);
+      setIsListening(false);
       toast({
-        title: "Écoute démarrée",
-        description: "La transcription en temps réel est activée"
-      });
-
-    } catch (error: any) {
-      console.error('Error starting listening:', error);
-      toast({
-        title: "Erreur d'écoute",
-        description: error.message || "Impossible de démarrer l'écoute",
-        variant: "destructive"
+        title: "Erreur",
+        description: "Impossible d'accéder à l'audio. Vérifiez les permissions.",
+        variant: "destructive",
       });
     }
   };
@@ -312,43 +299,57 @@ export default function VideoTranslator() {
                 </span>
                 <div className="flex items-center space-x-2">
                   <Button
-                    onClick={isListening ? stopListening : startListening}
-                    disabled={!videoId || !isPlayerReady}
-                    variant={isListening ? "destructive" : "default"}
+                    onClick={startListening}
+                    disabled={isListening}
+                    variant={isListening ? "secondary" : "default"}
                     size="sm"
                   >
-                    {isListening ? (
-                      <>
-                        <MicOff className="w-4 h-4 mr-2" />
-                        Arrêter
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="w-4 h-4 mr-2" />
-                        Écouter
-                      </>
-                    )}
+                    <Mic className="w-4 h-4 mr-2" />
+                    <span>{isListening ? "En écoute..." : "Écouter"}</span>
+                  </Button>
+                  <Button
+                    onClick={stopListening}
+                    disabled={!isListening}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Square className="w-4 h-4 mr-2" />
+                    <span>Arrêter</span>
                   </Button>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {videoId ? (
-                <div className="aspect-video">
-                  <YouTube
-                    videoId={videoId}
-                    onReady={onPlayerReady}
-                    opts={{
-                      width: '100%',
-                      height: '100%',
-                      playerVars: {
-                        autoplay: 0,
-                        controls: 1,
-                        modestbranding: 1
-                      }
-                    }}
-                    className="w-full h-full"
-                  />
+                <div className="space-y-4">
+                  <div className="aspect-video">
+                    <YouTube
+                      videoId={videoId}
+                      onReady={onPlayerReady}
+                      opts={{
+                        width: '100%',
+                        height: '100%',
+                        playerVars: {
+                          autoplay: 0,
+                          controls: 1,
+                          modestbranding: 1
+                        }
+                      }}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  {isListening && (
+                    <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg text-sm">
+                      <p className="text-blue-700 dark:text-blue-300">
+                        <strong>Instructions:</strong> Lancez la vidéo YouTube ci-dessus pour commencer la transcription automatique.
+                        {navigator.userAgent.includes('Chrome') && (
+                          <span className="block mt-1">
+                            💡 Pour une meilleure qualité, activez "Partager l'audio système" dans Chrome.
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="aspect-video bg-secondary/50 rounded-lg flex items-center justify-center">
