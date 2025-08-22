@@ -52,23 +52,23 @@ const NewLanding = () => {
   const uniquePoints = [
     {
       icon: Infinity,
-      title: "IA de dernière génération",
-      description: "GPT-5, GPT-4.1, O3, O4, Deepseek V3, Gemini Pro, Perplexity et plus"
+      title: "400+ modèles IA via OpenRouter",
+      description: "GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large, Perplexity et 50+ autres providers"
     },
     {
       icon: Image,
       title: "Outils multimédia intégrés",
-      description: "Génération d'images, voix, transcription"
+      description: "Génération d'images (DALL-E 3 + Runware), voix, transcription, vision"
     },
     {
       icon: Zap,
-      title: "Utilisation illimitée",
-      description: "Pas de limites d'utilisation mensuelle"
+      title: "Auto-router intelligent",
+      description: "Sélection automatique du meilleur modèle selon la tâche"
     },
     {
       icon: Globe,
       title: "Accessible partout",
-      description: "Interface web intuitive et responsive"
+      description: "Interface web intuitive et responsive avec API complète"
     }
   ];
 
@@ -76,35 +76,35 @@ const NewLanding = () => {
   const detailedFeatures = [
     {
       icon: MessageSquare,
-      title: "Chat IA illimité",
-      description: "Accès illimité aux meilleurs modèles : GPT-5, GPT-4.1, O3, O4-Mini, Deepseek V3, Gemini Pro, Perplexity et plus pour toutes vos conversations.",
+      title: "400+ modèles IA via OpenRouter",
+      description: "Accès illimité aux meilleurs modèles : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large, Perplexity et 50+ autres providers. Auto-router intelligent pour optimiser chaque tâche.",
       image: "/lovable-uploads/18559761-9d7a-4f88-b792-3c402d548818.png"
     },
     {
       icon: Image,
-      title: "Génération d'images",
-      description: "Créez des images haute résolution avec OpenAI DALL-E 3 et Runware. Qualité professionnelle garantie.",
+      title: "Génération d'images avancée",
+      description: "Créez des images haute résolution avec OpenAI DALL-E 3 et Runware. Qualité professionnelle garantie avec choix du modèle optimal.",
       image: "/lovable-uploads/4d23475f-fa47-4f1b-bba0-5b597d4be24b.png"
     },
     {
       icon: Volume2,
       title: "Voix Off (Text → Speech)",
-      description: "Conversion texte vers voix avec OpenAI et Google TTS. Plusieurs voix et langues disponibles.",
+      description: "Conversion texte vers voix avec OpenAI et Google TTS. Plusieurs voix et langues disponibles pour tous vos besoins audio.",
       image: "/lovable-uploads/eb4adb27-683e-42a7-ade3-aa8185079db6.png"
     },
     {
       icon: Mic,
-      title: "Transcription audio (Speech → Text)",
-      description: "Reconnaissance vocale avancée pour vos interviews, podcasts et vidéos. Précision maximale.",
+      title: "Transcription + Vision IA",
+      description: "Reconnaissance vocale avancée et analyse d'images. Précision maximale pour vos interviews, podcasts, vidéos et documents visuels.",
       image: "/lovable-uploads/ff955a65-24d1-4da4-a5d3-7e518af6492b.png"
     }
   ];
 
   // Fonctionnalités bonus
   const bonusFeatures = [
-    { icon: Shield, title: "API intégrée", description: "Accès complet via API" },
-    { icon: Lock, title: "Espace de stockage sécurisé", description: "Vos données protégées" },
-    { icon: Star, title: "Interface intuitive", description: "Design ergonomique" }
+    { icon: Shield, title: "API complète intégrée", description: "Accès complet via API REST" },
+    { icon: Lock, title: "Espace de stockage sécurisé", description: "Vos données protégées et chiffrées" },
+    { icon: Star, title: "Auto-router intelligent", description: "Sélection automatique du meilleur modèle" }
   ];
 
   // Plans d'abonnement fixes
@@ -116,7 +116,7 @@ const NewLanding = () => {
       price: 7500,
       features: [
         'Utilisateurs: 1',
-        'Modèles IA: GPT-5 + GPT-4.1 + O3 + O4-Mini + Deepseek V3 + Gemini Pro + Perplexity illimité',
+        'Modèles IA: 400+ modèles via OpenRouter illimité',
         'Images DALL·E 3: 10 images / mois',
         'Text-to-Voice: OpenAI Standard TTS uniquement',
         'Minutes TTS: 100 min inclus',
@@ -133,7 +133,7 @@ const NewLanding = () => {
       price: 22000,
       features: [
         'Utilisateurs: Jusqu\'à 5',
-        'Modèles IA: GPT-5 + GPT-4.1 + O3 + O4-Mini + Deepseek V3 + Gemini Pro + Perplexity illimité',
+        'Modèles IA: 400+ modèles via OpenRouter illimité',
         'Images DALL·E 3: 50 images / mois',
         'Text-to-Voice: OpenAI HD TTS + Google WaveNet',
         'Minutes TTS: 500 min inclus',
@@ -150,7 +150,7 @@ const NewLanding = () => {
       price: 55000,
       features: [
         'Utilisateurs: Jusqu\'à 20',
-        'Modèles IA: GPT-5 + GPT-4.1 + O3 + O4-Mini + Deepseek V3 + Gemini Pro + Perplexity illimité',
+        'Modèles IA: 400+ modèles via OpenRouter illimité',
         'Images DALL·E 3: Illimité',
         'Text-to-Voice: OpenAI HD + Google WaveNet + voix premium',
         'Minutes TTS: Illimité',
@@ -205,11 +205,11 @@ const NewLanding = () => {
   const faqs = [
     {
       question: "Est-ce vraiment illimité ?",
-      answer: "Oui ! Contrairement aux autres plateformes, Chatelix vous donne un accès totalement illimité à tous les modèles IA, génération d'images, voix off et transcription. Aucune limite mensuelle."
+      answer: "Oui ! Contrairement aux autres plateformes, Chatelix vous donne un accès totalement illimité à 400+ modèles IA via OpenRouter, génération d'images, voix off et transcription. Aucune limite mensuelle sur l'utilisation des modèles IA."
     },
     {
       question: "Quels outils sont inclus ?",
-      answer: "Chatelix inclut les meilleurs modèles IA : GPT-5 (flagship), GPT-4.1, O3 (raisonnement avancé), O4-Mini (raisonnement rapide), Deepseek V3, Gemini Pro, Perplexity, DALL-E 3, Runware pour les images, OpenAI et Google TTS pour la voix, plus la transcription audio avancée."
+      answer: "Chatelix inclut 400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large, Perplexity et 50+ autres providers. Plus DALL-E 3 et Runware pour les images, OpenAI et Google TTS pour la voix, transcription audio avancée, vision IA et auto-router intelligent."
     },
     {
       question: "Puis-je annuler à tout moment ?",
@@ -309,7 +309,7 @@ const NewLanding = () => {
           </h1>
           
           <p className="text-xl sm:text-2xl text-muted-foreground mb-12 max-w-4xl mx-auto leading-relaxed">
-            GPT-5, GPT-4.1, O3, O4-Mini, Deepseek V3, Gemini Pro, Perplexity, génération d'images, voix off, transcription… 
+            400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large, génération d'images, voix off, transcription… 
             <span className="font-semibold">Tout en un, sans limites.</span>
           </p>
 

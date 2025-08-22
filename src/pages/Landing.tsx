@@ -46,8 +46,8 @@ const Landing = () => {
       id: 'Starter',
       price: 750000, // 7500 FCFA
       users: '1',
-      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
-      images: '10 images DALL·E 3 / mois',
+      models: '400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large + 50 providers',
+      images: '10 images DALL·E 3 + Runware / mois',
       tts: 'OpenAI Standard TTS uniquement',
       minutes: '100 min inclus',
       limits: '+50 FCFA/min TTS au-delà, +500 FCFA/image',
@@ -59,8 +59,8 @@ const Landing = () => {
       id: 'Pro',
       price: 2200000, // 22000 FCFA
       users: "Jusqu'à 5",
-      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
-      images: '50 images DALL·E 3 / mois',
+      models: '400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large + 50 providers',
+      images: '50 images DALL·E 3 + Runware / mois',
       tts: 'OpenAI HD TTS + Google WaveNet',
       minutes: '500 min inclus',
       limits: 'Forfait illimité au-delà, images illimitées',
@@ -72,8 +72,8 @@ const Landing = () => {
       id: 'Business',
       price: 5500000, // 55000 FCFA
       users: "Jusqu'à 20",
-      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
-      images: 'Images DALL·E 3 illimité',
+      models: '400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large + 50 providers',
+      images: 'Images DALL·E 3 + Runware illimité',
       tts: 'OpenAI HD + Google WaveNet + voix premium',
       minutes: 'Minutes TTS illimité',
       limits: 'Support prioritaire, gestion équipes',
@@ -85,8 +85,8 @@ const Landing = () => {
       id: 'Enterprise',
       price: 0, // Sur devis
       users: 'Illimité',
-      models: 'GPT-4 Turbo + GPT-5 + Deepseek V3 + Gemini',
-      images: 'Images DALL·E 3 illimité',
+      models: '400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large + 50 providers',
+      images: 'Images DALL·E 3 + Runware illimité',
       tts: 'Voix personnalisées + options avancées',
       minutes: 'Minutes TTS illimité',
       limits: 'SLA, support dédié, API complet',
@@ -141,7 +141,7 @@ const Landing = () => {
                 </div>
                 <h3 className="text-xl font-bold mb-2">Connectez-vous pour continuer</h3>
                 <p className="text-muted-foreground mb-4">
-                  Accédez aux meilleurs modèles IA : GPT-4 Turbo, GPT-5, Deepseek V3, Gemini
+                  Accédez à 400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro
                 </p>
                 <div className="flex flex-col gap-2">
                   <Button 
@@ -297,8 +297,8 @@ const Landing = () => {
                   <CardContent className="p-3 lg:p-4">
                     <h4 className="font-semibold mb-2 text-center text-sm lg:text-base">Tous les plans incluent :</h4>
                     <div className="grid grid-cols-2 lg:grid-cols-1 gap-1 text-xs lg:text-sm">
-                      <div className="flex items-center"><Brain className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>GPT-4 Turbo + GPT-5</span></div>
-                      <div className="flex items-center"><Zap className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>Deepseek V3 + Gemini</span></div>
+                      <div className="flex items-center"><Brain className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>400+ modèles IA</span></div>
+                      <div className="flex items-center"><Zap className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>Auto-router intelligent</span></div>
                       <div className="flex items-center"><MessageSquare className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>Interface unifiée</span></div>
                       <div className="flex items-center"><Users className="w-3 h-3 text-primary mr-2 flex-shrink-0" /><span>Support technique</span></div>
                     </div>
