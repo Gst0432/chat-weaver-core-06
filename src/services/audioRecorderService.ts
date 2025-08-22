@@ -67,10 +67,12 @@ export class AudioRecorderService {
 
   async startRecording(): Promise<void> {
     try {
-      // Request microphone access
+      console.log('🎤 Démarrage de l\'enregistrement...');
+      
+      // Request microphone access with enhanced settings
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: 44100,
+          sampleRate: 48000,  // Higher sample rate for better quality
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
@@ -78,15 +80,32 @@ export class AudioRecorderService {
         }
       });
 
-      // Create MediaRecorder with optimal settings
-      const options = {
-        mimeType: 'audio/webm;codecs=opus'
-      };
-      
-      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        // Fallback to mp4 if webm is not supported
-        options.mimeType = 'audio/mp4';
+      console.log('🎵 Stream audio obtenu:', {
+        audioTracks: this.stream.getAudioTracks().length,
+        settings: this.stream.getAudioTracks()[0]?.getSettings()
+      });
+
+      // Test audio track
+      const audioTrack = this.stream.getAudioTracks()[0];
+      if (!audioTrack || !audioTrack.enabled) {
+        throw new Error('Piste audio indisponible ou désactivée');
       }
+
+      // Create MediaRecorder with optimal settings
+      const options: MediaRecorderOptions = {};
+      
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options.mimeType = 'audio/webm;codecs=opus';
+        options.audioBitsPerSecond = 128000;
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        options.mimeType = 'audio/webm';
+        options.audioBitsPerSecond = 128000;
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        options.mimeType = 'audio/mp4';
+        options.audioBitsPerSecond = 128000;
+      }
+      
+      console.log('📹 MediaRecorder options:', options);
 
       this.mediaRecorder = new MediaRecorder(this.stream, options);
       this.chunks = [];
@@ -94,13 +113,21 @@ export class AudioRecorderService {
       this.totalPausedTime = 0;
 
       this.mediaRecorder.addEventListener('dataavailable', (event) => {
+        console.log('📦 Données audio reçues:', event.data.size, 'bytes, type:', event.data.type);
         if (event.data.size > 0) {
           this.chunks.push(event.data);
           this.updateState();
+        } else {
+          console.warn('⚠️ Chunk vide reçu');
         }
       });
 
+      this.mediaRecorder.addEventListener('error', (event) => {
+        console.error('❌ Erreur MediaRecorder:', event);
+      });
+
       this.mediaRecorder.addEventListener('start', () => {
+        console.log('▶️ Enregistrement démarré');
         this.updateState();
         // Start timer update with more frequent updates
         this.intervalId = setInterval(() => {
@@ -109,16 +136,19 @@ export class AudioRecorderService {
       });
 
       this.mediaRecorder.addEventListener('pause', () => {
+        console.log('⏸️ Enregistrement en pause');
         this.pauseTime = performance.now();
         this.updateState();
       });
 
       this.mediaRecorder.addEventListener('resume', () => {
+        console.log('▶️ Enregistrement repris');
         this.totalPausedTime += performance.now() - this.pauseTime;
         this.updateState();
       });
 
       this.mediaRecorder.addEventListener('stop', () => {
+        console.log('⏹️ Enregistrement arrêté, chunks:', this.chunks.length);
         if (this.intervalId) {
           clearInterval(this.intervalId);
           this.intervalId = null;
@@ -130,8 +160,8 @@ export class AudioRecorderService {
       this.mediaRecorder.start(1000);
       
     } catch (error) {
-      console.error('Error starting recording:', error);
-      throw new Error('Impossible d\'accéder au microphone. Vérifiez les permissions.');
+      console.error('💥 Erreur lors du démarrage:', error);
+      throw new Error(`Impossible de démarrer l'enregistrement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
   }
 
@@ -155,23 +185,49 @@ export class AudioRecorderService {
       }
 
       this.mediaRecorder.addEventListener('stop', () => {
-        const blob = new Blob(this.chunks, { 
-          type: this.mediaRecorder?.mimeType || 'audio/webm' 
-        });
-        
-        const recording: AudioRecording = {
-          id: Date.now().toString(),
-          blob,
-          duration: this.getCurrentDuration(),
-          size: blob.size,
-          createdAt: new Date()
-        };
+        try {
+          console.log('🎬 Création du blob final, chunks:', this.chunks.length);
+          
+          if (this.chunks.length === 0) {
+            throw new Error('Aucune donnée audio enregistrée - vérifiez votre microphone');
+          }
+          
+          // Log each chunk for debugging
+          this.chunks.forEach((chunk, index) => {
+            console.log(`📦 Chunk ${index + 1}:`, { size: chunk.size, type: chunk.type });
+          });
+          
+          const blob = new Blob(this.chunks, { 
+            type: this.mediaRecorder?.mimeType || 'audio/webm' 
+          });
+          
+          console.log('📦 Blob créé:', {
+            size: blob.size,
+            type: blob.type,
+            duration: this.getCurrentDuration()
+          });
+          
+          if (blob.size === 0) {
+            throw new Error('Fichier audio vide - l\'enregistrement a échoué');
+          }
 
-        // Cleanup
-        this.cleanup();
-        
-        resolve(recording);
-      });
+          const recording: AudioRecording = {
+            id: Date.now().toString(),
+            blob,
+            duration: Math.max(this.getCurrentDuration(), 100), // Minimum 100ms
+            size: blob.size,
+            createdAt: new Date()
+          };
+
+          console.log('✅ Enregistrement terminé avec succès:', recording);
+          this.cleanup();
+          resolve(recording);
+        } catch (error) {
+          console.error('💥 Erreur lors de l\'arrêt:', error);
+          this.cleanup();
+          reject(error);
+        }
+      }, { once: true });
 
       this.mediaRecorder.stop();
     });
@@ -179,7 +235,10 @@ export class AudioRecorderService {
 
   private cleanup(): void {
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach(track => {
+        console.log('🛑 Arrêt de la piste:', track.kind, track.label);
+        track.stop();
+      });
       this.stream = null;
     }
     
@@ -235,6 +294,14 @@ export class AudioRecorderService {
   }
 
   static async transcribeRecording(recording: AudioRecording, language?: string): Promise<string> {
+    console.log('🎤 Début de transcription:', {
+      id: recording.id,
+      size: recording.blob.size,
+      type: recording.blob.type,
+      duration: recording.duration,
+      language: language
+    });
+    
     try {
       // Check file size (limit to 25MB)
       const maxSize = 25 * 1024 * 1024;
@@ -242,16 +309,23 @@ export class AudioRecorderService {
         throw new Error('Fichier audio trop volumineux (max 25MB)');
       }
 
+      if (recording.blob.size === 0) {
+        throw new Error('Fichier audio vide - aucun contenu enregistré');
+      }
+
       // Convert blob to base64 using chunk method to avoid stack overflow
       const arrayBuffer = await recording.blob.arrayBuffer();
+      console.log('🎵 ArrayBuffer créé:', arrayBuffer.byteLength, 'bytes');
+      
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('Données audio vides - l\'enregistrement n\'a pas fonctionné');
+      }
+      
       const base64Audio = this.convertToBase64Chunks(arrayBuffer);
+      console.log('📦 Base64 converti:', base64Audio.length, 'caractères');
 
-      // Import Supabase client
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        'https://jeurznrjcohqbevrzses.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI'
-      );
+      // Use shared Supabase client instead of creating new instance
+      const { supabase } = await import('@/integrations/supabase/client');
 
       // Call the voice-to-text function with timeout
       const timeoutPromise = new Promise((_, reject) => 
@@ -268,12 +342,14 @@ export class AudioRecorderService {
       const { data, error } = await Promise.race([transcriptionPromise, timeoutPromise]) as any;
 
       if (error) {
+        console.error('❌ Erreur de transcription:', error);
         throw new Error(error.message || 'Erreur de transcription');
       }
 
+      console.log('✅ Transcription réussie:', data?.text?.length || 0, 'caractères');
       return data?.text || '';
     } catch (error) {
-      console.error('Transcription error:', error);
+      console.error('💥 Erreur dans transcribeRecording:', error);
       throw new Error(`Impossible de transcrire l'audio: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
   }

@@ -582,7 +582,7 @@ export default function VideoTranslator() {
                     onStopRecording={stopRecording}
                     onTranscribe={lastRecording ? transcribeRecording : undefined}
                     onPlayRecording={lastRecording ? playRecording : undefined}
-                    onDownload={lastRecording ? () => downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
+                    onDownload={lastRecording ? () => AudioRecorderService.downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
                     isTranscribing={isTranscribing}
                     compact={true}
                   />
@@ -610,7 +610,7 @@ export default function VideoTranslator() {
                 onStopRecording={stopRecording}
                 onTranscribe={lastRecording ? transcribeRecording : undefined}
                 onPlayRecording={lastRecording ? playRecording : undefined}
-                onDownload={lastRecording ? () => downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
+                onDownload={lastRecording ? () => AudioRecorderService.downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
                 isTranscribing={isTranscribing}
               />
 
