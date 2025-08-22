@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 interface TranscriptionSegment {
+  id: string;
   text: string;
   startTime: number;
   endTime: number;
@@ -10,6 +11,7 @@ interface TranscriptionSegment {
 interface TranslationSegment extends TranscriptionSegment {
   translatedText: string;
   targetLanguage: string;
+  audioUrl?: string;
 }
 
 export class RealTimeTranscriptionService {
@@ -131,6 +133,66 @@ export class RealTimeTranscriptionService {
     }
   }
 
+  async startTranscriptionOnly(sourceLang: string): Promise<void> {
+    try {
+      // Request system audio capture permission
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          // @ts-ignore - some browsers support this
+          mediaSource: 'system'
+        }
+      });
+
+      this.mediaRecorder = new MediaRecorder(this.stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.processAudioChunkTranscriptionOnly(event.data, sourceLang);
+        }
+      };
+
+      // Record in 3-second chunks
+      this.mediaRecorder.start(3000);
+    } catch (error) {
+      console.error('Error starting transcription-only audio capture:', error);
+      throw error;
+    }
+  }
+
+  async startMicrophoneTranscriptionOnly(sourceLang: string): Promise<void> {
+    try {
+      // Fallback to microphone if system audio isn't available
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      this.mediaRecorder = new MediaRecorder(this.stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.processAudioChunkTranscriptionOnly(event.data, sourceLang);
+        }
+      };
+
+      // Record in 3-second chunks
+      this.mediaRecorder.start(3000);
+    } catch (error) {
+      console.error('Error starting microphone transcription-only capture:', error);
+      throw error;
+    }
+  }
+
   async startMicrophoneCapture(
     sourceLang: string, 
     targetLang: string, 
@@ -174,6 +236,7 @@ export class RealTimeTranscriptionService {
       
       if (text.trim()) {
         const segment: TranscriptionSegment = {
+          id: `segment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           text: text.trim(),
           startTime: Date.now(), // In real implementation, use proper timing
           endTime: Date.now() + 3000,
@@ -188,6 +251,35 @@ export class RealTimeTranscriptionService {
       }
     } catch (error) {
       console.error('Error processing audio chunk:', error);
+    }
+  }
+
+  private async processAudioChunkTranscriptionOnly(audioChunk: Blob, sourceLang: string): Promise<void> {
+    try {
+      // Convert blob to base64
+      const base64Audio = await this.blobToBase64(audioChunk);
+      
+      // Transcribe the chunk
+      const text = await RealTimeTranscriptionService.transcribeAudioChunk(base64Audio);
+      
+      if (text.trim()) {
+        const segment: TranscriptionSegment = {
+          id: `segment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          text: text.trim(),
+          startTime: Date.now(),
+          endTime: Date.now() + 3000,
+          language: sourceLang
+        };
+        
+        this.segments.push(segment);
+        
+        // Emit transcription-only event
+        window.dispatchEvent(new CustomEvent('transcription-only', { 
+          detail: segment 
+        }));
+      }
+    } catch (error) {
+      console.error('Error processing transcription-only audio chunk:', error);
     }
   }
 
@@ -237,6 +329,7 @@ export class RealTimeTranscriptionService {
         
         // Store the segment
         const segment: TranscriptionSegment = {
+          id: `segment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           text: originalText.trim(),
           startTime: synchronizedSegment.startTime,
           endTime: synchronizedSegment.endTime,
@@ -289,5 +382,64 @@ export class RealTimeTranscriptionService {
 
   clearSegments(): void {
     this.segments = [];
+  }
+
+  async translateAllSegments(targetLang: string): Promise<TranslationSegment[]> {
+    const translatedSegments: TranslationSegment[] = [];
+    
+    for (const segment of this.segments) {
+      try {
+        const translatedText = await RealTimeTranscriptionService.translateText(
+          segment.text,
+          segment.language || 'auto',
+          targetLang
+        );
+        
+        const translatedSegment: TranslationSegment = {
+          ...segment,
+          translatedText,
+          targetLanguage: targetLang
+        };
+        
+        translatedSegments.push(translatedSegment);
+        
+        // Emit progress event
+        window.dispatchEvent(new CustomEvent('translation-progress', {
+          detail: {
+            current: translatedSegments.length,
+            total: this.segments.length,
+            segment: translatedSegment
+          }
+        }));
+      } catch (error) {
+        console.error('Error translating segment:', error);
+        // Keep original text if translation fails
+        translatedSegments.push({
+          ...segment,
+          translatedText: segment.text,
+          targetLanguage: targetLang
+        });
+      }
+    }
+    
+    return translatedSegments;
+  }
+
+  async generateFullVoiceover(translatedSegments: TranslationSegment[], targetLang: string): Promise<string | null> {
+    try {
+      // Combine all translated text
+      const fullText = translatedSegments
+        .map(segment => segment.translatedText)
+        .join(' ');
+      
+      if (!fullText.trim()) return null;
+      
+      // Generate single audio file
+      const audioUrl = await RealTimeTranscriptionService.generateVoiceSegment(fullText, targetLang);
+      return audioUrl;
+    } catch (error) {
+      console.error('Error generating full voiceover:', error);
+      return null;
+    }
   }
 }

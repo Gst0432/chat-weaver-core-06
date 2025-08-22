@@ -36,6 +36,7 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 interface TranscriptionSegment {
+  id: string;
   text: string;
   startTime: number;
   endTime: number;
@@ -43,6 +44,8 @@ interface TranscriptionSegment {
   audioUrl?: string;
   language?: string;
 }
+
+type WorkflowPhase = 'setup' | 'transcribing' | 'ready-to-translate' | 'translating' | 'completed';
 
 export default function VideoTranslator() {
   const { toast } = useToast();
@@ -60,6 +63,9 @@ export default function VideoTranslator() {
   const [originalSegments, setOriginalSegments] = useState<TranscriptionSegment[]>([]);
   const [translatedSegments, setTranslatedSegments] = useState<TranscriptionSegment[]>([]);
   const [currentSegment, setCurrentSegment] = useState<TranscriptionSegment | null>(null);
+  const [workflowPhase, setWorkflowPhase] = useState<WorkflowPhase>('setup');
+  const [translationProgress, setTranslationProgress] = useState({ current: 0, total: 0 });
+  const [fullAudioUrl, setFullAudioUrl] = useState<string | null>(null);
 
   const handleUrlValidation = (url: string) => {
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/)?([a-zA-Z0-9_-]{11})/;
@@ -84,28 +90,25 @@ export default function VideoTranslator() {
   const startListening = async () => {
     try {
       setIsListening(true);
+      setWorkflowPhase('transcribing');
+      setOriginalSegments([]);
+      setTranslatedSegments([]);
+      setFullAudioUrl(null);
+      
       transcriptionServiceRef.current = new RealTimeTranscriptionService();
       
       // Try system audio capture first, fallback to microphone
       try {
-        await transcriptionServiceRef.current.startSystemAudioCapture(
-          sourceLang, 
-          targetLang, 
-          generateVoiceover
-        );
+        await transcriptionServiceRef.current.startTranscriptionOnly(sourceLang);
         toast({
-          title: "Écoute activée",
-          description: "Capture audio système en cours. Lancez la vidéo pour commencer la transcription.",
+          title: "Transcription activée",
+          description: "Capture audio système en cours. Lancez la vidéo pour commencer.",
         });
       } catch (systemError) {
         console.warn('System audio not available, falling back to microphone:', systemError);
-        await transcriptionServiceRef.current.startMicrophoneCapture(
-          sourceLang, 
-          targetLang, 
-          generateVoiceover
-        );
+        await transcriptionServiceRef.current.startMicrophoneTranscriptionOnly(sourceLang);
         toast({
-          title: "Microphone activé",
+          title: "Microphone activé", 
           description: "Utilisez votre microphone près des haut-parleurs pour capturer l'audio.",
           variant: "default",
         });
@@ -113,6 +116,7 @@ export default function VideoTranslator() {
     } catch (error) {
       console.error('Error starting transcription:', error);
       setIsListening(false);
+      setWorkflowPhase('setup');
       toast({
         title: "Erreur",
         description: "Impossible d'accéder à l'audio. Vérifiez les permissions.",
@@ -131,55 +135,68 @@ export default function VideoTranslator() {
       playerRef.current.pauseVideo();
     }
     
+    setWorkflowPhase(originalSegments.length > 0 ? 'ready-to-translate' : 'setup');
+    
     toast({
-      title: "Écoute arrêtée",
-      description: "La transcription en temps réel a été désactivée"
+      title: "Transcription terminée",
+      description: originalSegments.length > 0 ? "Vous pouvez maintenant traduire le texte." : "Aucun texte transcrit."
     });
   };
 
-  // Listen for synchronized transcription segments
+  // Listen for transcription-only segments
   useEffect(() => {
-    const handleSynchronizedTranscription = (event: CustomEvent) => {
-      const {
-        originalText,
-        translatedText,
-        startTime,
-        endTime,
-        language,
-        targetLanguage,
-        audioUrl
-      } = event.detail;
-
-      // Create original segment
-      const originalSegment: TranscriptionSegment = {
-        text: originalText,
-        startTime,
-        endTime,
-        language
-      };
-
-      // Create translated segment
-      const translatedSegment: TranscriptionSegment = {
-        text: originalText,
-        translatedText,
-        startTime,
-        endTime,
-        language,
-        audioUrl
-      };
-
-      // Update both segments simultaneously
-      setOriginalSegments(prev => [...prev, originalSegment]);
-      setTranslatedSegments(prev => [...prev, translatedSegment]);
-      setCurrentSegment(originalSegment);
+    const handleTranscriptionOnly = (event: CustomEvent) => {
+      const segment = event.detail as TranscriptionSegment;
+      setOriginalSegments(prev => [...prev, segment]);
+      setCurrentSegment(segment);
     };
 
-    window.addEventListener('synchronized-transcription', handleSynchronizedTranscription as EventListener);
+    const handleTranslationProgress = (event: CustomEvent) => {
+      const { current, total, segment } = event.detail;
+      setTranslationProgress({ current, total });
+      setTranslatedSegments(prev => [...prev, segment]);
+    };
+
+    window.addEventListener('transcription-only', handleTranscriptionOnly as EventListener);
+    window.addEventListener('translation-progress', handleTranslationProgress as EventListener);
     
     return () => {
-      window.removeEventListener('synchronized-transcription', handleSynchronizedTranscription as EventListener);
+      window.removeEventListener('transcription-only', handleTranscriptionOnly as EventListener);
+      window.removeEventListener('translation-progress', handleTranslationProgress as EventListener);
     };
-  }, [targetLang, sourceLang, generateVoiceover]);
+  }, []);
+
+  const startTranslation = async () => {
+    if (!transcriptionServiceRef.current || originalSegments.length === 0) return;
+    
+    try {
+      setWorkflowPhase('translating');
+      setTranslatedSegments([]);
+      setTranslationProgress({ current: 0, total: originalSegments.length });
+      
+      const translatedSegments = await transcriptionServiceRef.current.translateAllSegments(targetLang);
+      
+      setWorkflowPhase('completed');
+      
+      if (generateVoiceover) {
+        const audioUrl = await transcriptionServiceRef.current.generateFullVoiceover(translatedSegments, targetLang);
+        setFullAudioUrl(audioUrl);
+      }
+      
+      toast({
+        title: "Traduction terminée",
+        description: `${translatedSegments.length} segments traduits avec succès.`
+      });
+    } catch (error) {
+      console.error('Translation error:', error);
+      setWorkflowPhase('ready-to-translate');
+      toast({
+        title: "Erreur de traduction",
+        description: "Impossible de traduire le texte. Réessayez.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const downloadTranscription = () => {
     const originalText = originalSegments.map(s => s.text).join(' ');
@@ -196,6 +213,17 @@ export default function VideoTranslator() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const downloadFullAudio = () => {
+    if (!fullAudioUrl) return;
+    
+    const a = document.createElement('a');
+    a.href = fullAudioUrl;
+    a.download = `voiceover-${targetLang}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const getLanguageByCode = (code: string) => {
@@ -248,7 +276,11 @@ export default function VideoTranslator() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Langue source</Label>
-                <Select value={sourceLang} onValueChange={setSourceLang}>
+                <Select 
+                  value={sourceLang} 
+                  onValueChange={setSourceLang}
+                  disabled={workflowPhase === 'transcribing'}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -265,7 +297,11 @@ export default function VideoTranslator() {
 
               <div className="space-y-2">
                 <Label>Langue cible</Label>
-                <Select value={targetLang} onValueChange={setTargetLang}>
+                <Select 
+                  value={targetLang} 
+                  onValueChange={setTargetLang}
+                  disabled={workflowPhase === 'transcribing'}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -281,17 +317,34 @@ export default function VideoTranslator() {
             </div>
 
             {/* Options */}
-            <div className="flex items-center space-x-2 p-4 bg-secondary/50 rounded-lg">
-              <Switch
-                id="voiceover"
-                checked={generateVoiceover}
-                onCheckedChange={setGenerateVoiceover}
-              />
-              <Label htmlFor="voiceover" className="flex items-center space-x-2">
-                <Volume2 className="w-4 h-4" />
-                <span>Générer la voix off en temps réel</span>
-              </Label>
-              <Badge variant="secondary">Premium</Badge>
+            <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="voiceover"
+                  checked={generateVoiceover}
+                  onCheckedChange={setGenerateVoiceover}
+                  disabled={workflowPhase === 'transcribing'}
+                />
+                <Label htmlFor="voiceover" className="flex items-center space-x-2">
+                  <Volume2 className="w-4 h-4" />
+                  <span>Générer la voix off complète</span>
+                </Label>
+                <Badge variant="secondary">Premium</Badge>
+              </div>
+              
+              {workflowPhase === 'ready-to-translate' && (
+                <Button onClick={startTranslation} variant="default">
+                  <Languages className="w-4 h-4 mr-2" />
+                  Traduire maintenant
+                </Button>
+              )}
+              
+              {workflowPhase === 'translating' && (
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Traduction en cours... {translationProgress.current}/{translationProgress.total}</span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -426,23 +479,55 @@ export default function VideoTranslator() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {translatedSegments.length === 0 ? (
+                {workflowPhase === 'setup' || workflowPhase === 'transcribing' ? (
                   <p className="text-muted-foreground text-center py-8">
-                    La traduction apparaîtra ici en temps réel
+                    {workflowPhase === 'transcribing' 
+                      ? "Transcription en cours. La traduction sera disponible après l'arrêt."
+                      : "La traduction apparaîtra après la transcription"
+                    }
+                  </p>
+                ) : workflowPhase === 'ready-to-translate' ? (
+                  <div className="text-center py-8 space-y-4">
+                    <CheckCircle2 className="w-12 h-12 mx-auto text-green-500" />
+                    <p className="text-muted-foreground">
+                      Transcription terminée ! Cliquez sur "Traduire maintenant" pour commencer la traduction.
+                    </p>
+                  </div>
+                ) : workflowPhase === 'translating' ? (
+                  <div className="text-center py-8 space-y-4">
+                    <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
+                    <p className="text-muted-foreground">
+                      Traduction en cours... {translationProgress.current}/{translationProgress.total}
+                    </p>
+                  </div>
+                ) : translatedSegments.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    Aucune traduction disponible
                   </p>
                 ) : (
-                  translatedSegments.map((segment, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="p-2 rounded-lg text-sm bg-primary/10 border border-primary/20">
+                  <>
+                    {translatedSegments.map((segment, index) => (
+                      <div key={segment.id || index} className="p-2 rounded-lg text-sm bg-primary/10 border border-primary/20">
                         {segment.translatedText || segment.text}
                       </div>
-                      {segment.audioUrl && (
-                        <audio controls className="w-full h-8">
-                          <source src={segment.audioUrl} type="audio/mpeg" />
+                    ))}
+                    {fullAudioUrl && (
+                      <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                            Voix off complète générée
+                          </span>
+                          <Button size="sm" variant="outline" onClick={downloadFullAudio}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Télécharger
+                          </Button>
+                        </div>
+                        <audio controls className="w-full">
+                          <source src={fullAudioUrl} type="audio/mpeg" />
                         </audio>
-                      )}
-                    </div>
-                  ))
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>
