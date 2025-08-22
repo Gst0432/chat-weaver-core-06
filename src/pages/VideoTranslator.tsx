@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,12 +44,25 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { TextToSpeechService, TTSSettings } from "@/services/textToSpeechService";
 import YouTube from 'react-youtube';
 import { supabase } from '@/integrations/supabase/client';
+import { YouTubeVideoService } from "@/services/youTubeVideoService";
+import { TTSVoiceSelector } from "@/components/TTSVoiceSelector";
 
 const SUPPORTED_LANGUAGES = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
   { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'ar', name: 'العربية', flag: '🇸🇦' }
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Português', flag: '🇵🇹' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' }
 ];
 
 interface TranscriptionSegment {
@@ -101,7 +114,7 @@ export default function VideoTranslator() {
   });
 
   // TTS states
-  const [ttsSettings] = useState<TTSSettings>({
+  const [ttsSettings, setTtsSettings] = useState<TTSSettings>({
     provider: 'openai',
     voice: 'alloy',
     language: targetLang,
@@ -110,6 +123,11 @@ export default function VideoTranslator() {
   });
   const [generatingTTS, setGeneratingTTS] = useState<string | null>(null);
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+  
+  // YouTube specific state
+  const [youtubeVideos, setYoutubeVideos] = useState<any[]>([]);
+  const [currentVideo, setCurrentVideo] = useState<any>(null);
+  const [isProcessingYoutube, setIsProcessingYoutube] = useState(false);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
@@ -752,36 +770,45 @@ export default function VideoTranslator() {
               )}
 
               {translatedSegments.length > 0 && (
-                <div className="space-y-2">
-                  <Button
-                    onClick={generateFullVoiceover}
-                    disabled={generatingTTS === 'full'}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {generatingTTS === 'full' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Génération voix off...
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 className="w-4 h-4 mr-2" />
-                        Générer voix off complète
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-4">
+                  {/* TTS Voice Selector */}
+                  <TTSVoiceSelector
+                    settings={ttsSettings}
+                    onSettingsChange={setTtsSettings}
+                    targetLanguage={targetLang}
+                  />
                   
-                  {downloadableFiles.voiceover && (
+                  <div className="space-y-2">
                     <Button
-                      onClick={downloadFullAudio}
+                      onClick={generateFullVoiceover}
+                      disabled={generatingTTS === 'full'}
                       variant="outline"
                       className="w-full"
                     >
-                      <Download className="w-4 h-4 mr-2" />
-                      Télécharger la voix off
+                      {generatingTTS === 'full' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Génération voix off...
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-4 h-4 mr-2" />
+                          Générer voix off complète
+                        </>
+                      )}
                     </Button>
-                  )}
+                    
+                    {downloadableFiles.voiceover && (
+                      <Button
+                        onClick={downloadFullAudio}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Télécharger la voix off
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>

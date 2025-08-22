@@ -1,11 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TTSSettings {
-  provider: 'openai' | 'google';
+  provider: 'openai' | 'google' | 'openrouter';
   voice: string;
   language?: string;
   speed?: number;
-  format?: 'mp3' | 'wav';
+  format?: 'mp3' | 'wav' | 'opus';
 }
 
 export interface TTSResult {
@@ -25,8 +25,10 @@ export class TextToSpeechService {
     try {
       if (settings.provider === 'openai') {
         return await this.generateOpenAISpeech(text, settings);
-      } else {
+      } else if (settings.provider === 'google') {
         return await this.generateGoogleSpeech(text, settings);
+      } else {
+        return await this.generateOpenRouterSpeech(text, settings);
       }
     } catch (error) {
       console.error('TTS Generation error:', error);
@@ -110,6 +112,31 @@ export class TextToSpeechService {
 
     // Combine all audio chunks into one blob
     return new Blob(audioChunks, { type: settings.format === 'wav' ? 'audio/wav' : 'audio/mpeg' });
+  }
+
+  private static async generateOpenRouterSpeech(text: string, settings: TTSSettings): Promise<TTSResult> {
+    const { data, error } = await supabase.functions.invoke('openrouter-tts', {
+      body: {
+        text,
+        model: 'openai/tts-1',
+        voice: settings.voice,
+        format: settings.format,
+        speed: settings.speed
+      }
+    });
+
+    if (error) {
+      throw new Error(`Erreur OpenRouter TTS: ${error.message}`);
+    }
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    return {
+      audioContent: data.audioContent,
+      mime: data.mime || 'audio/mpeg'
+    };
   }
 
   private static base64ToBlob(base64: string, mimeType: string): Blob {

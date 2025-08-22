@@ -638,6 +638,133 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_transcriptions: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          processing_status: string
+          segments: Json
+          source_language: string
+          updated_at: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          processing_status?: string
+          segments?: Json
+          source_language?: string
+          updated_at?: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          processing_status?: string
+          segments?: Json
+          source_language?: string
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_transcriptions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_translations: {
+        Row: {
+          created_at: string
+          id: string
+          target_language: string
+          transcription_id: string
+          translated_segments: Json
+          updated_at: string
+          user_id: string
+          voiceover_settings: Json | null
+          voiceover_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          target_language: string
+          transcription_id: string
+          translated_segments?: Json
+          updated_at?: string
+          user_id: string
+          voiceover_settings?: Json | null
+          voiceover_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          target_language?: string
+          transcription_id?: string
+          translated_segments?: Json
+          updated_at?: string
+          user_id?: string
+          voiceover_settings?: Json | null
+          voiceover_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_translations_transcription_id_fkey"
+            columns: ["transcription_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_transcriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_videos: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          duration: number
+          extraction_status: string
+          id: string
+          title: string
+          updated_at: string
+          url: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number
+          extraction_status?: string
+          id?: string
+          title: string
+          updated_at?: string
+          url: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number
+          extraction_status?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
