@@ -234,7 +234,7 @@ export class AudioRecorderService {
     URL.revokeObjectURL(url);
   }
 
-  static async transcribeRecording(recording: AudioRecording): Promise<string> {
+  static async transcribeRecording(recording: AudioRecording, language?: string): Promise<string> {
     try {
       // Check file size (limit to 25MB)
       const maxSize = 25 * 1024 * 1024;
@@ -260,7 +260,8 @@ export class AudioRecorderService {
 
       const transcriptionPromise = supabase.functions.invoke('voice-to-text', {
         body: {
-          audio: base64Audio
+          audio: base64Audio,
+          language: language
         }
       });
 

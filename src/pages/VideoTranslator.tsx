@@ -228,12 +228,39 @@ export default function VideoTranslator() {
     AudioRecorderService.downloadRecording(recording, filename);
   };
 
+  const playRecording = () => {
+    if (!lastRecording) return;
+    
+    try {
+      const url = URL.createObjectURL(lastRecording.blob);
+      const audio = new Audio(url);
+      
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+      };
+      
+      audio.play();
+      
+      toast({
+        title: "Lecture en cours",
+        description: "Lecture de l'enregistrement audio",
+      });
+    } catch (error) {
+      console.error('Error playing recording:', error);
+      toast({
+        title: "Erreur de lecture",
+        description: "Impossible de lire l'enregistrement",
+        variant: "destructive",
+      });
+    }
+  };
+
   const transcribeRecording = async () => {
     if (!lastRecording) return;
     
     setIsTranscribing(true);
     try {
-      const text = await AudioRecorderService.transcribeRecording(lastRecording);
+      const text = await AudioRecorderService.transcribeRecording(lastRecording, sourceLang);
       
       // Create transcription segment
       const segment: TranscriptionSegment = {
@@ -554,6 +581,7 @@ export default function VideoTranslator() {
                     onResumeRecording={resumeRecording}
                     onStopRecording={stopRecording}
                     onTranscribe={lastRecording ? transcribeRecording : undefined}
+                    onPlayRecording={lastRecording ? playRecording : undefined}
                     onDownload={lastRecording ? () => downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
                     isTranscribing={isTranscribing}
                     compact={true}
@@ -581,6 +609,7 @@ export default function VideoTranslator() {
                 onResumeRecording={resumeRecording}
                 onStopRecording={stopRecording}
                 onTranscribe={lastRecording ? transcribeRecording : undefined}
+                onPlayRecording={lastRecording ? playRecording : undefined}
                 onDownload={lastRecording ? () => downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
                 isTranscribing={isTranscribing}
               />

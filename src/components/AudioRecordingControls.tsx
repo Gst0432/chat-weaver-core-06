@@ -12,6 +12,7 @@ interface AudioRecordingControlsProps {
   onResumeRecording: () => void;
   onStopRecording: () => void;
   onTranscribe?: () => void;
+  onPlayRecording?: () => void;
   onDownload?: () => void;
   isTranscribing?: boolean;
   compact?: boolean;
@@ -24,6 +25,7 @@ export const AudioRecordingControls: React.FC<AudioRecordingControlsProps> = ({
   onResumeRecording,
   onStopRecording,
   onTranscribe,
+  onPlayRecording,
   onDownload,
   isTranscribing = false,
   compact = false
@@ -112,10 +114,20 @@ export const AudioRecordingControls: React.FC<AudioRecordingControlsProps> = ({
   };
 
   const renderPostRecordingActions = () => {
-    if (isRecording || isPaused || (!onTranscribe && !onDownload)) return null;
+    if (isRecording || isPaused || (!onTranscribe && !onPlayRecording && !onDownload)) return null;
 
     return (
       <div className="flex gap-2 mt-2">
+        {onPlayRecording && (
+          <Button 
+            onClick={onPlayRecording}
+            variant="outline"
+            size={compact ? "sm" : "default"}
+          >
+            <Play className="w-4 h-4 mr-2" />
+            Écouter
+          </Button>
+        )}
         {onTranscribe && (
           <Button 
             onClick={onTranscribe}
