@@ -140,7 +140,7 @@ export const EnhancedStreamingMessage: React.FC<EnhancedStreamingMessageProps> =
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className={`${modelInfo.color} text-white text-xs`}>
+              <AvatarFallback className={`${modelInfo.color} text-primary-foreground text-xs`}>
                 {modelInfo.icon}
               </AvatarFallback>
             </Avatar>
@@ -250,7 +250,7 @@ export const EnhancedStreamingMessage: React.FC<EnhancedStreamingMessageProps> =
               <select
                 value={typingSpeed}
                 onChange={(e) => setTypingSpeed(Number(e.target.value))}
-                className="bg-transparent border border-border rounded px-2 py-1"
+                className="bg-background border border-border rounded px-2 py-1 text-foreground"
               >
                 <option value={20}>Très rapide</option>
                 <option value={50}>Rapide</option>

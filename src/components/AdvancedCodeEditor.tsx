@@ -131,7 +131,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-900">
           🚀 Application Générée par IA
         </h1>
-        <div className="bg-white rounded-lg shadow-xl p-6">
+        <div className="bg-card rounded-lg shadow-elegant p-6">
           <p className="text-gray-600">
             Votre application est prête ! Vous pouvez maintenant la modifier et l'améliorer.
           </p>
@@ -404,7 +404,7 @@ export default App`,
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={30} minSize={20}>
                   <div className="h-full bg-black text-green-400 font-mono text-sm">
-                    <div className="p-2 border-b border-gray-700 bg-gray-900 text-white">
+                    <div className="p-2 border-b border-border bg-card text-card-foreground">
                       <span>Terminal</span>
                     </div>
                     <ScrollArea className="h-[calc(100%-2.5rem)] p-4">
