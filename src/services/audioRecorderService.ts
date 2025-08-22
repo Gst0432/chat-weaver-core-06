@@ -46,19 +46,23 @@ export class AudioRecorderService {
   }
 
   private getCurrentDuration(): number {
-    if (!this.startTime) return 0;
+    if (!this.startTime || this.startTime <= 0) return 0;
     
+    const now = Date.now();
     if (this.mediaRecorder?.state === 'recording') {
-      return Date.now() - this.startTime - this.totalPausedTime;
-    } else if (this.mediaRecorder?.state === 'paused') {
-      return this.pauseTime - this.startTime - this.totalPausedTime;
+      return Math.max(0, now - this.startTime - this.totalPausedTime);
+    } else if (this.mediaRecorder?.state === 'paused' && this.pauseTime > 0) {
+      return Math.max(0, this.pauseTime - this.startTime - this.totalPausedTime);
     }
     
     return 0;
   }
 
   private getCurrentSize(): number {
-    return this.chunks.reduce((total, chunk) => total + chunk.size, 0);
+    if (!this.chunks || this.chunks.length === 0) return 0;
+    return this.chunks.reduce((total, chunk) => {
+      return total + (chunk?.size || 0);
+    }, 0);
   }
 
   async startRecording(): Promise<void> {
@@ -203,6 +207,7 @@ export class AudioRecorderService {
 
   // Utility methods
   static formatDuration(ms: number): string {
+    if (!ms || isNaN(ms) || ms < 0) return '00:00';
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -210,11 +215,12 @@ export class AudioRecorderService {
   }
 
   static formatSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
+    if (!bytes || isNaN(bytes) || bytes <= 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    const size = bytes / Math.pow(k, i);
+    return `${size.toFixed(1)} ${sizes[i]}`;
   }
 
   static downloadRecording(recording: AudioRecording, filename?: string): void {

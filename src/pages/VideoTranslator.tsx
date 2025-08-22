@@ -37,6 +37,7 @@ import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 import { RealTimeTranscriptionService } from "@/services/realTimeTranscriptionService";
 import { AudioRecorderService, AudioRecording, RecordingState } from "@/services/audioRecorderService";
 import { useRecordingStorage } from "@/hooks/useRecordingStorage";
+import { AudioRecordingControls } from "@/components/AudioRecordingControls";
 import YouTube from 'react-youtube';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -418,9 +419,9 @@ export default function VideoTranslator() {
             </div>
 
             {appMode === 'youtube' && videoId && (
-              <div className="mt-4">
+              <div className="mt-4 space-y-4">
                 <Label className="text-sm font-medium">Aperçu vidéo</Label>
-                <div className="mt-2 aspect-video max-w-md">
+                <div className="aspect-video max-w-md">
                   <YouTube
                     videoId={videoId}
                     opts={{
@@ -437,6 +438,22 @@ export default function VideoTranslator() {
                     className="rounded-lg overflow-hidden"
                   />
                 </div>
+                
+                {/* Ajout des contrôles d'enregistrement sous la vidéo */}
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium mb-3">Enregistrer un commentaire audio</h3>
+                  <AudioRecordingControls
+                    recordingState={recorderState}
+                    onStartRecording={startRecording}
+                    onPauseRecording={pauseRecording}
+                    onResumeRecording={resumeRecording}
+                    onStopRecording={stopRecording}
+                    onTranscribe={lastRecording ? transcribeRecording : undefined}
+                    onDownload={lastRecording ? () => downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
+                    isTranscribing={isTranscribing}
+                    compact={true}
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -451,165 +468,52 @@ export default function VideoTranslator() {
           
           {/* Audio Recording Column - Only show in recording mode */}
           {appMode === 'recording' && (
-            <Card className="bg-white/70 backdrop-blur-sm border-border/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mic className="w-5 h-5" />
-                  Enregistrement Audio
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Recording Controls */}
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    onClick={startRecording}
-                    disabled={recorderState.isRecording || recorderState.isPaused}
-                    variant="default"
-                    size="sm"
-                    className="bg-red-500 hover:bg-red-600 text-white"
-                  >
-                    <Circle className="w-4 h-4 mr-2 fill-current" />
-                    Enregistrer
-                  </Button>
-                  
-                  <Button
-                    onClick={pauseRecording}
-                    disabled={!recorderState.isRecording || recorderState.isPaused}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pause
-                  </Button>
-                  
-                  <Button
-                    onClick={resumeRecording}
-                    disabled={!recorderState.isPaused}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Continuer
-                  </Button>
-                  
-                  <Button
-                    onClick={stopRecording}
-                    disabled={!recorderState.isRecording && !recorderState.isPaused}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Square className="w-4 h-4 mr-2" />
-                    Arrêter
-                  </Button>
-                </div>
+            <div className="space-y-6">
+              <AudioRecordingControls
+                recordingState={recorderState}
+                onStartRecording={startRecording}
+                onPauseRecording={pauseRecording}
+                onResumeRecording={resumeRecording}
+                onStopRecording={stopRecording}
+                onTranscribe={lastRecording ? transcribeRecording : undefined}
+                onDownload={lastRecording ? () => downloadRecording(lastRecording, `recording-${Date.now()}.webm`) : undefined}
+                isTranscribing={isTranscribing}
+              />
 
-                {/* Recording Status */}
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Status:</span>
-                    <span className={`text-sm px-2 py-1 rounded-full ${
-                      recorderState.isRecording && !recorderState.isPaused 
-                        ? 'bg-red-100 text-red-800' 
-                        : recorderState.isPaused
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {recorderState.isRecording && !recorderState.isPaused 
-                        ? '🔴 Enregistrement en cours...' 
-                        : recorderState.isPaused
-                        ? '⏸️ En pause'
-                        : '⏹️ Arrêté'
-                      }
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <div>Durée: {formatDuration(recorderState.duration)}</div>
-                    <div>Taille: {formatSize(recorderState.size)}</div>
-                  </div>
+              {/* Post-recording Actions */}
+              {lastRecording && !recorderState.isRecording && !recorderState.isPaused && (
+                <Card className="bg-white/70 backdrop-blur-sm border-border/20">
+                  <CardContent className="pt-6">
+                    <Button 
+                      onClick={() => {
+                        const url = URL.createObjectURL(lastRecording.blob);
+                        const audio = new Audio(url);
+                        audio.play();
+                      }}
+                      variant="outline"
+                      className="w-full mb-2"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Écouter l'enregistrement
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
-                  {(recorderState.isRecording || recorderState.isPaused) && (
-                    <div className="mt-2">
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min((recorderState.duration / 600000) * 100, 100)}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Max: 10 minutes
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Post-Recording Actions */}
-                {lastRecording && (
-                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
-                    <h4 className="font-medium">Dernier enregistrement</h4>
-                    <div className="text-sm text-muted-foreground">
-                      Durée: {formatDuration(lastRecording.duration)} | 
-                      Taille: {formatSize(lastRecording.size)}
-                    </div>
-                    
-                    <div className="flex gap-2 flex-wrap">
-                      {recordingBlob && (
-                        <Button
-                          onClick={() => {
-                            const audio = new Audio(URL.createObjectURL(recordingBlob));
-                            audio.play();
-                          }}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Volume2 className="w-4 h-4 mr-2" />
-                          Écouter
-                        </Button>
-                      )}
-                      
-                      <Button
-                        onClick={() => downloadRecording(lastRecording, 'enregistrement-audio')}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Télécharger
-                      </Button>
-                      
-                      <Button
-                        onClick={transcribeRecording}
-                        disabled={!lastRecording || isTranscribing}
-                        variant="default"
-                        size="sm"
-                        className="bg-blue-500 hover:bg-blue-600 text-white"
-                      >
-                        {isTranscribing ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Transcription...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="w-4 h-4 mr-2" />
-                            Transcrire avec IA
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Recordings History */}
-                {recordingStorage.recordings.length > 0 && (
-                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
-                    <h4 className="font-medium">Historique des enregistrements</h4>
+              {/* Recording History */}
+              {recordingStorage.recordings.length > 0 && (
+                <Card className="bg-white/70 backdrop-blur-sm border-border/20">
+                  <CardHeader>
+                    <CardTitle className="text-sm">Historique des enregistrements</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                       {recordingStorage.recordings.slice(0, 5).map((recording) => (
                         <div key={recording.id} className="flex items-center justify-between bg-white/50 rounded p-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{recording.title}</p>
                             <p className="text-xs text-muted-foreground">
-                              {formatDuration(recording.duration * 1000)} • {formatSize(recording.file_size)}
+                              {AudioRecorderService.formatDuration(recording.duration * 1000)} • {AudioRecorderService.formatSize(recording.file_size)}
                             </p>
                           </div>
                           <div className="flex gap-1 ml-2">
@@ -639,10 +543,10 @@ export default function VideoTranslator() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
           {/* Original Text Column - Only show in YouTube mode */}
