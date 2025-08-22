@@ -87,24 +87,77 @@ export class ModelRecommendationService {
   private static calculateScore(model: OpenRouterModel, analysis: TaskAnalysis): number {
     let score = 50; // Base score
 
-    // Task type matching
-    if (analysis.type === 'code' && model.id.includes('claude')) score += 30;
-    if (analysis.type === 'creative' && model.id.includes('gpt-4')) score += 25;
-    if (analysis.type === 'reasoning' && (model.id.includes('claude') || model.id.includes('o1'))) score += 35;
-    if (analysis.type === 'vision' && model.id.includes('gpt-4')) score += 30;
-    if (analysis.type === 'math' && model.id.includes('o1')) score += 40;
+    // PHASE 4: Scoring mis à jour pour nouveaux modèles
+    // Task type matching avec priorité nouveaux modèles
+    if (analysis.type === 'code') {
+      if (model.id.includes('codestral-2405')) score += 45; // Meilleur code spécialisé
+      else if (model.id.includes('deepseek-coder-v2')) score += 40;
+      else if (model.id.includes('claude-opus-4') || model.id.includes('claude-sonnet-4')) score += 35;
+      else if (model.id.includes('claude')) score += 25;
+    }
+    
+    if (analysis.type === 'creative') {
+      if (model.id.includes('claude-opus-4')) score += 45; // Claude 4 top créativité
+      else if (model.id.includes('gpt-5')) score += 40;
+      else if (model.id.includes('mistral-large-2411')) score += 35;
+      else if (model.id.includes('gpt-4')) score += 20;
+    }
+    
+    if (analysis.type === 'reasoning') {
+      if (model.id.includes('o3-2025')) score += 50; // O3 meilleur raisonnement
+      else if (model.id.includes('claude-opus-4')) score += 45;
+      else if (model.id.includes('deepseek-reasoner')) score += 40;
+      else if (model.id.includes('o4-mini')) score += 35;
+      else if (model.id.includes('claude') || model.id.includes('o1')) score += 25;
+    }
+    
+    if (analysis.type === 'vision') {
+      if (model.id.includes('llama-3.2') && model.id.includes('vision')) score += 45;
+      else if (model.id.includes('pixtral-large')) score += 40;
+      else if (model.id.includes('grok-2-vision')) score += 35;
+      else if (model.id.includes('gemini-2.0')) score += 30;
+      else if (model.id.includes('gpt-4')) score += 25;
+    }
+    
+    if (analysis.type === 'math') {
+      if (model.id.includes('o3-2025')) score += 50;
+      else if (model.id.includes('deepseek-reasoner')) score += 45;
+      else if (model.id.includes('claude-opus-4')) score += 40;
+      else if (model.id.includes('o1')) score += 35;
+    }
 
-    // Speed preference
-    if (analysis.speed === 'fast' && model.id.includes('mini')) score += 20;
-    if (analysis.speed === 'quality' && model.id.includes('claude-3-5-sonnet')) score += 25;
+    // Speed preference avec nouveaux modèles
+    if (analysis.speed === 'fast') {
+      if (model.id.includes('gpt-5-nano')) score += 35;
+      else if (model.id.includes('ministral-3b') || model.id.includes('ministral-8b')) score += 30;
+      else if (model.id.includes('gemini-flash-1.5-8b')) score += 25;
+      else if (model.id.includes('mini') || model.id.includes('haiku')) score += 20;
+    }
+    
+    if (analysis.speed === 'quality') {
+      if (model.id.includes('claude-opus-4') || model.id.includes('claude-sonnet-4')) score += 35;
+      else if (model.id.includes('gpt-5-2025')) score += 30;
+      else if (model.id.includes('claude-3-5-sonnet')) score += 20;
+    }
 
-    // Budget preference
-    if (analysis.budget === 'economy' && model.pricing.prompt < 0.001) score += 15;
-    if (analysis.budget === 'premium' && model.pricing.prompt > 0.01) score += 10;
+    // Budget preference optimisé
+    if (analysis.budget === 'economy') {
+      if (model.pricing.prompt === 0) score += 25; // Modèles gratuits
+      else if (model.pricing.prompt < 0.0005) score += 20;
+      else if (model.pricing.prompt < 0.001) score += 15;
+    }
+    
+    if (analysis.budget === 'premium') {
+      if (model.id.includes('claude-opus-4') || model.id.includes('gpt-5') || model.id.includes('o3')) score += 15;
+      else if (model.pricing.prompt > 0.01) score += 10;
+    }
 
-    // Complexity matching
-    if (analysis.complexity === 'high' && !model.id.includes('mini')) score += 15;
-    if (analysis.complexity === 'low' && model.id.includes('mini')) score += 10;
+    // Nouveaux modèles bonus
+    if (model.id.includes('2025') || model.id.includes('2411') || model.id.includes('v3')) score += 10;
+    
+    // Complexity matching amélioré
+    if (analysis.complexity === 'high' && !model.id.includes('mini') && !model.id.includes('nano') && !model.id.includes('light')) score += 15;
+    if (analysis.complexity === 'low' && (model.id.includes('mini') || model.id.includes('nano') || model.id.includes('light'))) score += 10;
 
     return Math.min(100, Math.max(0, score));
   }
@@ -134,12 +187,36 @@ export class ModelRecommendationService {
   private static generateTags(model: OpenRouterModel, analysis: TaskAnalysis): string[] {
     const tags = [];
     
-    if (model.id.includes('mini') || model.pricing.prompt < 0.001) tags.push('Économique');
-    if (model.id.includes('gpt-5') || model.id.includes('claude-3-5')) tags.push('Premium');
-    if (model.id.includes('mini')) tags.push('Rapide');
-    if (analysis.type === 'code') tags.push('Code');
-    if (analysis.type === 'creative') tags.push('Créatif');
-    if (model.context_length > 100000) tags.push('Large contexte');
+    // Tags économiques et gratuits
+    if (model.pricing.prompt === 0) tags.push('🆓 Gratuit');
+    else if (model.id.includes('mini') || model.id.includes('nano') || model.pricing.prompt < 0.001) tags.push('💰 Économique');
+    
+    // Tags premium nouveaux modèles
+    if (model.id.includes('gpt-5') || model.id.includes('claude') && model.id.includes('4')) tags.push('👑 Premium');
+    else if (model.id.includes('o3') || model.id.includes('claude-opus-4')) tags.push('🏆 Flagship');
+    
+    // Tags vitesse
+    if (model.id.includes('nano') || model.id.includes('ministral-3b')) tags.push('🚀 Ultra-rapide');
+    else if (model.id.includes('mini') || model.id.includes('haiku') || model.id.includes('flash')) tags.push('⚡ Rapide');
+    
+    // Tags spécialisés
+    if (analysis.type === 'code' || model.id.includes('code') || model.id.includes('coder')) tags.push('💻 Code');
+    if (analysis.type === 'creative' || model.category === 'Créatif') tags.push('🎨 Créatif');
+    if (model.id.includes('vision') || model.id.includes('pixtral')) tags.push('👁️ Vision');
+    if (model.id.includes('reasoning') || model.id.includes('reasoner') || model.id.includes('o3') || model.id.includes('o4')) tags.push('🧠 Raisonnement');
+    
+    // Tags contexte et capacités
+    if (model.context_length > 100000) tags.push('📚 Large contexte');
+    if (model.id.includes('online') || model.provider === 'Perplexity') tags.push('🌐 Web Search');
+    
+    // Tags génération et nouveauté
+    if (model.id.includes('2025') || model.id.includes('2411') || model.id.includes('v3')) tags.push('🆕 Nouveau');
+    if (model.id.includes('exp') || model.id.includes('beta') || model.id.includes('preview')) tags.push('🧪 Expérimental');
+    
+    // Tags fournisseurs spéciaux
+    if (model.provider === 'Mistral' || model.provider === 'Mistral AI') tags.push('🇫🇷 Français');
+    if (model.provider === 'xAI') tags.push('🤖 Grok');
+    if (model.provider === 'Meta') tags.push('🦙 Open Source');
     
     return tags;
   }
@@ -174,6 +251,6 @@ export class ModelRecommendationService {
 
   static getBestModelForTask(analysis: TaskAnalysis): string {
     const recommendations = this.getRecommendations(analysis, 1);
-    return recommendations[0]?.model.id || 'openai/gpt-4o-mini';
+    return recommendations[0]?.model.id || 'openai/gpt-5-mini-2025-08-07'; // Nouveau défaut GPT-5 Mini
   }
 }

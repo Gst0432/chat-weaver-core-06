@@ -9,234 +9,383 @@ const models = [
   // === ROUTAGE INTELLIGENT ===
   {
     id: "auto-router",
-    name: "Auto (Routeur)",
-    provider: "Intelligent",
+    name: "🤖 Auto (IA Router)",
+    provider: "Intelligence",
     icon: Search,
     color: "openai",
-    description: "Choisit automatiquement le meilleur modèle selon la tâche"
+    description: "Sélection automatique du meilleur modèle selon la tâche"
   },
 
-  // === OPENROUTER - MODÈLES POPULAIRES ===
+  // === 🚀 PHASE 1: GPT-5 OPENROUTER (FLAGSHIP 2025) ===
   {
-    id: "openai/gpt-4o",
-    name: "GPT-4o (OpenRouter)",
+    id: "openai/gpt-5-2025-08-07",
+    name: "🏆 GPT-5 Flagship",
     provider: "OpenAI",
     icon: Sparkles,
     color: "openai",
-    description: "Modèle multimodal via OpenRouter - Plus économique"
+    description: "Le flagship GPT-5 via OpenRouter - Capacités révolutionnaires"
   },
   {
-    id: "anthropic/claude-3.5-sonnet",
-    name: "Claude 3.5 Sonnet",  
-    provider: "Anthropic",
-    icon: Sparkles,
-    color: "claude",
-    description: "Excellent pour l'écriture et l'analyse via OpenRouter"
-  },
-  {
-    id: "google/gemini-pro-1.5",
-    name: "Gemini Pro 1.5",
-    provider: "Google",
-    icon: Globe,
-    color: "gemini", 
-    description: "Contexte ultra-long (2M tokens) via OpenRouter"
-  },
-  {
-    id: "meta-llama/llama-3.1-405b-instruct",
-    name: "Llama 3.1 405B",
-    provider: "Meta",
-    icon: Code2,
-    color: "codestral",
-    description: "Modèle open-source le plus puissant via OpenRouter"
-  },
-  {
-    id: "meta-llama/codellama-34b-instruct",
-    name: "Code Llama 34B",
-    provider: "Meta", 
-    icon: Code2,
-    color: "codestral",
-    description: "Spécialisé code et programmation via OpenRouter"
-  },
-  
-  // === MODÈLES GÉNÉRALISTES ===
-  {
-    id: "gpt-5-2025-08-07",
-    name: "GPT-5",
-    provider: "OpenAI",
-    icon: Sparkles,
-    color: "openai",
-    description: "Le modèle phare d'OpenAI avec recherche web native"
-  },
-  {
-    id: "gpt-5-mini-2025-08-07",
-    name: "GPT-5 Mini",
+    id: "openai/gpt-5-mini-2025-08-07",
+    name: "⚡ GPT-5 Mini",
     provider: "OpenAI",
     icon: Zap,
     color: "openai",
-    description: "Version rapide et efficace de GPT-5"
+    description: "GPT-5 économique et rapide - Meilleur rapport qualité/prix"
   },
   {
-    id: "gpt-5-nano-2025-08-07",
-    name: "GPT-5 Nano",
+    id: "openai/gpt-5-nano-2025-08-07",
+    name: "🚀 GPT-5 Nano",
     provider: "OpenAI",
     icon: Zap,
     color: "openai",
-    description: "Version ultra-rapide pour tâches simples"
+    description: "GPT-5 ultra-rapide pour réponses instantanées"
   },
   {
-    id: "gpt-4.1-2025-04-14",
-    name: "GPT-4.1",
-    provider: "OpenAI",
-    icon: Sparkles,
-    color: "openai",
-    description: "Modèle GPT-4 fiable et éprouvé"
-  },
-  {
-    id: "gpt-4.1-mini-2025-04-14",
-    name: "GPT-4.1 Mini",
-    provider: "OpenAI",
-    icon: Zap,
-    color: "openai",
-    description: "Version rapide et économique de GPT-4.1"
-  },
-
-  // === MODÈLES DE RAISONNEMENT ===
-  {
-    id: "o3-2025-04-16",
-    name: "O3",
+    id: "openai/o3-2025-04-16",
+    name: "🧠 O3 Reasoning",
     provider: "OpenAI",
     icon: Cpu,
     color: "openai",
-    description: "Modèle de raisonnement avancé pour analyses complexes"
+    description: "Raisonnement avancé O3 - Analyses complexes"
   },
   {
-    id: "o4-mini-2025-04-16",
-    name: "O4 Mini",
+    id: "openai/o4-mini-2025-04-16",
+    name: "⚡ O4 Mini Reasoning",
     provider: "OpenAI",
     icon: Cpu,
     color: "openai",
     description: "Raisonnement rapide et efficace"
   },
 
-  // === CLAUDE - SPÉCIALISTE CODE ===
+  // === 🎯 PHASE 2.1: CLAUDE 4 & ANTHROPIC (TOP TIER) ===
   {
-    id: "claude-3-5-sonnet-20241022",
+    id: "anthropic/claude-opus-4-20250514",
+    name: "👑 Claude Opus 4",
+    provider: "Anthropic",
+    icon: Sparkles,
+    color: "claude",
+    description: "Le plus capable - Raisonnement supérieur Claude 4"
+  },
+  {
+    id: "anthropic/claude-sonnet-4-20250514",
+    name: "🎯 Claude Sonnet 4",
+    provider: "Anthropic",
+    icon: Sparkles,
+    color: "claude",
+    description: "Haute performance - Raisonnement exceptionnel"
+  },
+  {
+    id: "anthropic/claude-3-5-haiku-20241022",
+    name: "⚡ Claude 3.5 Haiku",
+    provider: "Anthropic",
+    icon: Zap,
+    color: "claude",
+    description: "Le plus rapide - Réponses instantanées"
+  },
+  {
+    id: "anthropic/claude-3-7-sonnet-20250219",
+    name: "🤔 Claude 3.7 Sonnet",
+    provider: "Anthropic",
+    icon: Cpu,
+    color: "claude",
+    description: "Thinking étendu - Remplacé par Claude 4"
+  },
+  {
+    id: "anthropic/claude-3-5-sonnet-20241022",
     name: "Claude 3.5 Sonnet",
     provider: "Anthropic",
     icon: Code2,
     color: "claude",
-    description: "🏆 Expert en programmation, debug et architecture"
-  },
-  {
-    id: "claude-3-5-haiku-20241022",
-    name: "Claude 3.5 Haiku",
-    provider: "Anthropic",
-    icon: Zap,
-    color: "claude",
-    description: "⚡ Version rapide pour code simple et corrections"
-  },
-  {
-    id: "claude-3-opus-20240229",
-    name: "Claude 3 Opus",
-    provider: "Anthropic",
-    icon: Sparkles,
-    color: "claude",
-    description: "💎 Le plus puissant pour projets complexes"
+    description: "Version précédente - Expert programmation"
   },
 
-  // === SPÉCIALISTES CODE AVANCÉS ===
+  // === 🌟 PHASE 2.2: GOOGLE GEMINI 2.0 (NOUVELLE GÉNÉRATION) ===
   {
-    id: "deepseek-chat",
-    name: "DeepSeek Chat",
+    id: "google/gemini-2.0-flash-exp",
+    name: "✨ Gemini 2.0 Flash Exp",
+    provider: "Google",
+    icon: Globe,
+    color: "gemini",
+    description: "Nouvelle génération 2.0 - Multimodal avancé"
+  },
+  {
+    id: "google/gemini-exp-1206",
+    name: "🧪 Gemini Exp 1206",
+    provider: "Google",
+    icon: Globe,
+    color: "gemini",
+    description: "Expérimental avancé - Nouvelles capacités"
+  },
+  {
+    id: "google/learnlm-1.5-pro-experimental",
+    name: "📚 LearnLM 1.5 Pro",
+    provider: "Google",
+    icon: Wrench,
+    color: "gemini",
+    description: "Spécialisé apprentissage et éducation"
+  },
+  {
+    id: "google/gemini-pro-1.5-exp",
+    name: "🚀 Gemini Pro 1.5 Exp",
+    provider: "Google",
+    icon: Globe,
+    color: "gemini",
+    description: "Pro expérimental - 2M tokens contexte"
+  },
+  {
+    id: "google/gemini-flash-1.5-8b",
+    name: "⚡ Gemini Flash 1.5 8B",
+    provider: "Google",
+    icon: Zap,
+    color: "gemini",
+    description: "Version compacte - 1M tokens économique"
+  },
+
+  // === 🦙 PHASE 2.3: META LLAMA 3.3 + VISION ===
+  {
+    id: "meta-llama/llama-3.3-70b-instruct",
+    name: "🆕 Llama 3.3 70B",
+    provider: "Meta",
+    icon: Code2,
+    color: "codestral",
+    description: "Dernière version Llama - Améliorations majeures"
+  },
+  {
+    id: "meta-llama/llama-3.2-90b-vision-instruct",
+    name: "👁️ Llama 3.2 90B Vision",
+    provider: "Meta",
+    icon: Sparkles,
+    color: "codestral",
+    description: "Vision avancée - 90B paramètres"
+  },
+  {
+    id: "meta-llama/llama-3.2-11b-vision-instruct",
+    name: "👁️ Llama 3.2 11B Vision",
+    provider: "Meta",
+    icon: Zap,
+    color: "codestral",
+    description: "Vision compacte et économique"
+  },
+  {
+    id: "meta-llama/llama-3.1-nemotron-70b-instruct",
+    name: "⚡ Llama 3.1 Nemotron 70B",
+    provider: "Meta",
+    icon: Code2,
+    color: "codestral",
+    description: "Version optimisée pour performance"
+  },
+  {
+    id: "meta-llama/llama-3.1-405b-instruct-free",
+    name: "🆓 Llama 3.1 405B Free",
+    provider: "Meta",
+    icon: Sparkles,
+    color: "codestral",
+    description: "Version gratuite du modèle 405B"
+  },
+
+  // === 🇫🇷 PHASE 2.4: MISTRAL NOUVEAUX (FRANÇAIS) ===
+  {
+    id: "mistralai/mistral-large-2411",
+    name: "🇫🇷 Mistral Large 2411",
+    provider: "Mistral AI",
+    icon: Sparkles,
+    color: "mistral",
+    description: "Dernière version française premium"
+  },
+  {
+    id: "mistralai/pixtral-large-2411",
+    name: "🖼️ Pixtral Large 2411",
+    provider: "Mistral AI",
+    icon: Globe,
+    color: "mistral",
+    description: "Multimodal français avec vision"
+  },
+  {
+    id: "mistralai/ministral-8b-2410",
+    name: "⚡ Ministral 8B",
+    provider: "Mistral AI",
+    icon: Zap,
+    color: "mistral",
+    description: "Version compacte française rapide"
+  },
+  {
+    id: "mistralai/ministral-3b-2410",
+    name: "🚀 Ministral 3B",
+    provider: "Mistral AI",
+    icon: Zap,
+    color: "mistral",
+    description: "Ultra-compact français économique"
+  },
+  {
+    id: "mistralai/codestral-2405",
+    name: "💻 Codestral 2405",
+    provider: "Mistral AI",
+    icon: Code2,
+    color: "mistral",
+    description: "Expert français en programmation"
+  },
+
+  // === 🧠 PHASE 2.5: DEEPSEEK V3 (CHINA TECH) ===
+  {
+    id: "deepseek/deepseek-v3",
+    name: "🚀 DeepSeek V3",
+    provider: "DeepSeek",
+    icon: Sparkles,
+    color: "deepseek",
+    description: "Dernière génération - Performances accrues"
+  },
+  {
+    id: "deepseek/deepseek-r1-lite-preview",
+    name: "🧠 DeepSeek R1 Lite",
+    provider: "DeepSeek",
+    icon: Cpu,
+    color: "deepseek",
+    description: "Raisonnement optimisé preview"
+  },
+  {
+    id: "deepseek/deepseek-coder-v2-lite-instruct",
+    name: "💻 DeepSeek Coder V2 Lite",
     provider: "DeepSeek",
     icon: Code2,
     color: "deepseek",
-    description: "🚀 Généraliste hautes performances pour le code"
+    description: "Code optimisé pour développement"
   },
-  // === MISTRAL AI ===
   {
-    id: "mistral-large-latest",
-    name: "Mistral Large",
-    provider: "Mistral AI",
+    id: "deepseek/deepseek-chat",
+    name: "💬 DeepSeek Chat",
+    provider: "DeepSeek",
+    icon: Sparkles,
+    color: "deepseek",
+    description: "Version chat polyvalente"
+  },
+  {
+    id: "deepseek/deepseek-reasoner",
+    name: "🤔 DeepSeek Reasoner",
+    provider: "DeepSeek",
+    icon: Cpu,
+    color: "deepseek",
+    description: "Raisonnement pur et logique"
+  },
+
+  // === 🤖 PHASE 3.1: xAI GROK (ELON'S AI) ===
+  {
+    id: "x-ai/grok-2-1212",
+    name: "🚀 Grok 2.1212",
+    provider: "xAI",
+    icon: Sparkles,
+    color: "perplexity",
+    description: "Dernière génération Grok avec personnalité"
+  },
+  {
+    id: "x-ai/grok-2-vision-1212",
+    name: "👁️ Grok 2 Vision",
+    provider: "xAI",
+    icon: Globe,
+    color: "perplexity",
+    description: "Grok avec capacités vision avancées"
+  },
+  {
+    id: "x-ai/grok-beta",
+    name: "🧪 Grok Beta",
+    provider: "xAI",
+    icon: Wrench,
+    color: "perplexity",
+    description: "Version beta expérimentale"
+  },
+
+  // === 🎯 PHASE 3.2: COHERE (ENTERPRISE) ===
+  {
+    id: "cohere/command-r-plus-08-2024",
+    name: "💼 Command R+ 08-2024",
+    provider: "Cohere",
     icon: Sparkles,
     color: "mistral",
-    description: "🇫🇷 Modèle généraliste français premium"
+    description: "Command R+ version enterprise"
   },
   {
-    id: "codestral-latest",
-    name: "Codestral",
-    provider: "Mistral AI",
+    id: "cohere/command-r-08-2024",
+    name: "💼 Command R 08-2024",
+    provider: "Cohere",
     icon: Code2,
     color: "mistral",
-    description: "🔧 Expert français en programmation et code"
+    description: "Command R version standard"
   },
   {
-    id: "mistral-small-latest",
-    name: "Mistral Small",
-    provider: "Mistral AI",
+    id: "cohere/command-light",
+    name: "⚡ Command Light",
+    provider: "Cohere",
     icon: Zap,
     color: "mistral",
-    description: "⚡ Modèle français rapide et économique"
-  },
-  {
-    id: "mistral-nemo",
-    name: "Mistral Nemo",
-    provider: "Mistral AI",
-    icon: Wrench,
-    color: "mistral",
-    description: "🛠️ Spécialisé pour tâches françaises spécifiques"
-  },
-  {
-    id: "llama-3.1-sonar-small-128k-online",
-    name: "Perplexity CodeLlama",
-    provider: "Perplexity",
-    icon: Globe,
-    color: "perplexity",
-    description: "🌐 Code avec recherche web temps réel"
-  },
-  {
-    id: "llama-3.1-sonar-large-128k-online",
-    name: "Perplexity Pro Code",
-    provider: "Perplexity",
-    icon: Globe,
-    color: "perplexity",
-    description: "🌐 Version puissante avec recherche web"
+    description: "Version légère et économique"
   },
 
-  // === GOOGLE GEMINI ===
+  // === 🌐 PHASE 3.3: PERPLEXITY ÉTENDUS (WEB SEARCH) ===
+  {
+    id: "perplexity/llama-3.1-sonar-huge-128k-online",
+    name: "🌐 Sonar Huge 128K Online",
+    provider: "Perplexity",
+    icon: Globe,
+    color: "perplexity",
+    description: "Recherche web - Modèle huge"
+  },
+  {
+    id: "perplexity/llama-3.1-sonar-large-128k-online",
+    name: "🌐 Sonar Large 128K Online",
+    provider: "Perplexity",
+    icon: Globe,
+    color: "perplexity",
+    description: "Recherche web - Version large"
+  },
+  {
+    id: "perplexity/llama-3.1-sonar-small-128k-online",
+    name: "🌐 Sonar Small 128K Online",
+    provider: "Perplexity",
+    icon: Globe,
+    color: "perplexity",
+    description: "Recherche web - Version compacte"
+  },
+
+  // === 📜 MODÈLES LEGACY (COMPATIBILITÉ) ===
+  {
+    id: "gpt-5-2025-08-07",
+    name: "GPT-5 (Direct)",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "GPT-5 direct - Utilise OpenRouter version"
+  },
+  {
+    id: "gpt-5-mini-2025-08-07",
+    name: "GPT-5 Mini (Direct)",
+    provider: "OpenAI",
+    icon: Zap,
+    color: "openai",
+    description: "GPT-5 Mini direct - Utilise OpenRouter version"
+  },
+  {
+    id: "claude-3-5-sonnet-20241022",
+    name: "Claude 3.5 Sonnet (Direct)",
+    provider: "Anthropic",
+    icon: Code2,
+    color: "claude",
+    description: "Claude direct - Expert programmation"
+  },
   {
     id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
+    name: "Gemini 2.5 Flash (Direct)",
     provider: "Google AI",
     icon: Zap,
     color: "gemini",
-    description: "Nouveau modèle multimodal avec context 1M tokens et capacités 'thinking'"
+    description: "Gemini direct - 1M tokens context"
   },
-  {
-    id: "gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
-    provider: "Google AI",
-    icon: Sparkles,
-    color: "gemini",
-    description: "Modèle avancé avec raisonnement 'thinking' et context 1M tokens"
-  },
-  {
-    id: "gemini-2.5-flash-lite",
-    name: "Gemini 2.5 Flash Lite",
-    provider: "Google AI",
-    icon: Zap,
-    color: "gemini",
-    description: "Version ultra-rapide pour tâches simples avec 1M context"
-  },
-
-  // === MODÈLES LEGACY ===
   {
     id: "gpt-4o",
     name: "GPT-4o (Legacy)",
     provider: "OpenAI",
     icon: Sparkles,
     color: "openai",
-    description: "Ancien modèle OpenAI - Remplacé par GPT-5"
+    description: "Ancien modèle - Remplacé par GPT-5"
   },
   {
     id: "gpt-4o-mini",
@@ -245,23 +394,7 @@ const models = [
     icon: Zap,
     color: "openai",
     description: "Ancien modèle rapide - Remplacé par GPT-5 Mini"
-  },
-  {
-    id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash (Legacy)",
-    provider: "Google",
-    icon: Zap,
-    color: "gemini",
-    description: "IA multimodale rapide avec vision et compréhension"
-  },
-  {
-    id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro (Legacy)",
-    provider: "Google",
-    icon: Sparkles,
-    color: "gemini",
-    description: "Version pro avec capacités étendues et vision"
-  },
+  }
 ];
 interface ModelSelectorProps {
   selectedModel: string;
