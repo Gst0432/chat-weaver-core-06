@@ -52,7 +52,7 @@ serve(async (req) => {
     const mime = format.toLowerCase() === 'wav' ? 'audio/wav' : 'audio/mpeg'
 
     return new Response(
-      JSON.stringify({ audio: base64Audio, mime }),
+      JSON.stringify({ audioContent: base64Audio, mime }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (error: any) {

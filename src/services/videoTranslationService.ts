@@ -87,19 +87,27 @@ export class VideoTranslationService {
   }
 
   private static async transcribeAudio(audioData: any) {
-    // For simulation, we'll return mock transcription
-    // In production, you would use the voice-to-text function
-    
-    // Mock transcription based on video metadata
-    const mockTranscription = `Ceci est une transcription simulée de la vidéo YouTube. 
-    Dans une implémentation réelle, cette fonction utiliserait l'edge function voice-to-text 
-    pour transcrire l'audio extrait de la vidéo. Le service Whisper d'OpenAI serait utilisé 
-    pour convertir l'audio en texte avec une haute précision. La transcription inclurait 
-    la ponctuation automatique et la détection de langue.`;
+    if (!audioData.audioBase64) {
+      throw new Error('Aucune donnée audio disponible pour la transcription');
+    }
+
+    const { data, error } = await supabase.functions.invoke('voice-to-text', {
+      body: {
+        audio: audioData.audioBase64
+      }
+    });
+
+    if (error) {
+      throw new Error(`Erreur de transcription: ${error.message}`);
+    }
+
+    if (!data.text) {
+      throw new Error('Échec de la transcription audio');
+    }
 
     return {
-      text: mockTranscription,
-      language: 'fr',
+      text: data.text,
+      language: audioData.detectedLanguage || 'auto',
       duration: audioData.metadata?.duration || 0
     };
   }
