@@ -6,6 +6,12 @@ export interface ImageGenerationOptions {
   size?: '1024x1024' | '1792x1024' | '1024x1792';
   quality?: 'hd' | 'standard';
   provider?: 'dalle' | 'runware' | 'huggingface' | 'stable-diffusion' | 'midjourney' | 'auto';
+  
+  // 🎯 CONTRÔLE DE FIDÉLITÉ AU PROMPT
+  preserveOriginalPrompt?: boolean; // Utiliser les instructions exactes
+  promptFidelity?: number; // 0-100, contrôle les améliorations automatiques
+  autoTranslate?: boolean; // Traduire automatiquement le français
+  
   // Options avancées Runware pour fidélité
   cfgScale?: number; // 1-20, plus élevé = plus fidèle
   steps?: number; // 1-50, plus élevé = plus de détails
@@ -73,7 +79,20 @@ export class ImageService {
    * Auto-sélection intelligente basée sur le type de demande
    */
   static async generateImage(options: ImageGenerationOptions): Promise<string> {
-    const prompt = this.enhancePromptForFidelity(options.prompt);
+    // 🎯 RESPECT FIDÈLE DES INSTRUCTIONS
+    let prompt = options.prompt;
+    
+    // Traduction française intelligente si demandée
+    if (options.autoTranslate !== false) {
+      prompt = this.intelligentTranslation(prompt);
+    }
+    
+    // Améliorations contextuelles optionnelles
+    if (!options.preserveOriginalPrompt) {
+      const fidelityLevel = options.promptFidelity ?? 50; // 50% par défaut
+      prompt = this.enhancePromptWithFidelity(prompt, fidelityLevel);
+    }
+    
     let finalProvider = options.provider;
     
     // Auto-sélection du meilleur provider
@@ -236,38 +255,103 @@ export class ImageService {
   }
 
   /**
-   * Améliore les prompts pour une fidélité maximale aux descriptions
+   * 🎯 TRADUCTION FRANÇAISE INTELLIGENTE
    */
-  static enhancePromptForFidelity(prompt: string): string {
-    // Si le prompt contient déjà des détails techniques, ne pas sur-améliorer
-    if (prompt.length > 100 && (prompt.includes('detailed') || prompt.includes('realistic') || prompt.includes('8k'))) {
+  static intelligentTranslation(prompt: string): string {
+    // Dictionnaire français-anglais étendu pour les termes courants
+    const commonTranslations = {
+      // Animaux
+      'chat': 'cat', 'chien': 'dog', 'oiseau': 'bird', 'poisson': 'fish', 'cheval': 'horse',
+      'vache': 'cow', 'mouton': 'sheep', 'lapin': 'rabbit', 'souris': 'mouse', 'lion': 'lion',
+      
+      // Nature & paysages
+      'paysage': 'landscape', 'montagne': 'mountain', 'océan': 'ocean', 'mer': 'sea',
+      'forêt': 'forest', 'arbre': 'tree', 'fleur': 'flower', 'jardin': 'garden',
+      'rivière': 'river', 'lac': 'lake', 'plage': 'beach', 'désert': 'desert',
+      
+      // Architecture
+      'maison': 'house', 'château': 'castle', 'église': 'church', 'ville': 'city',
+      'bâtiment': 'building', 'pont': 'bridge', 'tour': 'tower', 'rue': 'street',
+      
+      // Couleurs
+      'rouge': 'red', 'bleu': 'blue', 'vert': 'green', 'jaune': 'yellow',
+      'noir': 'black', 'blanc': 'white', 'gris': 'gray', 'rose': 'pink',
+      
+      // Temps & éclairage
+      'coucher de soleil': 'sunset', 'lever de soleil': 'sunrise', 'nuit': 'night',
+      'jour': 'day', 'matin': 'morning', 'soir': 'evening', 'lumière': 'light',
+      
+      // Style & qualité
+      'beau': 'beautiful', 'joli': 'pretty', 'magnifique': 'magnificent',
+      'réaliste': 'realistic', 'artistique': 'artistic', 'moderne': 'modern',
+      'ancien': 'ancient', 'classique': 'classic'
+    };
+    
+    let translatedPrompt = prompt;
+    
+    // Appliquer les traductions mot par mot
+    Object.entries(commonTranslations).forEach(([french, english]) => {
+      const regex = new RegExp(`\\b${french}\\b`, 'gi');
+      translatedPrompt = translatedPrompt.replace(regex, english);
+    });
+    
+    return translatedPrompt;
+  }
+
+  /**
+   * 🎯 AMÉLIORATIONS CONTEXTUELLES AVEC CONTRÔLE DE FIDÉLITÉ
+   */
+  static enhancePromptWithFidelity(prompt: string, fidelityLevel: number): string {
+    // Si fidélité 100%, retourner le prompt original
+    if (fidelityLevel >= 100) {
       return prompt;
     }
     
-    // Techniques de prompt engineering pour une fidélité maximale
-    const fidelityEnhancements = [
-      "masterpiece",
-      "best quality", 
-      "ultra-detailed",
-      "photorealistic",
-      "perfect composition",
-      "professional photography",
-      "studio lighting"
-    ];
+    // Détecter l'intention du prompt (minimaliste, détaillé, artistique)
+    const isMinimalist = /simple|minimal|clean|basic/i.test(prompt);
+    const isDetailed = /detailed|complex|intricate|elaborate/i.test(prompt);
     
-    // Ajouter des détails spécifiques selon le type de contenu
-    let enhancedPrompt = prompt;
-    
-    // Détection du type de contenu pour des améliorations ciblées
-    if (/portrait|person|face|human/i.test(prompt)) {
-      enhancedPrompt += ", perfect facial features, detailed eyes, natural skin texture";
-    } else if (/landscape|nature|outdoor/i.test(prompt)) {
-      enhancedPrompt += ", natural lighting, depth of field, atmospheric perspective";
-    } else if (/art|painting|drawing/i.test(prompt)) {
-      enhancedPrompt += ", fine art style, detailed brushwork, rich colors";
+    // Respecter l'intention minimaliste
+    if (isMinimalist && fidelityLevel > 30) {
+      return prompt; // Ne pas sur-améliorer les prompts minimalistes
     }
     
-    return `${enhancedPrompt}, ${fidelityEnhancements.join(', ')}, 8k uhd, sharp focus`;
+    let enhancedPrompt = prompt;
+    
+    // Améliorations graduelles selon le niveau de fidélité
+    if (fidelityLevel < 70 && !isMinimalist) {
+      // Améliorations légères (30-69%)
+      const lightEnhancements = ['high quality', 'professional'];
+      enhancedPrompt += `, ${lightEnhancements.join(', ')}`;
+    }
+    
+    if (fidelityLevel < 40 && !isMinimalist && !isDetailed) {
+      // Améliorations moyennes (0-39%)
+      const mediumEnhancements = ['detailed', 'sharp focus'];
+      enhancedPrompt += `, ${mediumEnhancements.join(', ')}`;
+      
+      // Détection du type de contenu pour des améliorations ciblées
+      if (/portrait|person|face|human/i.test(prompt)) {
+        enhancedPrompt += ", natural skin texture";
+      } else if (/landscape|nature|outdoor/i.test(prompt)) {
+        enhancedPrompt += ", natural lighting";
+      }
+    }
+    
+    if (fidelityLevel < 20 && !isMinimalist) {
+      // Améliorations maximales (0-19%)
+      const heavyEnhancements = ['masterpiece', 'best quality', 'ultra-detailed'];
+      enhancedPrompt += `, ${heavyEnhancements.join(', ')}`;
+    }
+    
+    return enhancedPrompt;
+  }
+
+  /**
+   * @deprecated Utilisez enhancePromptWithFidelity à la place
+   */
+  static enhancePromptForFidelity(prompt: string): string {
+    return this.enhancePromptWithFidelity(prompt, 30); // Niveau moyen par défaut
   }
 
   /**

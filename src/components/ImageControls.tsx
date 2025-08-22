@@ -29,6 +29,29 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
   const [quality, setQuality] = useState<'hd' | 'standard'>('hd');
   const [provider, setProvider] = useState<'dalle' | 'runware'>('dalle');
   
+  // 🎯 CONTRÔLES DE FIDÉLITÉ AU PROMPT
+  const [preserveOriginalPrompt, setPreserveOriginalPrompt] = useState(false);
+  const [promptFidelity, setPromptFidelity] = useState(50); // 50% par défaut
+  const [autoTranslate, setAutoTranslate] = useState(true);
+  const [showFinalPrompt, setShowFinalPrompt] = useState(false);
+  
+  // Fonction pour prévisualiser le prompt final
+  const generateFinalPrompt = (): string => {
+    let finalPrompt = prompt.trim();
+    
+    if (autoTranslate) {
+      finalPrompt = ImageService.intelligentTranslation(finalPrompt);
+    }
+    
+    if (!preserveOriginalPrompt) {
+      finalPrompt = ImageService.enhancePromptWithFidelity(finalPrompt, promptFidelity);
+    }
+    
+    return finalPrompt;
+  };
+  
+  const [previewPrompt, setPreviewPrompt] = useState<string>('');
+  
   // Options avancées Runware pour fidélité maximale
   const [cfgScale, setCfgScale] = useState(15); // Fidélité très élevée (augmenté)
   const [steps, setSteps] = useState(30); // Plus de détails (augmenté)
@@ -82,6 +105,10 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
         size,
         quality,
         provider,
+        // 🎯 Contrôles de fidélité
+        preserveOriginalPrompt,
+        promptFidelity,
+        autoTranslate,
         // Options avancées Runware
         cfgScale: provider === 'runware' ? cfgScale : undefined,
         steps: provider === 'runware' ? steps : undefined,
@@ -297,6 +324,84 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
                 onChange={(e) => setPrompt(e.target.value)}
                 className="min-h-[80px]"
               />
+              
+              {/* 🎯 CONTRÔLES DE FIDÉLITÉ AU PROMPT */}
+              <div className="space-y-3 p-4 border rounded-lg bg-blue-50/50">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-blue-600" />
+                  <Label className="text-blue-800 font-medium">Contrôle des Instructions</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="preserve-prompt"
+                    checked={preserveOriginalPrompt}
+                    onCheckedChange={setPreserveOriginalPrompt}
+                  />
+                  <Label htmlFor="preserve-prompt" className="text-sm">
+                    Utiliser mes instructions exactes (sans amélioration automatique)
+                  </Label>
+                </div>
+                
+                {!preserveOriginalPrompt && (
+                  <div className="space-y-2">
+                    <Label>Fidélité au prompt: {promptFidelity}%</Label>
+                    <Slider
+                      value={[promptFidelity]}
+                      onValueChange={(value) => setPromptFidelity(value[0])}
+                      max={100}
+                      min={0}
+                      step={10}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      100% = prompt exact, 0% = améliorations maximales
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="auto-translate"
+                    checked={autoTranslate}
+                    onCheckedChange={setAutoTranslate}
+                  />
+                  <Label htmlFor="auto-translate" className="text-sm">
+                    Traduction française automatique
+                  </Label>
+                </div>
+                
+                {prompt.trim() && (
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!showFinalPrompt) {
+                          const final = generateFinalPrompt();
+                          setPreviewPrompt(final);
+                        }
+                        setShowFinalPrompt(!showFinalPrompt);
+                      }}
+                      className="text-xs"
+                    >
+                      {showFinalPrompt ? 'Masquer' : 'Prévisualiser'} le prompt final
+                    </Button>
+                    
+                    {showFinalPrompt && (
+                      <div className="p-3 bg-muted rounded-lg border">
+                        <Label className="text-xs font-medium text-muted-foreground mb-1 block">
+                          Prompt qui sera envoyé à l'IA :
+                        </Label>
+                        <p className="text-sm text-foreground italic">
+                          "{previewPrompt}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
               {provider === 'runware' && (
                 <p className="text-xs text-green-700">
                   💡 Runware excelle avec des descriptions détaillées et spécifiques

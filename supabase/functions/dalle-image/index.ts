@@ -17,26 +17,9 @@ serve(async (req) => {
     // Force l'utilisation de DALL-E 3 indépendamment du modèle frontend
     console.log('🎨 Génération d\'image avec DALL-E 3 (forcé)', { prompt, size, quality });
     
-    // Utiliser le prompt original de l'utilisateur
-    let enhancedPrompt = prompt;
-    
-    // Traduire les mots-clés français courants vers l'anglais pour éviter les rejets
-    const translations = {
-      'chat': 'cat',
-      'chien': 'dog', 
-      'maison': 'house',
-      'paysage': 'landscape',
-      'montagne': 'mountain',
-      'océan': 'ocean',
-      'forêt': 'forest',
-      'ville': 'city',
-      'coucher de soleil': 'sunset',
-      'lever de soleil': 'sunrise'
-    };
-    
-    Object.entries(translations).forEach(([french, english]) => {
-      enhancedPrompt = enhancedPrompt.replace(new RegExp(`\\b${french}\\b`, 'gi'), english);
-    });
+    // 🎯 DALL-E accepte maintenant le français - plus de traduction forcée
+    // Le prompt est déjà traité côté client selon les préférences utilisateur
+    const enhancedPrompt = prompt;
 
     console.log('Original prompt:', prompt);
     console.log('Enhanced prompt:', enhancedPrompt);
