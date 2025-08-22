@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Youtube, 
   Languages, 
@@ -24,13 +25,20 @@ import {
   Square,
   Clock,
   HardDrive,
-  Bot
+  Bot,
+  Trash2,
+  Circle,
+  Globe,
+  Settings,
+  Sparkles
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 import { RealTimeTranscriptionService } from "@/services/realTimeTranscriptionService";
 import { AudioRecorderService, AudioRecording, RecordingState } from "@/services/audioRecorderService";
+import { useRecordingStorage } from "@/hooks/useRecordingStorage";
 import YouTube from 'react-youtube';
+import { supabase } from '@/integrations/supabase/client';
 
 const SUPPORTED_LANGUAGES = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -41,236 +49,95 @@ const SUPPORTED_LANGUAGES = [
 
 interface TranscriptionSegment {
   id: string;
-  text: string;
-  startTime: number;
-  endTime: number;
+  originalText: string;
   translatedText?: string;
+  timestamp?: string;
   audioUrl?: string;
   language?: string;
 }
 
-type WorkflowPhase = 'setup' | 'transcribing' | 'ready-to-translate' | 'translating' | 'completed';
+type WorkflowPhase = 'configuration' | 'listening' | 'transcribing' | 'translating' | 'completed';
+type AppMode = 'youtube' | 'recording';
 
 export default function VideoTranslator() {
   const { toast } = useToast();
-  const playerRef = useRef<any>(null);
-  const transcriptionServiceRef = useRef<RealTimeTranscriptionService | null>(null);
+  const recordingStorage = useRecordingStorage();
   const audioRecorderRef = useRef<AudioRecorderService | null>(null);
   
   const { videoId, extractVideoId, setVideoId } = useYouTubePlayer();
+  const [appMode, setAppMode] = useState<AppMode>('recording');
   const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [sourceLang, setSourceLang] = useState("auto");
-  const [targetLang, setTargetLang] = useState("fr");
+  const [sourceLang, setSourceLang] = useState("fr");
+  const [targetLang, setTargetLang] = useState("en");
   const [generateVoiceover, setGenerateVoiceover] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
   
   // Audio recording states
-  const [recordingState, setRecordingState] = useState<RecordingState>({
+  const [recorderState, setRecorderState] = useState<RecordingState>({
     isRecording: false,
     isPaused: false,
     duration: 0,
     size: 0,
     currentRecording: null
   });
-  const [currentRecording, setCurrentRecording] = useState<AudioRecording | null>(null);
-  const [transcribedText, setTranscribedText] = useState<string>('');
+  const [lastRecording, setLastRecording] = useState<AudioRecording | null>(null);
+  const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   
-  const [originalSegments, setOriginalSegments] = useState<TranscriptionSegment[]>([]);
+  const [transcriptionSegments, setTranscriptionSegments] = useState<TranscriptionSegment[]>([]);
   const [translatedSegments, setTranslatedSegments] = useState<TranscriptionSegment[]>([]);
-  const [currentSegment, setCurrentSegment] = useState<TranscriptionSegment | null>(null);
-  const [workflowPhase, setWorkflowPhase] = useState<WorkflowPhase>('setup');
-  const [translationProgress, setTranslationProgress] = useState({ current: 0, total: 0 });
-  const [fullAudioUrl, setFullAudioUrl] = useState<string | null>(null);
-  const [transcriptionStatus, setTranscriptionStatus] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [workflowPhase, setWorkflowPhase] = useState<WorkflowPhase>('configuration');
+  const [isListening, setIsListening] = useState(false);
+  const [progressText, setProgressText] = useState('');
+  const [downloadableFiles, setDownloadableFiles] = useState({
+    transcription: null as Blob | null,
+    translation: null as Blob | null,
+    voiceover: null as Blob | null,
+  });
 
-  const handleUrlValidation = (url: string) => {
-    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/)?([a-zA-Z0-9_-]{11})/;
-    return youtubeRegex.test(url);
-  };
-
-  const handleUrlChange = (url: string) => {
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
     setYoutubeUrl(url);
-    if (handleUrlValidation(url)) {
-      const id = extractVideoId(url);
-      setVideoId(id);
-    } else {
-      setVideoId(null);
-    }
+    const extractedVideoId = extractVideoId(url);
+    setVideoId(extractedVideoId);
   };
 
   const onPlayerReady = (event: any) => {
-    playerRef.current = event.target;
-    setIsPlayerReady(true);
+    console.log('YouTube player ready');
   };
 
   const startListening = async () => {
-    try {
-      setIsListening(true);
-      setWorkflowPhase('transcribing');
-      setOriginalSegments([]);
-      setTranslatedSegments([]);
-      setFullAudioUrl(null);
-      setTranscriptionStatus('Initialisation...');
-      setIsProcessing(true);
-      
-      transcriptionServiceRef.current = new RealTimeTranscriptionService();
-      
-      // Try system audio capture first, fallback to microphone
-      try {
-        await transcriptionServiceRef.current.startTranscriptionOnly(sourceLang);
-        setTranscriptionStatus('Écoute audio système en cours...');
-        toast({
-          title: "Transcription activée",
-          description: "Capture audio système en cours. Lancez la vidéo pour commencer.",
-        });
-      } catch (systemError) {
-        console.warn('System audio not available, falling back to microphone:', systemError);
-        await transcriptionServiceRef.current.startMicrophoneTranscriptionOnly(sourceLang);
-        setTranscriptionStatus('Écoute microphone en cours...');
-        toast({
-          title: "Microphone activé", 
-          description: "Utilisez votre microphone près des haut-parleurs pour capturer l'audio.",
-          variant: "default",
-        });
-      }
-    } catch (error) {
-      console.error('Error starting transcription:', error);
-      setIsListening(false);
-      setWorkflowPhase('setup');
-      setIsProcessing(false);
-      setTranscriptionStatus('Erreur');
-      toast({
-        title: "Erreur",
-        description: "Impossible d'accéder à l'audio. Vérifiez les permissions.",
-        variant: "destructive",
-      });
-    }
+    // This would be for YouTube mode transcription
+    setIsListening(true);
+    setWorkflowPhase('listening');
   };
 
   const stopListening = () => {
-    if (transcriptionServiceRef.current) {
-      transcriptionServiceRef.current.stop();
-      transcriptionServiceRef.current = null;
-    }
     setIsListening(false);
-    setIsProcessing(false);
-    if (playerRef.current) {
-      playerRef.current.pauseVideo();
-    }
-    
-    setWorkflowPhase(originalSegments.length > 0 ? 'ready-to-translate' : 'setup');
-    setTranscriptionStatus(originalSegments.length > 0 ? `Terminé - ${originalSegments.length} segments transcrits` : 'Aucun segment transcrit');
-    
-    toast({
-      title: "Transcription terminée",
-      description: originalSegments.length > 0 ? "Vous pouvez maintenant traduire le texte." : "Aucun texte transcrit."
-    });
-  };
-
-  // Listen for transcription-only segments
-  useEffect(() => {
-    const handleTranscriptionOnly = (event: CustomEvent) => {
-      const { segment, isProcessing, totalSegments } = event.detail;
-      setOriginalSegments(prev => [...prev, segment]);
-      setCurrentSegment(segment);
-      setIsProcessing(isProcessing || false);
-      setTranscriptionStatus(totalSegments ? `${totalSegments} segments transcrits` : 'Transcription en cours...');
-    };
-
-    const handleTranscriptionError = (event: CustomEvent) => {
-      const { error } = event.detail;
-      toast({
-        title: "Erreur de transcription",
-        description: error,
-        variant: "destructive",
-      });
-      setTranscriptionStatus('Erreur de transcription');
-    };
-
-    const handleTranslationProgress = (event: CustomEvent) => {
-      const { current, total, segment } = event.detail;
-      setTranslationProgress({ current, total });
-      setTranslatedSegments(prev => [...prev, segment]);
-    };
-
-    window.addEventListener('transcription-only', handleTranscriptionOnly as EventListener);
-    window.addEventListener('transcription-error', handleTranscriptionError as EventListener);
-    window.addEventListener('translation-progress', handleTranslationProgress as EventListener);
-    
-    return () => {
-      window.removeEventListener('transcription-only', handleTranscriptionOnly as EventListener);
-      window.removeEventListener('transcription-error', handleTranscriptionError as EventListener);
-      window.removeEventListener('translation-progress', handleTranslationProgress as EventListener);
-    };
-  }, []);
-
-  const startTranslation = async () => {
-    if (!transcriptionServiceRef.current || originalSegments.length === 0) return;
-    
-    try {
-      setWorkflowPhase('translating');
-      setTranslatedSegments([]);
-      setTranslationProgress({ current: 0, total: originalSegments.length });
-      
-      const translatedSegments = await transcriptionServiceRef.current.translateAllSegments(targetLang);
-      
-      setWorkflowPhase('completed');
-      
-      if (generateVoiceover) {
-        const audioUrl = await transcriptionServiceRef.current.generateFullVoiceover(translatedSegments, targetLang);
-        setFullAudioUrl(audioUrl);
-      }
-      
-      toast({
-        title: "Traduction terminée",
-        description: `${translatedSegments.length} segments traduits avec succès.`
-      });
-    } catch (error) {
-      console.error('Translation error:', error);
-      setWorkflowPhase('ready-to-translate');
-      toast({
-        title: "Erreur de traduction",
-        description: "Impossible de traduire le texte. Réessayez.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const downloadTranscription = () => {
-    const originalText = originalSegments.map(s => s.text).join(' ');
-    const translatedText = translatedSegments.map(s => s.translatedText || s.text).join(' ');
-    
-    const content = `Vidéo YouTube: ${youtubeUrl}\n\nTexte original:\n${originalText}\n\nTraduction (${targetLang}):\n${translatedText}`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transcription-youtube-${targetLang}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const downloadFullAudio = () => {
-    if (!fullAudioUrl) return;
-    
-    const a = document.createElement('a');
-    a.href = fullAudioUrl;
-    a.download = `voiceover-${targetLang}.mp3`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    setWorkflowPhase('configuration');
   };
 
   // Audio recording functions
+  const formatDuration = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+  };
+
+  const formatSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const startRecording = async () => {
     try {
-      audioRecorderRef.current = new AudioRecorderService(setRecordingState);
+      if (!audioRecorderRef.current) {
+        audioRecorderRef.current = new AudioRecorderService();
+      }
+      
+      audioRecorderRef.current.setStateChangeCallback(setRecorderState);
       await audioRecorderRef.current.startRecording();
       
       toast({
@@ -300,18 +167,17 @@ export default function VideoTranslator() {
     
     try {
       const recording = await audioRecorderRef.current.stopRecording();
-      setCurrentRecording(recording);
-      setRecordingState({
-        isRecording: false,
-        isPaused: false,
-        duration: 0,
-        size: 0,
-        currentRecording: null
-      });
+      setLastRecording(recording);
+      setRecordingBlob(recording.blob);
+      
+      // Optionally save to database
+      if (recording) {
+        await recordingStorage.saveRecording(recording, `Enregistrement ${new Date().toLocaleString()}`);
+      }
       
       toast({
         title: "Enregistrement terminé",
-        description: `Audio enregistré (${AudioRecorderService.formatDuration(recording.duration)})`,
+        description: `Audio enregistré (${formatDuration(recording.duration)})`,
       });
     } catch (error) {
       console.error('Error stopping recording:', error);
@@ -323,13 +189,25 @@ export default function VideoTranslator() {
     }
   };
 
+  const downloadRecording = (recording: AudioRecording, filename: string) => {
+    AudioRecorderService.downloadRecording(recording, filename);
+  };
+
   const transcribeRecording = async () => {
-    if (!currentRecording) return;
+    if (!lastRecording) return;
     
     setIsTranscribing(true);
     try {
-      const text = await AudioRecorderService.transcribeRecording(currentRecording);
-      setTranscribedText(text);
+      const text = await AudioRecorderService.transcribeRecording(lastRecording);
+      
+      // Create transcription segment
+      const segment: TranscriptionSegment = {
+        id: Date.now().toString(),
+        originalText: text,
+        timestamp: new Date().toLocaleTimeString()
+      };
+      
+      setTranscriptionSegments([segment]);
       
       toast({
         title: "Transcription réussie",
@@ -347,41 +225,32 @@ export default function VideoTranslator() {
     }
   };
 
-  const startTranslationFromText = async (text: string) => {
+  const startTranslationFromText = async () => {
+    if (transcriptionSegments.length === 0) return;
+    
+    setWorkflowPhase('translating');
     try {
-      // Create a mock segment from the transcribed text
-      const segment: TranscriptionSegment = {
-        id: Date.now().toString(),
-        text: text,
-        startTime: 0,
-        endTime: 0
-      };
+      const translatedSegments: TranscriptionSegment[] = [];
       
-      setOriginalSegments([segment]);
-      setWorkflowPhase('ready-to-translate');
-      
-      // Automatically start translation
-      setWorkflowPhase('translating');
-      setTranslatedSegments([]);
-      setTranslationProgress({ current: 0, total: 1 });
-      
-      // Use the translation service
-      const translatedText = await RealTimeTranscriptionService.translateText(text, sourceLang === 'auto' ? 'fr' : sourceLang, targetLang);
-      
-      const translatedSegment: TranscriptionSegment = {
-        ...segment,
-        translatedText: translatedText
-      };
-      
-      setTranslatedSegments([translatedSegment]);
-      setWorkflowPhase('completed');
-      
-      if (generateVoiceover) {
-        const audioUrl = await RealTimeTranscriptionService.generateVoiceSegment(translatedText, targetLang);
-        if (audioUrl) {
-          setFullAudioUrl(audioUrl);
-        }
+      for (const segment of transcriptionSegments) {
+        const response = await supabase.functions.invoke('translate-text', {
+          body: {
+            text: segment.originalText,
+            sourceLang,
+            targetLang
+          }
+        });
+        
+        if (response.error) throw response.error;
+        
+        translatedSegments.push({
+          ...segment,
+          translatedText: response.data.translatedText
+        });
       }
+      
+      setTranslatedSegments(translatedSegments);
+      setWorkflowPhase('completed');
       
       toast({
         title: "Traduction terminée",
@@ -389,7 +258,7 @@ export default function VideoTranslator() {
       });
     } catch (error) {
       console.error('Translation error:', error);
-      setWorkflowPhase('ready-to-translate');
+      setWorkflowPhase('configuration');
       toast({
         title: "Erreur de traduction",
         description: "Impossible de traduire le texte. Réessayez.",
@@ -398,431 +267,529 @@ export default function VideoTranslator() {
     }
   };
 
-  const getLanguageByCode = (code: string) => {
-    return SUPPORTED_LANGUAGES.find(lang => lang.code === code);
+  const downloadTranscription = () => {
+    const originalText = transcriptionSegments.map(s => s.originalText).join('\n');
+    const translatedText = translatedSegments.map(s => s.translatedText || s.originalText).join('\n');
+    
+    const content = `Transcription:\n${originalText}\n\nTraduction (${targetLang}):\n${translatedText}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    setDownloadableFiles(prev => ({ ...prev, transcription: blob }));
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcription-${targetLang}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadFullAudio = () => {
+    if (!downloadableFiles.voiceover) return;
+    
+    const url = URL.createObjectURL(downloadableFiles.voiceover);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `voiceover-${targetLang}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center space-x-2">
-            <Youtube className="w-8 h-8 text-destructive" />
-            <Languages className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">Traducteur Vidéo YouTube en Temps Réel</h1>
-          <p className="text-muted-foreground">
-            Écoutez, transcrivez et traduisez vos vidéos YouTube en temps réel
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-border/20 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <img 
+                  src="/lovable-uploads/4d23475f-fa47-4f1b-bba0-5b597d4be24b.png" 
+                  alt="Chatelix" 
+                  className="w-8 h-8 rounded-lg"
+                />
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Traducteur Vidéo Avancé
+                </h1>
+              </div>
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                <Sparkles className="w-3 h-3 mr-1" />
+                IA
+              </Badge>
+            </div>
 
-        {/* Configuration */}
-        <Card>
+            {/* Mode Selector */}
+            <div className="flex items-center gap-2 bg-white/60 rounded-lg p-1">
+              <Button
+                variant={appMode === 'youtube' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setAppMode('youtube')}
+                className="text-xs"
+              >
+                <Youtube className="w-4 h-4 mr-1" />
+                YouTube
+              </Button>
+              <Button
+                variant={appMode === 'recording' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setAppMode('recording')}
+                className="text-xs"
+              >
+                <Mic className="w-4 h-4 mr-1" />
+                Enregistrement
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Configuration Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Card className="mb-6 bg-white/70 backdrop-blur-sm border-border/20">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Youtube className="w-5 h-5" />
-              <span>Configuration</span>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Configuration
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* YouTube URL */}
-            <div className="space-y-2">
-              <Label htmlFor="youtube-url">URL YouTube</Label>
-              <Input
-                id="youtube-url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={youtubeUrl}
-                onChange={(e) => handleUrlChange(e.target.value)}
-                className={youtubeUrl && !handleUrlValidation(youtubeUrl) ? "border-destructive" : ""}
-              />
-              {youtubeUrl && !handleUrlValidation(youtubeUrl) && (
-                <p className="text-sm text-destructive flex items-center space-x-1">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Format d'URL YouTube invalide</span>
-                </p>
-              )}
-            </div>
-
-            {/* Language Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Langue source</Label>
-                <Select 
-                  value={sourceLang} 
-                  onValueChange={setSourceLang}
-                  disabled={workflowPhase === 'transcribing'}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">🌐 Détection automatique</SelectItem>
-                    {SUPPORTED_LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.flag} {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Langue cible</Label>
-                <Select 
-                  value={targetLang} 
-                  onValueChange={setTargetLang}
-                  disabled={workflowPhase === 'transcribing'}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.flag} {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Options */}
-            <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="voiceover"
-                  checked={generateVoiceover}
-                  onCheckedChange={setGenerateVoiceover}
-                  disabled={workflowPhase === 'transcribing'}
-                />
-                <Label htmlFor="voiceover" className="flex items-center space-x-2">
-                  <Volume2 className="w-4 h-4" />
-                  <span>Générer la voix off complète</span>
-                </Label>
-                <Badge variant="secondary">Premium</Badge>
-              </div>
-              
-              {workflowPhase === 'ready-to-translate' && (
-                <Button onClick={startTranslation} variant="default">
-                  <Languages className="w-4 h-4 mr-2" />
-                  Traduire maintenant
-                </Button>
-              )}
-              
-              {workflowPhase === 'translating' && (
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Traduction en cours... {translationProgress.current}/{translationProgress.total}</span>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {appMode === 'youtube' && (
+                <div className="space-y-2">
+                  <Label htmlFor="youtube-url">URL YouTube</Label>
+                  <Input
+                    id="youtube-url"
+                    placeholder="https://youtube.com/watch?v=..."
+                    value={youtubeUrl}
+                    onChange={handleUrlChange}
+                    className="bg-white/80"
+                  />
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="source-lang">Langue source</Label>
+                <Select value={sourceLang} onValueChange={setSourceLang}>
+                  <SelectTrigger className="bg-white/80">
+                    <SelectValue placeholder="Sélectionner..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="target-lang">Langue cible</Label>
+                <Select value={targetLang} onValueChange={setTargetLang}>
+                  <SelectTrigger className="bg-white/80">
+                    <SelectValue placeholder="Sélectionner..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="generate-voiceover" className="text-sm">Options</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="generate-voiceover"
+                    checked={generateVoiceover}
+                    onCheckedChange={(checked) => setGenerateVoiceover(checked === true)}
+                  />
+                  <Label htmlFor="generate-voiceover" className="text-sm">
+                    Générer voix off
+                  </Label>
+                </div>
+              </div>
             </div>
+
+            {appMode === 'youtube' && videoId && (
+              <div className="mt-4">
+                <Label className="text-sm font-medium">Aperçu vidéo</Label>
+                <div className="mt-2 aspect-video max-w-md">
+                  <YouTube
+                    videoId={videoId}
+                    opts={{
+                      width: '100%',
+                      height: '100%',
+                      playerVars: {
+                        autoplay: 0,
+                        controls: 1,
+                        rel: 0,
+                        showinfo: 0,
+                      },
+                    }}
+                    onReady={onPlayerReady}
+                    className="rounded-lg overflow-hidden"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Main Interface - 3 Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Audio Recording Column */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center space-x-2">
+        {/* Main Interface */}
+        <div className={`grid gap-6 ${
+          appMode === 'youtube' 
+            ? 'grid-cols-1 lg:grid-cols-3' 
+            : 'grid-cols-1 lg:grid-cols-2'
+        }`}>
+          
+          {/* Audio Recording Column - Only show in recording mode */}
+          {appMode === 'recording' && (
+            <Card className="bg-white/70 backdrop-blur-sm border-border/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <Mic className="w-5 h-5" />
-                  <span>Enregistrement Audio</span>
+                  Enregistrement Audio
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Recording Controls */}
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    onClick={startRecording}
+                    disabled={recorderState.isRecording || recorderState.isPaused}
+                    variant="default"
+                    size="sm"
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                  >
+                    <Circle className="w-4 h-4 mr-2 fill-current" />
+                    Enregistrer
+                  </Button>
+                  
+                  <Button
+                    onClick={pauseRecording}
+                    disabled={!recorderState.isRecording || recorderState.isPaused}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Pause className="w-4 h-4 mr-2" />
+                    Pause
+                  </Button>
+                  
+                  <Button
+                    onClick={resumeRecording}
+                    disabled={!recorderState.isPaused}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Continuer
+                  </Button>
+                  
+                  <Button
+                    onClick={stopRecording}
+                    disabled={!recorderState.isRecording && !recorderState.isPaused}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Square className="w-4 h-4 mr-2" />
+                    Arrêter
+                  </Button>
+                </div>
+
+                {/* Recording Status */}
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Status:</span>
+                    <span className={`text-sm px-2 py-1 rounded-full ${
+                      recorderState.isRecording && !recorderState.isPaused 
+                        ? 'bg-red-100 text-red-800' 
+                        : recorderState.isPaused
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {recorderState.isRecording && !recorderState.isPaused 
+                        ? '🔴 Enregistrement en cours...' 
+                        : recorderState.isPaused
+                        ? '⏸️ En pause'
+                        : '⏹️ Arrêté'
+                      }
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <div>Durée: {formatDuration(recorderState.duration)}</div>
+                    <div>Taille: {formatSize(recorderState.size)}</div>
+                  </div>
+
+                  {(recorderState.isRecording || recorderState.isPaused) && (
+                    <div className="mt-2">
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min((recorderState.duration / 600000) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Max: 10 minutes
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Post-Recording Actions */}
+                {lastRecording && (
+                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                    <h4 className="font-medium">Dernier enregistrement</h4>
+                    <div className="text-sm text-muted-foreground">
+                      Durée: {formatDuration(lastRecording.duration)} | 
+                      Taille: {formatSize(lastRecording.size)}
+                    </div>
+                    
+                    <div className="flex gap-2 flex-wrap">
+                      {recordingBlob && (
+                        <Button
+                          onClick={() => {
+                            const audio = new Audio(URL.createObjectURL(recordingBlob));
+                            audio.play();
+                          }}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Volume2 className="w-4 h-4 mr-2" />
+                          Écouter
+                        </Button>
+                      )}
+                      
+                      <Button
+                        onClick={() => downloadRecording(lastRecording, 'enregistrement-audio')}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Télécharger
+                      </Button>
+                      
+                      <Button
+                        onClick={transcribeRecording}
+                        disabled={!lastRecording || isTranscribing}
+                        variant="default"
+                        size="sm"
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                      >
+                        {isTranscribing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Transcription...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Transcrire avec IA
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recordings History */}
+                {recordingStorage.recordings.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                    <h4 className="font-medium">Historique des enregistrements</h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {recordingStorage.recordings.slice(0, 5).map((recording) => (
+                        <div key={recording.id} className="flex items-center justify-between bg-white/50 rounded p-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{recording.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDuration(recording.duration * 1000)} • {formatSize(recording.file_size)}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 ml-2">
+                            <Button
+                              onClick={async () => {
+                                const blob = await recordingStorage.getRecordingBlob(recording.file_path);
+                                if (blob) {
+                                  const audio = new Audio(URL.createObjectURL(blob));
+                                  audio.play();
+                                }
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Volume2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              onClick={() => recordingStorage.deleteRecording(recording.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Original Text Column - Only show in YouTube mode */}
+          {appMode === 'youtube' && (
+            <Card className="bg-white/70 backdrop-blur-sm border-border/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Languages className="w-5 h-5" />
+                  Texte Original
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {SUPPORTED_LANGUAGES.find(l => l.code === sourceLang)?.flag} 
+                    {SUPPORTED_LANGUAGES.find(l => l.code === sourceLang)?.name}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-96 overflow-y-auto bg-muted/30 rounded-lg p-4">
+                  {transcriptionSegments.length > 0 ? (
+                    <div className="space-y-3">
+                      {transcriptionSegments.map((segment, index) => (
+                        <div key={index} className="bg-white/80 rounded-lg p-3 border border-border/20">
+                          <p className="text-sm">{segment.originalText}</p>
+                          {segment.timestamp && (
+                            <span className="text-xs text-muted-foreground">
+                              {segment.timestamp}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <FileText className="w-12 h-12 mb-4 opacity-50" />
+                      <p className="text-center">
+                        Démarrez l'écoute pour voir la transcription en temps réel
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Translated Text Column */}
+          <Card className="bg-white/70 backdrop-blur-sm border-border/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Traduction
+                <span className="text-sm font-normal text-muted-foreground">
+                  {SUPPORTED_LANGUAGES.find(l => l.code === targetLang)?.flag}
+                  {SUPPORTED_LANGUAGES.find(l => l.code === targetLang)?.name}
                 </span>
               </CardTitle>
-              <CardDescription>
-                Enregistrez votre voix ou toute source audio pour la transcrire
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Recording Controls */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="h-96 overflow-y-auto bg-muted/30 rounded-lg p-4">
+                {translatedSegments.length > 0 ? (
+                  <div className="space-y-3">
+                    {translatedSegments.map((segment, index) => (
+                      <div key={index} className="bg-white/80 rounded-lg p-3 border border-border/20">
+                        <p className="text-sm">{segment.translatedText}</p>
+                        {segment.timestamp && (
+                          <span className="text-xs text-muted-foreground">
+                            {segment.timestamp}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <Globe className="w-12 h-12 mb-4 opacity-50" />
+                    <p className="text-center">
+                      La traduction apparaîtra ici après la transcription
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {transcriptionSegments.length > 0 && (
                 <Button
-                  onClick={startRecording}
-                  disabled={recordingState.isRecording || recordingState.isPaused}
-                  variant={recordingState.isRecording ? "secondary" : "default"}
+                  onClick={startTranslationFromText}
+                  disabled={workflowPhase === 'translating'}
                   className="w-full"
                 >
-                  <Mic className="w-4 h-4 mr-2" />
-                  <span>Enregistrer</span>
-                </Button>
-                
-                <Button
-                  onClick={recordingState.isPaused ? resumeRecording : pauseRecording}
-                  disabled={!recordingState.isRecording && !recordingState.isPaused}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {recordingState.isPaused ? (
+                  {workflowPhase === 'translating' ? (
                     <>
-                      <Play className="w-4 h-4 mr-2" />
-                      <span>Continuer</span>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Traduction en cours...
                     </>
                   ) : (
                     <>
-                      <Pause className="w-4 h-4 mr-2" />
-                      <span>Pause</span>
+                      <Languages className="w-4 h-4 mr-2" />
+                      Traduire le texte
                     </>
                   )}
                 </Button>
-                
-                <Button
-                  onClick={stopRecording}
-                  disabled={!recordingState.isRecording && !recordingState.isPaused}
-                  variant="destructive"
-                  className="w-full col-span-2"
-                >
-                  <Square className="w-4 h-4 mr-2" />
-                  <span>Arrêter</span>
-                </Button>
-              </div>
-
-              {/* Recording Status */}
-              {(recordingState.isRecording || recordingState.isPaused) && (
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      {recordingState.isRecording && (
-                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      )}
-                      <span className="text-sm font-medium">
-                        {recordingState.isPaused ? 'Enregistrement en pause' : 'Enregistrement en cours...'}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span>{AudioRecorderService.formatDuration(recordingState.duration)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                    <HardDrive className="w-3 h-3" />
-                    <span>Taille: {AudioRecorderService.formatSize(recordingState.size)}</span>
-                  </div>
-                </div>
               )}
 
-              {/* Current Recording Actions */}
-              {currentRecording && (
-                <div className="space-y-4 border-t pt-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Enregistrement terminé</h4>
-                    <Badge variant="secondary">
-                      {AudioRecorderService.formatDuration(currentRecording.duration)}
-                    </Badge>
-                  </div>
-                  
-                  {/* Audio Player */}
-                  <div className="bg-secondary/30 rounded-lg p-3">
-                    <audio 
-                      controls 
-                      className="w-full"
-                      src={URL.createObjectURL(currentRecording.blob)}
-                    />
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-1 gap-2">
-                    <Button
-                      onClick={() => AudioRecorderService.downloadRecording(currentRecording)}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Télécharger Audio
-                    </Button>
-                    
-                    <Button
-                      onClick={transcribeRecording}
-                      disabled={isTranscribing}
-                      variant="default"
-                      className="w-full"
-                    >
-                      {isTranscribing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          <span>Transcription...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Bot className="w-4 h-4 mr-2" />
-                          <span>Transcrire avec IA</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Transcribed Text */}
-              {transcribedText && (
-                <div className="space-y-3 border-t pt-4">
-                  <h4 className="font-medium flex items-center space-x-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    <span>Texte transcrit</span>
-                  </h4>
-                  
-                  <div className="bg-secondary/30 rounded-lg p-3">
-                    <p className="text-sm">{transcribedText}</p>
-                  </div>
-                  
+              {generateVoiceover && translatedSegments.length > 0 && (
+                <div className="space-y-2">
                   <Button
-                    onClick={() => startTranslationFromText(transcribedText)}
-                    variant="default"
+                    onClick={downloadFullAudio}
+                    disabled={!downloadableFiles.voiceover}
+                    variant="outline"
                     className="w-full"
                   >
-                    <Languages className="w-4 h-4 mr-2" />
-                    Traduire ce texte
+                    <Volume2 className="w-4 h-4 mr-2" />
+                    Télécharger la voix off complète
                   </Button>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Original Text Column */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <FileText className="w-5 h-5" />
-                  <span>Texte Original</span>
-                  <Badge variant="outline">
-                    {getLanguageByCode(sourceLang === 'auto' ? 'fr' : sourceLang)?.flag} 
-                    {getLanguageByCode(sourceLang === 'auto' ? 'fr' : sourceLang)?.name}
-                  </Badge>
-                </div>
-                {isListening && (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-muted-foreground">{transcriptionStatus}</span>
-                  </div>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {originalSegments.length === 0 ? (
-                  <div className="text-center py-8">
-                    {isListening ? (
-                      <div className="space-y-2">
-                        <div className="animate-pulse flex justify-center">
-                          <div className="w-8 h-8 bg-primary/30 rounded-full"></div>
-                        </div>
-                        <p className="text-muted-foreground">{transcriptionStatus}</p>
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground">Démarrez l'écoute pour voir la transcription en temps réel</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {originalSegments.map((segment, index) => (
-                      <div
-                        key={segment.id}
-                        className={`p-2 rounded-lg text-sm animate-fade-in ${
-                          currentSegment === segment 
-                            ? 'bg-primary/20 border border-primary/30' 
-                            : 'bg-secondary/30'
-                        }`}
-                      >
-                        <span className="text-primary/70 text-xs mr-2">#{index + 1}</span>
-                        {segment.text}
-                      </div>
-                    ))}
-                    {isProcessing && (
-                      <div className="text-muted-foreground text-sm italic animate-pulse p-2">
-                        Traitement en cours...
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Translated Text Column */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Languages className="w-5 h-5" />
-                <span>Traduction</span>
-                <Badge variant="default">
-                  {getLanguageByCode(targetLang)?.flag} {getLanguageByCode(targetLang)?.name}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {workflowPhase === 'setup' || workflowPhase === 'transcribing' ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    {workflowPhase === 'transcribing' 
-                      ? "Transcription en cours. La traduction sera disponible après l'arrêt."
-                      : "La traduction apparaîtra après la transcription"
-                    }
-                  </p>
-                ) : workflowPhase === 'ready-to-translate' ? (
-                  <div className="text-center py-8 space-y-4">
-                    <CheckCircle2 className="w-12 h-12 mx-auto text-green-500" />
-                    <p className="text-muted-foreground">
-                      Transcription terminée ! Cliquez sur "Traduire maintenant" pour commencer la traduction.
-                    </p>
-                  </div>
-                ) : workflowPhase === 'translating' ? (
-                  <div className="text-center py-8 space-y-4">
-                    <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
-                    <p className="text-muted-foreground">
-                      Traduction en cours... {translationProgress.current}/{translationProgress.total}
-                    </p>
-                  </div>
-                ) : translatedSegments.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Aucune traduction disponible
-                  </p>
-                ) : (
-                  <>
-                    {translatedSegments.map((segment, index) => (
-                      <div key={segment.id || index} className="p-2 rounded-lg text-sm bg-primary/10 border border-primary/20">
-                        {segment.translatedText || segment.text}
-                      </div>
-                    ))}
-                    {fullAudioUrl && (
-                      <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                            Voix off complète générée
-                          </span>
-                          <Button size="sm" variant="outline" onClick={downloadFullAudio}>
-                            <Download className="w-4 h-4 mr-2" />
-                            Télécharger
-                          </Button>
-                        </div>
-                        <audio controls className="w-full">
-                          <source src={fullAudioUrl} type="audio/mpeg" />
-                        </audio>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Download Actions */}
-        {originalSegments.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={downloadTranscription}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Télécharger la transcription
-                </Button>
-                {translatedSegments.some(s => s.audioUrl) && (
-                  <Button variant="outline">
-                    <Download className="w-4 h-4 mr-2" />
-                    Télécharger toutes les voix off
+        {/* Download Section */}
+        {(transcriptionSegments.length > 0 || translatedSegments.length > 0) && (
+          <Card className="mt-6 bg-white/70 backdrop-blur-sm border-border/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="w-5 h-5" />
+                Téléchargements
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 flex-wrap">
+                {transcriptionSegments.length > 0 && (
+                  <Button
+                    onClick={downloadTranscription}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Télécharger la transcription
+                  </Button>
+                )}
+                {translatedSegments.length > 0 && generateVoiceover && (
+                  <Button
+                    onClick={downloadFullAudio}
+                    disabled={!downloadableFiles.voiceover}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                    Télécharger la voix off
                   </Button>
                 )}
               </div>

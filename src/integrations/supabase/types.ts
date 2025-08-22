@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_recordings: {
+        Row: {
+          created_at: string
+          duration: number
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: number
+          file_path: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration?: number
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           created_at: string
@@ -459,6 +495,85 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      transcriptions: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          language: string
+          original_text: string
+          recording_id: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          language?: string
+          original_text: string
+          recording_id: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          language?: string
+          original_text?: string
+          recording_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcriptions_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "audio_recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      translation_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          source_language: string
+          target_language: string
+          transcription_id: string
+          translated_text: string
+          user_id: string
+          voiceover_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source_language: string
+          target_language: string
+          transcription_id: string
+          translated_text: string
+          user_id: string
+          voiceover_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source_language?: string
+          target_language?: string
+          transcription_id?: string
+          translated_text?: string
+          user_id?: string
+          voiceover_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_sessions_transcription_id_fkey"
+            columns: ["transcription_id"]
+            isOneToOne: false
+            referencedRelation: "transcriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_preferences: {
         Row: {
