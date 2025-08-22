@@ -1036,12 +1036,20 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
               }
               try {
                 const data = JSON.parse(json);
-                const delta = data?.choices?.[0]?.delta?.content || '';
+                console.log('🔄 Chunk reçu:', data); // Debug streaming
+                // Support multiple streaming formats
+                const delta = data?.choices?.[0]?.delta?.content || 
+                             data?.content || 
+                             data?.delta?.content || 
+                             data?.text || '';
                 if (delta) {
                   acc += delta;
+                  console.log('📝 Accumulation:', acc.length, 'caractères'); // Debug
                   setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: acc } : m));
                 }
-              } catch {}
+              } catch (parseError) {
+                console.warn('❌ Parse chunk error:', parseError, 'pour:', json);
+              }
             }
           }
         }
@@ -1049,7 +1057,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         // Final: insert et remplacement du message stream
         const finalAssistant: Message = {
           id: (Date.now() + 1).toString(),
-          content: acc || 'Aucune réponse.',
+          content: acc || 'Réponse streaming vide.',
           role: 'assistant',
           timestamp: new Date(),
           model,
@@ -1090,7 +1098,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data?.generatedText || 'Aucune réponse.',
+        content: data?.generatedText || data?.text || data?.content || 'Réponse vide reçue.',
         role: "assistant",
         timestamp: new Date(),
         model
@@ -1275,7 +1283,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
                 onClick={() => setShowImageControls(!showImageControls)}
                 variant={showImageControls ? "default" : "outline"}
                 size="sm"
-                className="flex-1 sm:flex-none font-medium transition-all duration-200 bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700 hover:text-purple-800 hover:shadow-md"
+                className="flex-1 sm:flex-none font-medium transition-all duration-200 bg-secondary/50 hover:bg-secondary border-border text-secondary-foreground hover:shadow-md"
               >
                 <span className="hidden sm:inline">
                   {showImageControls ? '✕ Fermer Studio' : '🎨 Studio DALL-E'}
@@ -1301,7 +1309,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
                   variant="outline" 
                   size="sm" 
                   onClick={() => exportDocument('pdf')}
-                  className="text-xs px-2 py-1 h-7 hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-colors"
+                  className="text-xs px-2 py-1 h-7 hover:bg-destructive/10 hover:border-destructive/20 hover:text-destructive transition-colors"
                 >
                   PDF
                 </Button>
@@ -1309,7 +1317,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
                   variant="outline" 
                   size="sm" 
                   onClick={() => exportDocument('docx')}
-                  className="text-xs px-2 py-1 h-7 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                  className="text-xs px-2 py-1 h-7 hover:bg-primary/10 hover:border-primary/20 hover:text-primary transition-colors"
                 >
                   DOCX
                 </Button>
@@ -1317,7 +1325,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
                   variant="outline" 
                   size="sm" 
                   onClick={() => exportDocument('pptx')}
-                  className="text-xs px-2 py-1 h-7 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 transition-colors"
+                  className="text-xs px-2 py-1 h-7 hover:bg-accent/10 hover:border-accent/20 hover:text-accent transition-colors"
                 >
                   PPTX
                 </Button>
@@ -1336,12 +1344,12 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       
       {/* Studio d'Images DALL-E - Repositionné avant ChatInput pour mobile */}
       {showImageControls && (
-        <div className="border-t border-border bg-gradient-to-br from-purple-50/50 to-indigo-50/50 p-4 mx-auto max-w-4xl">
+        <div className="border-t border-border bg-gradient-to-br from-secondary/30 to-accent/10 p-4 mx-auto max-w-4xl">
           <div className="mb-2 text-center">
-            <h3 className="text-sm font-medium text-purple-800 flex items-center justify-center gap-2">
+            <h3 className="text-sm font-medium text-primary flex items-center justify-center gap-2">
               🎨 Studio DALL-E - Génération d'Images IA
             </h3>
-            <p className="text-xs text-purple-600 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Créez des images avec DALL-E 3, éditez avec DALL-E 2 ou générez des variations
             </p>
           </div>
