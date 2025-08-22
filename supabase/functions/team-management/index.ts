@@ -10,6 +10,50 @@ const corsHeaders = {
 
 const log = (step: string, details?: unknown) => console.log(`[TEAM-MANAGEMENT] ${step}`, details ?? "");
 
+// Helper function to log team activities
+const logTeamActivity = async (supabaseService: any, action: string, teamId: string, adminUserId: string, details: any = {}) => {
+  try {
+    await supabaseService.rpc('log_team_activity', {
+      p_action: action,
+      p_team_id: teamId,
+      p_admin_user_id: adminUserId,
+      p_target_type: 'team',
+      p_target_id: teamId,
+      p_details: details
+    });
+  } catch (error) {
+    console.error('Failed to log team activity:', error);
+  }
+};
+
+// Helper function to send invitation email
+const sendInvitationEmail = async (email: string, teamName: string, inviterName: string, inviteUrl: string) => {
+  try {
+    const response = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-invitation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+      },
+      body: JSON.stringify({
+        email,
+        teamName,
+        inviterName,
+        inviteUrl
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to send email: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to send invitation email:', error);
+    throw error;
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -95,6 +139,12 @@ serve(async (req) => {
 
         if (teamError) throw teamError;
 
+        // Log team creation
+        await logTeamActivity(supabaseService, 'create_team', team.id, user.id, {
+          team_name: teamName,
+          subscription_tier: subscription?.subscription_tier
+        });
+
         log("Team created", { teamId: team.id, teamName });
         return new Response(JSON.stringify({ success: true, team }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -119,49 +169,178 @@ serve(async (req) => {
           throw new Error("Équipe non trouvée ou vous n'êtes pas le propriétaire");
         }
 
-        // Check current team size
+        // Check current team size including pending invitations
         const { count: currentMembers } = await supabaseService
           .from('team_members')
           .select('id', { count: 'exact' })
           .eq('team_id', teamId);
 
-        if ((currentMembers || 0) >= teamLimit) {
+        const { count: pendingInvitations } = await supabaseService
+          .from('team_invitations')
+          .select('id', { count: 'exact' })
+          .eq('team_id', teamId)
+          .eq('status', 'pending');
+
+        const totalCount = (currentMembers || 0) + (pendingInvitations || 0);
+        if (totalCount >= teamLimit) {
           throw new Error(`Limite d'équipe atteinte (${teamLimit} membres maximum pour votre plan)`);
         }
 
-        // Find user by email
+        // Check if already invited or member
+        const { data: existingInvitation } = await supabaseService
+          .from('team_invitations')
+          .select('id, status')
+          .eq('team_id', teamId)
+          .eq('email', memberEmail)
+          .maybeSingle();
+
+        if (existingInvitation && existingInvitation.status === 'pending') {
+          throw new Error("Une invitation est déjà en attente pour cet email");
+        }
+
+        // Check if user exists and is already a member
         const { data: invitedUser } = await supabaseService.auth.admin.listUsers();
         const targetUser = invitedUser.users.find(u => u.email === memberEmail);
 
-        if (!targetUser) {
-          throw new Error(`Utilisateur avec l'email ${memberEmail} non trouvé`);
+        if (targetUser) {
+          const { data: existingMember } = await supabaseService
+            .from('team_members')
+            .select('id')
+            .eq('team_id', teamId)
+            .eq('user_id', targetUser.id)
+            .maybeSingle();
+
+          if (existingMember) {
+            throw new Error("Cet utilisateur est déjà membre de l'équipe");
+          }
         }
 
-        // Check if already a member
+        // Get inviter profile
+        const { data: inviterProfile } = await supabaseService
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const inviterName = inviterProfile?.display_name || user.email;
+
+        // Create invitation
+        const { data: invitation, error: inviteError } = await supabaseService
+          .from('team_invitations')
+          .upsert({
+            team_id: teamId,
+            email: memberEmail,
+            invited_by: user.id,
+            role: 'member',
+            status: 'pending',
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+          }, {
+            onConflict: 'team_id,email'
+          })
+          .select()
+          .single();
+
+        if (inviteError) throw inviteError;
+
+        // Generate invitation URL
+        const inviteUrl = `${Deno.env.get("SUPABASE_URL")?.replace('/rest/v1', '')}/team/accept-invitation?token=${invitation.id}&email=${encodeURIComponent(memberEmail)}`;
+
+        // Send invitation email
+        try {
+          await sendInvitationEmail(memberEmail, team.name, inviterName, inviteUrl);
+        } catch (emailError) {
+          console.error('Failed to send invitation email:', emailError);
+          // Don't fail the whole process if email fails
+        }
+
+        // Log invitation
+        await logTeamActivity(supabaseService, 'invite_member', teamId, user.id, {
+          invited_email: memberEmail,
+          team_name: team.name,
+          invitation_id: invitation.id
+        });
+
+        log("Member invited", { teamId, memberEmail, invitationId: invitation.id });
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: "Invitation envoyée avec succès",
+          invitation
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      case 'accept_invitation': {
+        const { invitationId } = body;
+        
+        if (!invitationId) {
+          throw new Error("ID d'invitation requis");
+        }
+
+        // Get invitation
+        const { data: invitation, error: inviteError } = await supabaseService
+          .from('team_invitations')
+          .select('*, teams(name)')
+          .eq('id', invitationId)
+          .eq('email', user.email)
+          .eq('status', 'pending')
+          .single();
+
+        if (inviteError || !invitation) {
+          throw new Error("Invitation non trouvée ou expirée");
+        }
+
+        // Check if invitation is expired
+        if (new Date(invitation.expires_at) < new Date()) {
+          await supabaseService
+            .from('team_invitations')
+            .update({ status: 'expired' })
+            .eq('id', invitationId);
+          throw new Error("Cette invitation a expiré");
+        }
+
+        // Check if user is already a member
         const { data: existingMember } = await supabaseService
           .from('team_members')
           .select('id')
-          .eq('team_id', teamId)
-          .eq('user_id', targetUser.id)
-          .single();
+          .eq('team_id', invitation.team_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
 
         if (existingMember) {
-          throw new Error("Cet utilisateur est déjà membre de l'équipe");
+          throw new Error("Vous êtes déjà membre de cette équipe");
         }
 
-        // Add member
+        // Add user to team
         const { error: memberError } = await supabaseService
           .from('team_members')
           .insert({
-            team_id: teamId,
-            user_id: targetUser.id,
-            role: 'member'
+            team_id: invitation.team_id,
+            user_id: user.id,
+            role: invitation.role
           });
 
         if (memberError) throw memberError;
 
-        log("Member added", { teamId, memberEmail });
-        return new Response(JSON.stringify({ success: true, message: "Membre ajouté avec succès" }), {
+        // Update invitation status
+        await supabaseService
+          .from('team_invitations')
+          .update({ status: 'accepted' })
+          .eq('id', invitationId);
+
+        // Log acceptance
+        await logTeamActivity(supabaseService, 'accept_invitation', invitation.team_id, user.id, {
+          invitation_id: invitationId,
+          team_name: invitation.teams?.name
+        });
+
+        log("Invitation accepted", { teamId: invitation.team_id, userId: user.id });
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: `Vous avez rejoint l'équipe ${invitation.teams?.name}`,
+          teamId: invitation.team_id
+        }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         });
@@ -175,7 +354,7 @@ serve(async (req) => {
         // Verify team ownership
         const { data: team } = await supabaseService
           .from('teams')
-          .select('id')
+          .select('id, name')
           .eq('id', teamId)
           .eq('owner_id', user.id)
           .single();
@@ -183,6 +362,14 @@ serve(async (req) => {
         if (!team) {
           throw new Error("Équipe non trouvée ou vous n'êtes pas le propriétaire");
         }
+
+        // Get member info before removing
+        const { data: member } = await supabaseService
+          .from('team_members')
+          .select('user_id, profiles:user_id(display_name)')
+          .eq('id', memberId)
+          .eq('team_id', teamId)
+          .single();
 
         // Remove member
         const { error: removeError } = await supabaseService
@@ -193,8 +380,67 @@ serve(async (req) => {
 
         if (removeError) throw removeError;
 
+        // Log removal
+        await logTeamActivity(supabaseService, 'remove_member', teamId, user.id, {
+          removed_user_id: member?.user_id,
+          removed_user_name: member?.profiles?.display_name,
+          team_name: team.name
+        });
+
         log("Member removed", { teamId, memberId });
         return new Response(JSON.stringify({ success: true, message: "Membre supprimé" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      case 'cancel_invitation': {
+        const { invitationId } = body;
+        
+        if (!invitationId) {
+          throw new Error("ID d'invitation requis");
+        }
+
+        // Get invitation to verify ownership
+        const { data: invitation } = await supabaseService
+          .from('team_invitations')
+          .select('team_id, email, teams(name)')
+          .eq('id', invitationId)
+          .single();
+
+        if (!invitation) {
+          throw new Error("Invitation non trouvée");
+        }
+
+        // Verify team ownership
+        const { data: team } = await supabaseService
+          .from('teams')
+          .select('id')
+          .eq('id', invitation.team_id)
+          .eq('owner_id', user.id)
+          .single();
+
+        if (!team) {
+          throw new Error("Vous n'êtes pas le propriétaire de cette équipe");
+        }
+
+        // Cancel invitation
+        const { error: cancelError } = await supabaseService
+          .from('team_invitations')
+          .delete()
+          .eq('id', invitationId);
+
+        if (cancelError) throw cancelError;
+
+        // Log cancellation
+        await logTeamActivity(supabaseService, 'cancel_invitation', invitation.team_id, user.id, {
+          cancelled_email: invitation.email,
+          team_name: invitation.teams?.name,
+          invitation_id: invitationId
+        });
+
+        log("Invitation cancelled", { invitationId, email: invitation.email });
+        return new Response(JSON.stringify({ success: true, message: "Invitation annulée" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         });
@@ -231,9 +477,28 @@ serve(async (req) => {
           `)
           .eq('user_id', user.id);
 
+        // Get pending invitations for owned teams
+        const ownedTeamIds = ownedTeams?.map(t => t.id) || [];
+        const { data: pendingInvitations } = ownedTeamIds.length > 0 
+          ? await supabaseService
+              .from('team_invitations')
+              .select('id, team_id, email, role, created_at, expires_at, status')
+              .in('team_id', ownedTeamIds)
+              .eq('status', 'pending')
+          : { data: [] };
+
         const allTeams = [
-          ...(ownedTeams || []).map(team => ({ ...team, isOwner: true })),
-          ...(memberTeams || []).map(m => ({ ...m.teams, isOwner: false, userRole: m.role }))
+          ...(ownedTeams || []).map(team => ({
+            ...team,
+            isOwner: true,
+            pendingInvitations: pendingInvitations?.filter(inv => inv.team_id === team.id) || []
+          })),
+          ...(memberTeams || []).map(m => ({ 
+            ...m.teams, 
+            isOwner: false, 
+            userRole: m.role,
+            pendingInvitations: []
+          }))
         ];
 
         return new Response(JSON.stringify({ 
@@ -241,6 +506,57 @@ serve(async (req) => {
           teams: allTeams,
           teamLimit,
           subscription: subscription?.subscription_tier || 'Gratuit'
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      case 'get_team_history': {
+        const { teamId: historyTeamId } = body;
+        
+        if (!historyTeamId) {
+          throw new Error("Team ID requis");
+        }
+
+        // Verify team access (owner or member)
+        const { data: teamAccess } = await supabaseService
+          .from('teams')
+          .select('id, owner_id')
+          .eq('id', historyTeamId)
+          .single();
+
+        if (!teamAccess) {
+          throw new Error("Équipe non trouvée");
+        }
+
+        const isOwner = teamAccess.owner_id === user.id;
+
+        if (!isOwner) {
+          // Check if user is a member
+          const { data: membership } = await supabaseService
+            .from('team_members')
+            .select('id')
+            .eq('team_id', historyTeamId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (!membership) {
+            throw new Error("Accès refusé - vous n'êtes pas membre de cette équipe");
+          }
+        }
+
+        // Get team history
+        const { data: history } = await supabaseService
+          .from('admin_logs')
+          .select('id, action, created_at, details')
+          .eq('details->>team_id', historyTeamId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          history: history || []
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,

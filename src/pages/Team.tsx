@@ -1,31 +1,18 @@
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Users, Crown, UserPlus, Trash2, Mail, Shield } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { Users, UserPlus, Settings, History, Mail, Clock, CheckCircle, XCircle, Crown, User, Calendar, Trash2, Ban, RefreshCw, ArrowLeft, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const setMeta = (name: string, content: string) => {
   let tag = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
@@ -42,9 +29,25 @@ interface TeamMember {
   role: string;
   user_id: string;
   profiles?: {
-    display_name?: string;
-    avatar_url?: string;
+    display_name: string | null;
+    avatar_url: string | null;
   } | null;
+}
+
+interface PendingInvitation {
+  id: string;
+  email: string;
+  role: string;
+  created_at: string;
+  expires_at: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+}
+
+interface TeamHistoryItem {
+  id: string;
+  action: string;
+  created_at: string;
+  details: any;
 }
 
 interface Team {
@@ -54,6 +57,7 @@ interface Team {
   isOwner: boolean;
   userRole?: string;
   team_members: TeamMember[];
+  pendingInvitations: PendingInvitation[];
 }
 
 interface TeamData {
@@ -62,134 +66,273 @@ interface TeamData {
   subscription: string;
 }
 
-const Team = () => {
+export default function Team() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamLimit, setTeamLimit] = useState(1);
-  const [subscription, setSubscription] = useState("Gratuit");
-  
-  // Create team state
+  const [subscription, setSubscription] = useState('Gratuit');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newTeamName, setNewTeamName] = useState("");
-  
-  // Invite member state
   const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState("");
-  const [inviteEmail, setInviteEmail] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [teamHistory, setTeamHistory] = useState<TeamHistoryItem[]>([]);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  
+  const { toast } = useToast();
 
   useEffect(() => {
-    document.title = "Équipe | Chatelix";
-    setMeta("description", "Gérez votre équipe et collaborez avec vos collègues sur Chatelix.");
+    document.title = 'Gestion d\'équipe - ChAtélix';
+    setMeta('description', 'Gérez vos équipes, invitez des membres et collaborez efficacement sur ChAtélix.');
     loadTeams();
   }, []);
 
   const loadTeams = async () => {
-    setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('team-management', {
+      setLoading(true);
+      const response = await supabase.functions.invoke('team-management', {
         body: { action: 'get_teams' }
       });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors du chargement des équipes');
+      }
 
-      const teamData = data as TeamData;
-      setTeams(teamData.teams || []);
-      setTeamLimit(teamData.teamLimit);
-      setSubscription(teamData.subscription);
+      const data: TeamData = response.data;
+      setTeams(data.teams || []);
+      setTeamLimit(data.teamLimit || 1);
+      setSubscription(data.subscription || 'Gratuit');
     } catch (error: any) {
-      toast({ 
-        title: 'Erreur', 
-        description: error.message || 'Impossible de charger les équipes',
-        variant: 'destructive' 
+      console.error('Error loading teams:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de charger les équipes",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateTeam = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTeamName.trim()) return;
+  const handleCreateTeam = async () => {
+    if (!newTeamName.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Le nom de l'équipe est requis",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('team-management', {
-        body: { action: 'create_team', teamName: newTeamName.trim() }
+      setIsCreating(true);
+      const response = await supabase.functions.invoke('team-management', {
+        body: {
+          action: 'create_team',
+          teamName: newTeamName.trim()
+        }
       });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors de la création');
+      }
 
-      toast({ title: 'Succès', description: 'Équipe créée avec succès' });
+      toast({
+        title: "Succès",
+        description: "Équipe créée avec succès",
+      });
+
+      setNewTeamName('');
       setShowCreateDialog(false);
-      setNewTeamName("");
-      loadTeams();
+      await loadTeams();
     } catch (error: any) {
-      toast({ 
-        title: 'Erreur', 
-        description: error.message || 'Impossible de créer l\'équipe',
-        variant: 'destructive' 
+      console.error('Error creating team:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer l'équipe",
+        variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsCreating(false);
     }
   };
 
-  const handleInviteMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail.trim() || !selectedTeamId) return;
+  const handleInviteMember = async () => {
+    if (!selectedTeam || !inviteEmail.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Email requis pour l'invitation",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setLoading(true);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail.trim())) {
+      toast({
+        title: "Erreur",
+        description: "Format d'email invalide",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const { data, error } = await supabase.functions.invoke('team-management', {
-        body: { 
-          action: 'invite_member', 
-          teamId: selectedTeamId,
+      setIsInviting(true);
+      const response = await supabase.functions.invoke('team-management', {
+        body: {
+          action: 'invite_member',
+          teamId: selectedTeam.id,
           memberEmail: inviteEmail.trim()
         }
       });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors de l\'invitation');
+      }
 
-      toast({ title: 'Succès', description: 'Membre invité avec succès' });
+      toast({
+        title: "Invitation envoyée",
+        description: `Une invitation a été envoyée à ${inviteEmail}`,
+      });
+
+      setInviteEmail('');
       setShowInviteDialog(false);
-      setInviteEmail("");
-      setSelectedTeamId("");
-      loadTeams();
+      await loadTeams();
     } catch (error: any) {
-      toast({ 
-        title: 'Erreur', 
-        description: error.message || 'Impossible d\'inviter le membre',
-        variant: 'destructive' 
+      console.error('Error inviting member:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'envoyer l'invitation",
+        variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsInviting(false);
     }
   };
 
-  const handleRemoveMember = async (teamId: string, memberId: string) => {
-    setLoading(true);
+  const handleRemoveMember = async (memberId: string) => {
+    if (!selectedTeam) return;
+
     try {
-      const { data, error } = await supabase.functions.invoke('team-management', {
-        body: { 
-          action: 'remove_member', 
-          teamId,
+      const response = await supabase.functions.invoke('team-management', {
+        body: {
+          action: 'remove_member',
+          teamId: selectedTeam.id,
           memberId
         }
       });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors de la suppression');
+      }
 
-      toast({ title: 'Succès', description: 'Membre supprimé' });
-      loadTeams();
+      toast({
+        title: "Membre supprimé",
+        description: "Le membre a été retiré de l'équipe",
+      });
+
+      await loadTeams();
     } catch (error: any) {
-      toast({ 
-        title: 'Erreur', 
-        description: error.message || 'Impossible de supprimer le membre',
-        variant: 'destructive' 
+      console.error('Error removing member:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer le membre",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      const response = await supabase.functions.invoke('team-management', {
+        body: {
+          action: 'cancel_invitation',
+          invitationId
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors de l\'annulation');
+      }
+
+      toast({
+        title: "Invitation annulée",
+        description: "L'invitation a été annulée",
+      });
+
+      await loadTeams();
+    } catch (error: any) {
+      console.error('Error cancelling invitation:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'annuler l'invitation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadTeamHistory = async (teamId: string) => {
+    try {
+      setLoadingHistory(true);
+      const response = await supabase.functions.invoke('team-management', {
+        body: {
+          action: 'get_team_history',
+          teamId
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erreur lors du chargement de l\'historique');
+      }
+
+      setTeamHistory(response.data.history || []);
+    } catch (error: any) {
+      console.error('Error loading team history:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de charger l'historique",
+        variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoadingHistory(false);
+    }
+  };
+
+  const openHistoryDialog = async (team: Team) => {
+    setSelectedTeam(team);
+    setShowHistoryDialog(true);
+    await loadTeamHistory(team.id);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatHistoryAction = (action: string, details: any) => {
+    switch (action) {
+      case 'create_team':
+        return `Équipe "${details.team_name}" créée`;
+      case 'invite_member':
+        return `Invitation envoyée à ${details.invited_email}`;
+      case 'accept_invitation':
+        return `Invitation acceptée`;
+      case 'remove_member':
+        return `Membre ${details.removed_user_name || 'inconnu'} retiré`;
+      case 'cancel_invitation':
+        return `Invitation annulée pour ${details.cancelled_email}`;
+      default:
+        return action;
     }
   };
 
@@ -229,45 +372,63 @@ const Team = () => {
                 </div>
               </div>
             </div>
-            {canCreateTeam && (
-              <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    Créer une équipe
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Créer une nouvelle équipe</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateTeam} className="space-y-4">
-                    <div>
-                      <Label htmlFor="teamName">Nom de l'équipe</Label>
-                      <Input
-                        id="teamName"
-                        value={newTeamName}
-                        onChange={(e) => setNewTeamName(e.target.value)}
-                        placeholder="Ex: Équipe Marketing"
-                        required
-                      />
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={loadTeams}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Actualiser
+              </Button>
+              {canCreateTeam && (
+                <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="flex items-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Créer une équipe
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Créer une nouvelle équipe</DialogTitle>
+                      <DialogDescription>
+                        Créez une équipe pour collaborer avec vos collègues
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="teamName">Nom de l'équipe</Label>
+                        <Input
+                          id="teamName"
+                          value={newTeamName}
+                          onChange={(e) => setNewTeamName(e.target.value)}
+                          placeholder="Ex: Équipe Marketing"
+                          required
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setShowCreateDialog(false)}
+                        >
+                          Annuler
+                        </Button>
+                        <Button 
+                          onClick={handleCreateTeam} 
+                          disabled={isCreating || !newTeamName.trim()}
+                        >
+                          {isCreating ? 'Création...' : 'Créer l\'équipe'}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setShowCreateDialog(false)}
-                      >
-                        Annuler
-                      </Button>
-                      <Button type="submit" disabled={loading}>
-                        Créer l'équipe
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            )}
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -339,33 +500,47 @@ const Team = () => {
                         )}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Créée le {new Date(team.created_at).toLocaleDateString()}
+                        Créée le {formatDate(team.created_at)}
                       </p>
                     </div>
                   </div>
                   
-                  {team.isOwner && (
-                    <div className="flex gap-2">
-                      <Dialog open={showInviteDialog && selectedTeamId === team.id} onOpenChange={(open) => {
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openHistoryDialog(team)}
+                      className="flex items-center gap-1"
+                    >
+                      <History className="h-4 w-4" />
+                      Historique
+                    </Button>
+                    
+                    {team.isOwner && (
+                      <Dialog open={showInviteDialog && selectedTeam?.id === team.id} onOpenChange={(open) => {
                         setShowInviteDialog(open);
-                        if (open) setSelectedTeamId(team.id);
-                        else setSelectedTeamId("");
+                        if (open) setSelectedTeam(team);
+                        else setSelectedTeam(null);
                       }}>
                         <DialogTrigger asChild>
                           <Button 
                             size="sm" 
                             variant="outline"
-                            disabled={team.team_members.length >= teamLimit}
+                            disabled={team.team_members.length + team.pendingInvitations.length >= teamLimit}
+                            className="flex items-center gap-1"
                           >
-                            <Mail className="h-4 w-4 mr-1" />
+                            <Mail className="h-4 w-4" />
                             Inviter
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Inviter un membre dans {team.name}</DialogTitle>
+                            <DialogDescription>
+                              Envoyez une invitation par email. Si la personne n'a pas de compte, elle pourra en créer un.
+                            </DialogDescription>
                           </DialogHeader>
-                          <form onSubmit={handleInviteMember} className="space-y-4">
+                          <div className="space-y-4">
                             <div>
                               <Label htmlFor="inviteEmail">Adresse email</Label>
                               <Input
@@ -383,96 +558,213 @@ const Team = () => {
                                 variant="outline" 
                                 onClick={() => {
                                   setShowInviteDialog(false);
-                                  setSelectedTeamId("");
+                                  setSelectedTeam(null);
+                                  setInviteEmail('');
                                 }}
                               >
                                 Annuler
                               </Button>
-                              <Button type="submit" disabled={loading}>
-                                Envoyer l'invitation
+                              <Button 
+                                onClick={handleInviteMember} 
+                                disabled={isInviting || !inviteEmail.trim()}
+                              >
+                                {isInviting ? 'Envoi...' : 'Envoyer l\'invitation'}
                               </Button>
                             </div>
-                          </form>
+                          </div>
                         </DialogContent>
                       </Dialog>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
-                {/* Team Members */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                    Membres ({team.team_members.length}/{teamLimit === 999 ? '∞' : teamLimit})
-                  </h4>
-                  
-                  {team.team_members.length === 0 ? (
-                    <p className="text-muted-foreground text-sm py-4">
-                      Aucun membre dans cette équipe.
-                    </p>
-                  ) : (
-                    <div className="grid gap-2">
-                      {team.team_members.map((member) => (
-                        <div key={member.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Users className="h-4 w-4 text-primary" />
+                <Tabs defaultValue="members" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="members" className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Membres ({team.team_members.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="invitations" className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Invitations ({team.pendingInvitations.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="members" className="space-y-3 mt-4">
+                    {team.team_members.length === 0 ? (
+                      <p className="text-muted-foreground text-sm py-4 text-center">
+                        Aucun membre dans cette équipe.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2">
+                        {team.team_members.map((member) => (
+                          <div key={member.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {member.profiles?.display_name || `Utilisateur ${member.user_id.slice(-4)}`}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {member.role === 'owner' ? 'Propriétaire' : 'Membre'}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-sm">
-                                {member.profiles?.display_name || `Utilisateur ${member.user_id.slice(-4)}`}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {member.role === 'owner' ? 'Propriétaire' : 'Membre'}
-                              </p>
+                            
+                            {team.isOwner && member.role !== 'owner' && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Supprimer le membre</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Êtes-vous sûr de vouloir supprimer ce membre de l'équipe ?
+                                      Cette action est irréversible.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => {
+                                        setSelectedTeam(team);
+                                        handleRemoveMember(member.id);
+                                      }}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="invitations" className="space-y-3 mt-4">
+                    {team.pendingInvitations.length === 0 ? (
+                      <p className="text-muted-foreground text-sm py-4 text-center">
+                        Aucune invitation en attente.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2">
+                        {team.pendingInvitations.map((invitation) => (
+                          <div key={invitation.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                                <Mail className="h-4 w-4 text-orange-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{invitation.email}</p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  Expire le {formatDate(invitation.expires_at)}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                En attente
+                              </Badge>
+                              {team.isOwner && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                                      <Ban className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Annuler l'invitation</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Êtes-vous sûr de vouloir annuler cette invitation ?
+                                        L'utilisateur ne pourra plus rejoindre l'équipe avec ce lien.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Non, garder</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleCancelInvitation(invitation.id)}
+                                        className="bg-destructive hover:bg-destructive/90"
+                                      >
+                                        Oui, annuler
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </div>
                           </div>
-                          
-                          {team.isOwner && member.role !== 'owner' && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Supprimer le membre</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Êtes-vous sûr de vouloir supprimer ce membre de l'équipe ?
-                                    Cette action est irréversible.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => handleRemoveMember(team.id, member.id)}
-                                    className="bg-destructive hover:bg-destructive/90"
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </Card>
             ))
           )}
         </div>
 
-        {/* Refresh Button */}
-        <div className="flex justify-center pt-6">
-          <Button variant="outline" onClick={loadTeams} disabled={loading}>
-            Actualiser
-          </Button>
-        </div>
+        {/* Team History Dialog */}
+        <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Historique de {selectedTeam?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Suivez toutes les activités et modifications de cette équipe
+              </DialogDescription>
+            </DialogHeader>
+            
+            <ScrollArea className="h-[400px] w-full">
+              {loadingHistory ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : teamHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">Aucun historique disponible</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {teamHistory.map((item, index) => (
+                    <div key={item.id} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        </div>
+                        {index < teamHistory.length - 1 && (
+                          <div className="w-px h-6 bg-border mt-2" />
+                        )}
+                      </div>
+                      <div className="flex-1 pb-4">
+                        <p className="font-medium text-sm">
+                          {formatHistoryAction(item.action, item.details)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(item.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
-};
-
-export default Team;
+}
