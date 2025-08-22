@@ -41,6 +41,7 @@ interface TranscriptionSegment {
   endTime: number;
   translatedText?: string;
   audioUrl?: string;
+  language?: string;
 }
 
 export default function VideoTranslator() {
@@ -87,14 +88,22 @@ export default function VideoTranslator() {
       
       // Try system audio capture first, fallback to microphone
       try {
-        await transcriptionServiceRef.current.startSystemAudioCapture();
+        await transcriptionServiceRef.current.startSystemAudioCapture(
+          sourceLang, 
+          targetLang, 
+          generateVoiceover
+        );
         toast({
           title: "Écoute activée",
           description: "Capture audio système en cours. Lancez la vidéo pour commencer la transcription.",
         });
       } catch (systemError) {
         console.warn('System audio not available, falling back to microphone:', systemError);
-        await transcriptionServiceRef.current.startMicrophoneCapture();
+        await transcriptionServiceRef.current.startMicrophoneCapture(
+          sourceLang, 
+          targetLang, 
+          generateVoiceover
+        );
         toast({
           title: "Microphone activé",
           description: "Utilisez votre microphone près des haut-parleurs pour capturer l'audio.",
@@ -128,47 +137,47 @@ export default function VideoTranslator() {
     });
   };
 
-  // Listen for real-time transcription segments
+  // Listen for synchronized transcription segments
   useEffect(() => {
-    const handleTranscriptionSegment = async (event: CustomEvent) => {
-      const segment = event.detail as TranscriptionSegment;
-      setOriginalSegments(prev => [...prev, segment]);
-      setCurrentSegment(segment);
+    const handleSynchronizedTranscription = (event: CustomEvent) => {
+      const {
+        originalText,
+        translatedText,
+        startTime,
+        endTime,
+        language,
+        targetLanguage,
+        audioUrl
+      } = event.detail;
 
-      // Translate segment if target language is different
-      if (targetLang !== sourceLang && targetLang !== 'auto') {
-        try {
-          const translatedText = await RealTimeTranscriptionService.translateText(
-            segment.text,
-            sourceLang === 'auto' ? 'fr' : sourceLang,
-            targetLang
-          );
+      // Create original segment
+      const originalSegment: TranscriptionSegment = {
+        text: originalText,
+        startTime,
+        endTime,
+        language
+      };
 
-          let audioUrl: string | null = null;
-          if (generateVoiceover) {
-            audioUrl = await RealTimeTranscriptionService.generateVoiceSegment(
-              translatedText,
-              targetLang
-            );
-          }
+      // Create translated segment
+      const translatedSegment: TranscriptionSegment = {
+        text: originalText,
+        translatedText,
+        startTime,
+        endTime,
+        language,
+        audioUrl
+      };
 
-          const translatedSegment: TranscriptionSegment = {
-            ...segment,
-            translatedText,
-            audioUrl: audioUrl || undefined
-          };
-
-          setTranslatedSegments(prev => [...prev, translatedSegment]);
-        } catch (error) {
-          console.error('Translation error:', error);
-        }
-      }
+      // Update both segments simultaneously
+      setOriginalSegments(prev => [...prev, originalSegment]);
+      setTranslatedSegments(prev => [...prev, translatedSegment]);
+      setCurrentSegment(originalSegment);
     };
 
-    window.addEventListener('transcription-segment', handleTranscriptionSegment as EventListener);
+    window.addEventListener('synchronized-transcription', handleSynchronizedTranscription as EventListener);
     
     return () => {
-      window.removeEventListener('transcription-segment', handleTranscriptionSegment as EventListener);
+      window.removeEventListener('synchronized-transcription', handleSynchronizedTranscription as EventListener);
     };
   }, [targetLang, sourceLang, generateVoiceover]);
 

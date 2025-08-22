@@ -96,7 +96,11 @@ export class RealTimeTranscriptionService {
     return new Blob([byteArray], { type: mimeType });
   }
 
-  async startSystemAudioCapture(): Promise<void> {
+  async startSystemAudioCapture(
+    sourceLang: string, 
+    targetLang: string, 
+    shouldGenerateVoice: boolean = false
+  ): Promise<void> {
     try {
       // Request system audio capture permission
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -115,7 +119,7 @@ export class RealTimeTranscriptionService {
 
       this.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          this.processAudioChunk(event.data);
+          this.processAudioChunkWithTranslation(event.data, sourceLang, targetLang, shouldGenerateVoice);
         }
       };
 
@@ -127,7 +131,11 @@ export class RealTimeTranscriptionService {
     }
   }
 
-  async startMicrophoneCapture(): Promise<void> {
+  async startMicrophoneCapture(
+    sourceLang: string, 
+    targetLang: string, 
+    shouldGenerateVoice: boolean = false
+  ): Promise<void> {
     try {
       // Fallback to microphone if system audio isn't available
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -144,7 +152,7 @@ export class RealTimeTranscriptionService {
 
       this.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          this.processAudioChunk(event.data);
+          this.processAudioChunkWithTranslation(event.data, sourceLang, targetLang, shouldGenerateVoice);
         }
       };
 
@@ -180,6 +188,69 @@ export class RealTimeTranscriptionService {
       }
     } catch (error) {
       console.error('Error processing audio chunk:', error);
+    }
+  }
+
+  async processAudioChunkWithTranslation(
+    audioChunk: Blob, 
+    sourceLang: string, 
+    targetLang: string, 
+    shouldGenerateVoice: boolean = false
+  ): Promise<void> {
+    try {
+      // Convert blob to base64
+      const base64Audio = await this.blobToBase64(audioChunk);
+      
+      // Transcribe the chunk
+      const originalText = await RealTimeTranscriptionService.transcribeAudioChunk(base64Audio);
+      
+      if (originalText.trim()) {
+        let translatedText = '';
+        let audioUrl: string | null = null;
+
+        // Translate if target language is different from source
+        if (targetLang && sourceLang !== targetLang) {
+          translatedText = await RealTimeTranscriptionService.translateText(
+            originalText.trim(), 
+            sourceLang, 
+            targetLang
+          );
+
+          // Generate voice-over if requested
+          if (shouldGenerateVoice && translatedText) {
+            audioUrl = await RealTimeTranscriptionService.generateVoiceSegment(
+              translatedText, 
+              targetLang
+            );
+          }
+        }
+
+        const synchronizedSegment = {
+          originalText: originalText.trim(),
+          translatedText: translatedText || originalText.trim(),
+          startTime: Date.now(),
+          endTime: Date.now() + 3000,
+          language: sourceLang,
+          targetLanguage: targetLang,
+          audioUrl
+        };
+        
+        // Store the segment
+        const segment: TranscriptionSegment = {
+          text: originalText.trim(),
+          startTime: synchronizedSegment.startTime,
+          endTime: synchronizedSegment.endTime,
+          language: sourceLang
+        };
+        this.segments.push(segment);
+        
+        // Emit synchronized event with all data
+        window.dispatchEvent(new CustomEvent('synchronized-transcription', { 
+          detail: synchronizedSegment 
+        }));
+      }
+    } catch (error) {
+      console.error('Error processing audio chunk with translation:', error);
     }
   }
 
