@@ -36,23 +36,39 @@ export class StreamingService {
         model,
         temperature,
         max_tokens: maxTokens,
+        max_completion_tokens: maxTokens, // Support GPT-5/O3/O4
         stream: true
       };
 
-      const response = await fetch(`https://jeurznrjcohqbevrzses.supabase.co/functions/v1/${functionName}`, {
+      console.log(`📡 Calling ${functionName} for provider ${provider}`);
+
+      // Utiliser le client Supabase authentifié au lieu de fetch manuel
+      const { data: response, error: functionError } = await supabase.functions.invoke(functionName, {
+        body: streamingPayload
+      });
+
+      if (functionError) {
+        console.error(`❌ Function error for ${model}:`, functionError);
+        throw new Error(`Function failed: ${functionError.message || 'Unknown error'}`);
+      }
+
+      // Pour le streaming, on doit utiliser une approche différente
+      const streamResponse = await fetch(`https://jeurznrjcohqbevrzses.supabase.co/functions/v1/${functionName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI`
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || 'anonymous'}`
         },
         body: JSON.stringify(streamingPayload)
       });
 
-      if (!response.ok) {
-        throw new Error(`Streaming failed: ${response.statusText}`);
+      if (!streamResponse.ok) {
+        const errorText = await streamResponse.text();
+        console.error(`❌ Stream response failed for ${model}:`, errorText);
+        throw new Error(`Streaming failed: ${streamResponse.statusText} - ${errorText}`);
       }
 
-      const reader = response.body?.getReader();
+      const reader = streamResponse.body?.getReader();
       if (!reader) {
         throw new Error('No response body reader');
       }
@@ -100,7 +116,18 @@ export class StreamingService {
       }
       
     } catch (error) {
-      console.error('❌ Streaming error:', error);
+      console.error(`❌ Streaming error for ${model}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Log détaillé pour debugging
+      if (errorMessage.includes('OpenAI is requiring a key')) {
+        console.error('🔑 OpenAI API key required for this model via OpenRouter');
+      } else if (errorMessage.includes('403')) {
+        console.error('🚫 Access denied - check API key configuration');
+      } else if (errorMessage.includes('rate limit')) {
+        console.error('⏰ Rate limit exceeded');
+      }
+      
       onError?.(error as Error);
     }
   }
@@ -145,42 +172,66 @@ export class StreamingService {
   }
 
   /**
-   * Stream avec fallback automatique
+   * Stream avec fallback automatique intelligent pour GPT-5
    */
   static async streamWithFallback(options: StreamingOptions): Promise<void> {
     try {
       await this.streamGeneration(options);
     } catch (error) {
-      console.warn('Primary streaming failed, attempting intelligent fallback:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`🔄 Primary streaming failed for ${options.model}, attempting intelligent fallback:`, errorMessage);
       
-      // Analyser l'erreur et recommander un modèle de fallback
-      const errorInfo = ErrorHandlingService.analyzeError(error);
-      const fallbackModel = errorInfo.fallbackModel || 'openai/gpt-4o-mini';
+      // Fallback spécifique pour GPT-5 qui nécessite une clé OpenAI
+      let fallbackModel = 'gpt-4o-mini';
       
-      // Si on a un prompt, utiliser le service de recommandation
-      let intelligentFallback = fallbackModel;
-      if (options.messages.length > 0) {
-        const prompt = options.messages[options.messages.length - 1]?.content || '';
-        if (prompt.trim().length > 10) {
-          const analysis = ModelRecommendationService.analyzePrompt(prompt);
-          intelligentFallback = ModelRecommendationService.getBestModelForTask(analysis);
+      if (options.model.includes('gpt-5') || options.model.includes('openai/gpt-5')) {
+        console.log('🔄 GPT-5 fallback: trying direct OpenAI models');
+        // Essayer d'abord GPT-4o pour maintenir la qualité
+        fallbackModel = 'gpt-4.1-2025-04-14';
+      } else if (options.model.includes('o3-') || options.model.includes('o4-')) {
+        console.log('🔄 O3/O4 fallback: trying GPT-4.1');
+        fallbackModel = 'gpt-4.1-2025-04-14';
+      } else {
+        // Analyser l'erreur et recommander un modèle de fallback
+        const errorInfo = ErrorHandlingService.analyzeError(error);
+        fallbackModel = errorInfo.fallbackModel || 'gpt-4o-mini';
+        
+        // Si on a un prompt, utiliser le service de recommandation
+        if (options.messages.length > 0) {
+          const prompt = options.messages[options.messages.length - 1]?.content || '';
+          if (prompt.trim().length > 10) {
+            const analysis = ModelRecommendationService.analyzePrompt(prompt);
+            const recommendedModel = ModelRecommendationService.getBestModelForTask(analysis);
+            if (recommendedModel && !recommendedModel.includes('gpt-5')) {
+              fallbackModel = recommendedModel;
+            }
+          }
         }
       }
       
       const fallbackOptions = {
         ...options,
-        model: intelligentFallback
+        model: fallbackModel
       };
+      
+      console.log(`🔄 Attempting fallback with ${fallbackModel}`);
       
       try {
         await this.streamGeneration(fallbackOptions);
       } catch (fallbackError) {
+        console.warn(`🔄 First fallback failed, trying final fallback`);
         // Dernier recours : modèle le plus stable
         const finalFallbackOptions = {
           ...options,
-          model: 'openai/gpt-4o-mini'
+          model: 'gpt-4o-mini'
         };
-        await this.streamGeneration(finalFallbackOptions);
+        
+        try {
+          await this.streamGeneration(finalFallbackOptions);
+        } catch (finalError) {
+          console.error('❌ All fallback attempts failed:', finalError);
+          throw new Error(`Streaming failed for all models. Original error: ${errorMessage}`);
+        }
       }
     }
   }
@@ -193,21 +244,17 @@ export class StreamingService {
       const provider = this.detectProvider(model);
       const functionName = this.getFunctionName(provider);
       
-      const response = await fetch(`https://jeurznrjcohqbevrzses.supabase.co/functions/v1/${functionName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI`
-        },
-        body: JSON.stringify({
+      // Utiliser le client Supabase pour les tests aussi
+      const testResult = await supabase.functions.invoke(functionName, {
+        body: {
           messages: [{ role: 'user', content: 'test' }],
           model,
-          stream: true,
+          stream: false, // Test sans streaming d'abord
           max_tokens: 1
-        })
+        }
       });
 
-      return response.ok;
+      return !testResult.error;
     } catch {
       return false;
     }
