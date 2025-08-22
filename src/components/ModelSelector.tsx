@@ -15,6 +15,48 @@ const models = [
     color: "openai",
     description: "Choisit automatiquement le meilleur modèle selon la tâche"
   },
+
+  // === OPENROUTER - MODÈLES POPULAIRES ===
+  {
+    id: "openai/gpt-4o",
+    name: "GPT-4o (OpenRouter)",
+    provider: "OpenAI",
+    icon: Sparkles,
+    color: "openai",
+    description: "Modèle multimodal via OpenRouter - Plus économique"
+  },
+  {
+    id: "anthropic/claude-3.5-sonnet",
+    name: "Claude 3.5 Sonnet",  
+    provider: "Anthropic",
+    icon: Sparkles,
+    color: "claude",
+    description: "Excellent pour l'écriture et l'analyse via OpenRouter"
+  },
+  {
+    id: "google/gemini-pro-1.5",
+    name: "Gemini Pro 1.5",
+    provider: "Google",
+    icon: Globe,
+    color: "gemini", 
+    description: "Contexte ultra-long (2M tokens) via OpenRouter"
+  },
+  {
+    id: "meta-llama/llama-3.1-405b-instruct",
+    name: "Llama 3.1 405B",
+    provider: "Meta",
+    icon: Code2,
+    color: "codestral",
+    description: "Modèle open-source le plus puissant via OpenRouter"
+  },
+  {
+    id: "meta-llama/codellama-34b-instruct",
+    name: "Code Llama 34B",
+    provider: "Meta", 
+    icon: Code2,
+    color: "codestral",
+    description: "Spécialisé code et programmation via OpenRouter"
+  },
   
   // === MODÈLES GÉNÉRALISTES ===
   {

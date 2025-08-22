@@ -1,5 +1,8 @@
 project_id = "jeurznrjcohqbevrzses"
 
+[functions.openrouter-chat]
+verify_jwt = true
+
 [functions.image-proxy]
 verify_jwt = false
 

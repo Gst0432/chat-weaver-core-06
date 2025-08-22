@@ -13,9 +13,10 @@ import { ModelRouterService } from '@/services/modelRouterService';
 import { PromptEngineerService } from '@/services/promptEngineerService';
 import { aiService } from '@/services/aiService';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { ImageService } from "@/services/imageService";
 import { RunwareService } from "@/services/runwareService";
+import { OpenRouterService } from "@/services/openRouterService";
 import { AppGeneratorService } from "@/services/appGeneratorService";
 
 interface Message {
@@ -183,7 +184,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [showImageControls, setShowImageControls] = useState(false);
   const [autoRouterChoice, setAutoRouterChoice] = useState<string>('');
-  const { toast } = toast();
+  const { toast } = useToast();
 
   const createNewConversation = async () => {
     try {
@@ -795,6 +796,50 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
           return;
         } catch (error) {
           console.error("❌ Erreur auto-router:", error);
+          // Continuer avec l'ancien système en fallback
+        }
+      }
+
+      // Utiliser OpenRouter pour certains modèles
+      if (selectedModel.includes('/')) {
+        try {
+          console.log('🔄 Utilisation OpenRouter pour:', selectedModel);
+          
+          const result = await OpenRouterService.generateWithModel(
+            chatMessages.map(m => ({ role: m.role, content: m.content })),
+            selectedModel,
+            {
+              temperature: safeMode ? 0.3 : 0.7,
+              max_tokens: 1500
+            }
+          );
+          
+          console.log('✅ OpenRouter réponse reçue:', { 
+            model: result.model,
+            textLength: result.text.length 
+          });
+          
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: result.text,
+            role: "assistant",
+            timestamp: new Date(),
+            model: result.model
+          };
+          
+          setMessages(prev => [...prev, assistantMessage]);
+          
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: result.text,
+            model: result.model
+          });
+          
+          setIsLoading(false);
+          return;
+        } catch (error) {
+          console.error("❌ Erreur OpenRouter:", error);
           // Continuer avec l'ancien système en fallback
         }
       }
