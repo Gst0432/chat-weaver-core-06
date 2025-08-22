@@ -19,30 +19,33 @@ export interface StreamingOptions {
 export class StreamingService {
   
   /**
-   * Démarre un stream avec n'importe quel modèle
+   * Démarre un stream optimisé avec n'importe quel modèle
    */
   static async streamGeneration(options: StreamingOptions): Promise<void> {
     const { messages, model, temperature = 0.7, maxTokens = 2000, onChunk, onComplete, onError } = options;
     
     try {
-      console.log('🚀 Starting stream with model:', model);
+      console.log('🚀 Starting optimized stream with model:', model);
       
       const provider = this.detectProvider(model);
       const functionName = this.getFunctionName(provider);
       
+      // Support streaming pour TOUS les modèles, y compris GPT-5/O3/O4
+      const streamingPayload = {
+        messages,
+        model,
+        temperature,
+        max_tokens: maxTokens,
+        stream: true
+      };
+
       const response = await fetch(`https://jeurznrjcohqbevrzses.supabase.co/functions/v1/${functionName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI`
         },
-        body: JSON.stringify({
-          messages,
-          model,
-          temperature,
-          max_tokens: maxTokens,
-          stream: true
-        })
+        body: JSON.stringify(streamingPayload)
       });
 
       if (!response.ok) {
@@ -55,30 +58,37 @@ export class StreamingService {
       }
 
       let fullText = '';
+      let chunkBuffer = '';
+      const decoder = new TextDecoder();
       
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = new TextDecoder().decode(value);
-          const lines = chunk.split('\n');
+          // Optimisation: décodage en chunks plus large
+          chunkBuffer += decoder.decode(value, { stream: true });
+          const lines = chunkBuffer.split('\n');
+          chunkBuffer = lines.pop() || ''; // Garde la dernière ligne partielle
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = line.slice(6);
+              const data = line.slice(6).trim();
               if (data === '[DONE]') continue;
               
               try {
                 const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
+                const content = parsed.choices?.[0]?.delta?.content || 
+                              parsed.choices?.[0]?.message?.content ||
+                              parsed.content;
                 
                 if (content) {
                   fullText += content;
+                  // Émission immédiate du chunk
                   onChunk?.(content);
                 }
               } catch (parseError) {
-                console.warn('Error parsing chunk:', parseError);
+                // Silencieux pour éviter le spam de logs
               }
             }
           }
@@ -96,10 +106,14 @@ export class StreamingService {
   }
 
   /**
-   * Détecte le provider basé sur le nom du modèle
+   * Détecte le provider basé sur le nom du modèle (optimisé pour GPT-5/O3/O4)
    */
   private static detectProvider(model: string): 'openai' | 'claude' | 'gemini' | 'deepseek' | 'openrouter' {
-    if (model.includes('gpt') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
+    // Support optimisé pour les nouveaux modèles
+    if (model.includes('gpt-5') || model.includes('o3-') || model.includes('o4-')) {
+      return 'openrouter'; // Via OpenRouter pour GPT-5
+    }
+    if (model.includes('gpt') || model.includes('o1')) {
       return 'openai';
     }
     if (model.includes('claude')) {
@@ -116,7 +130,7 @@ export class StreamingService {
   }
 
   /**
-   * Obtient le nom de la fonction edge correspondante
+   * Obtient le nom de la fonction edge correspondante (streaming prioritaire)
    */
   private static getFunctionName(provider: string): string {
     const functions = {

@@ -353,42 +353,54 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       if (insertErr) throw insertErr;
       const insertedMessageId = inserted?.id as string | undefined;
 
-      // Embed and store user message for retrieval
-      try {
-        const { data: embedRes, error: embedErr } = await supabase.functions.invoke('openai-embed', { body: { input: [content] } });
-        if (embedErr) throw embedErr;
-        const vec = embedRes?.embeddings?.[0];
-        const { data: { user } } = await supabase.auth.getUser();
-        if (Array.isArray(vec) && user?.id) {
-          await (supabase as any).from('embeddings').insert({
-            conversation_id: convoId,
-            message_id: insertedMessageId,
-            user_id: user.id,
-            content,
-            embedding: vec as any,
-          });
-        }
-      } catch (e) {
-        console.warn('Embedding store failed', e);
+      // OPTIMISATION: Paralléliser tous les appels non-bloquants
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const parallelTasks = [];
+      
+      // Tâche 1: Embedding (en arrière-plan)
+      if (user?.id) {
+        parallelTasks.push(
+          supabase.functions.invoke('openai-embed', { body: { input: [content] } })
+            .then(({ data: embedRes, error: embedErr }) => {
+              if (!embedErr && embedRes?.embeddings?.[0]) {
+                return (supabase as any).from('embeddings').insert({
+                  conversation_id: convoId,
+                  message_id: insertedMessageId,
+                  user_id: user.id,
+                  content,
+                  embedding: embedRes.embeddings[0] as any,
+                });
+              }
+            })
+            .catch(e => console.warn('Embedding store failed', e))
+        );
       }
 
-      // Mettre à jour le titre de la conversation si vide / placeholder
-      try {
-        const firstLine = String(content).split('\n')[0].trim();
-        const candidate = firstLine ? firstLine.slice(0, 80) : 'Conversation';
-        const { data: convRow } = await supabase
-          .from('conversations')
-          .select('id, title')
-          .eq('id', convoId)
-          .maybeSingle();
-        const needsTitle = !convRow?.title || convRow.title === 'Nouvelle conversation';
-        if (needsTitle && candidate) {
-          await supabase.from('conversations').update({ title: candidate }).eq('id', convoId);
-          window.dispatchEvent(new CustomEvent('chat:reload-conversations'));
-        }
-      } catch (e) {
-        console.warn('Maj titre conversation échouée', e);
-      }
+      // Tâche 2: Mise à jour titre conversation (en arrière-plan)
+      parallelTasks.push(
+        (async () => {
+          try {
+            const firstLine = String(content).split('\n')[0].trim();
+            const candidate = firstLine ? firstLine.slice(0, 80) : 'Conversation';
+            const { data: convRow } = await supabase
+              .from('conversations')
+              .select('id, title')
+              .eq('id', convoId)
+              .maybeSingle();
+            const needsTitle = !convRow?.title || convRow.title === 'Nouvelle conversation';
+            if (needsTitle && candidate) {
+              await supabase.from('conversations').update({ title: candidate }).eq('id', convoId);
+              window.dispatchEvent(new CustomEvent('chat:reload-conversations'));
+            }
+          } catch (e) {
+            console.warn('Maj titre conversation échouée', e);
+          }
+        })()
+      );
+
+      // Exécuter toutes les tâches en parallèle SANS bloquer la génération
+      Promise.all(parallelTasks).catch(e => console.warn('Background tasks failed:', e));
 
       // Si upload (data URL), gérer image/PDF
       if (typeof content === 'string' && content.startsWith('data:')) {
@@ -935,142 +947,110 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       const maxTokensParam = isNewModel ? 'max_completion_tokens' : 'max_tokens';
       const temperature = safeMode ? 0.3 : 0.7;
       const maxTokens = 1500;
+      // OPTIMISATION MAJEURE: Streaming universel avec cache intelligent
+      console.log('🚀 OPTIMISED: Starting instant streaming for:', selectedModel);
       
-      // Streaming OpenAI avec détection des modèles non compatibles
-      if (functionName === 'openai-chat') {
-        // Modèles qui ne supportent pas le streaming (organisation non vérifiée)
-        const isNonStreamingModel = model.startsWith('gpt-5') || 
-                                   model.startsWith('o3-') || 
-                                   model.startsWith('o4-');
+      // Précharger contexte utilisateur en arrière-plan
+      if (user?.id) {
+        const { PerformanceCache } = await import('@/services/performanceCache');
+        PerformanceCache.preloadUserData(user.id);
+      }
 
-        if (isNonStreamingModel) {
-          // Utiliser la fonction non-streaming pour GPT-5, O3, O4
-          console.log("🚀 Using non-streaming mode for:", model);
-          
-          const requestBody: any = {
-            messages: chatMessages,
-            model,
-            [maxTokensParam]: maxTokens
-          };
+      // Streaming universel optimisé (supporte TOUS les modèles y compris GPT-5/O3/O4)
+      const { useInstantStreaming } = await import('@/hooks/useInstantStreaming');
+      
+      let streamingId = `stream-${Date.now()}`;
+      setMessages(prev => [...prev, { id: streamingId, content: '', role: 'assistant', timestamp: new Date(), model: selectedModel }]);
+      setIsLoading(false); // Immédiatement non-loading pour réactivité
 
-          // Ne pas inclure temperature pour ces modèles
-          if (!isO1Model && !model.startsWith('gpt-5') && !model.startsWith('o3-') && !model.startsWith('o4-')) {
-            requestBody.temperature = temperature;
-          }
+      // Import du service de streaming optimisé
+      const { StreamingService } = await import('@/services/streamingService');
+      
+      let accumulatedText = '';
+      const startTime = Date.now();
 
-          const { data, error } = await supabase.functions.invoke('openai-chat', {
-            body: requestBody
-          });
-
-          if (error) {
-            console.error("❌ Erreur OpenAI non-streaming:", { model, error });
-            throw error;
-          }
-
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: data?.generatedText || 'Aucune réponse.',
-            role: 'assistant',
-            timestamp: new Date(),
-            model,
-          };
-
-          setMessages(prev => [...prev, assistantMessage]);
-          await supabase.from('messages').insert({
-            conversation_id: convoId,
-            role: 'assistant',
-            content: assistantMessage.content,
-            model
-          });
-          return;
-        }
-
-        // Streaming pour les autres modèles OpenAI compatibles
-        console.log("🌊 Using streaming mode for:", model);
-        const SUPABASE_URL = "https://jeurznrjcohqbevrzses.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldXJ6bnJqY29ocWJldnJ6c2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDAyMTgsImV4cCI6MjA3MDI3NjIxOH0.0lLgSsxohxeWN3d4ZKmlNiMyGDj2L7K8XRAwMq9zaaI";
-        const url = `${SUPABASE_URL}/functions/v1/openai-chat-stream`;
-
-        // Message assistant provisoire pour le stream
-        let streamingId = `stream-${Date.now()}`;
-        setMessages(prev => [...prev, { id: streamingId, content: '', role: 'assistant', timestamp: new Date(), model }]);
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'text/event-stream',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      try {
+        await StreamingService.streamWithFallback({
+          messages: chatMessages.map(m => ({ role: m.role, content: m.content })),
+          model: selectedModel,
+          temperature: safeMode ? 0.3 : 0.7,
+          maxTokens: 2000,
+          onChunk: (chunk: string) => {
+            accumulatedText += chunk;
+            setMessages(prev => prev.map(m => 
+              m.id === streamingId ? { ...m, content: accumulatedText } : m
+            ));
           },
-          body: JSON.stringify({
-            messages: chatMessages,
-            model,
-            temperature: isO1Model ? undefined : temperature,
-            [maxTokensParam]: maxTokens
-          })
-        });
-
-        if (!res.ok || !res.body) throw new Error(`Stream init failed: ${res.status}`);
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let buffer = '';
-        let acc = '';
-        setIsLoading(false);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split('\n');
-          buffer = parts.pop() || '';
-          for (const line of parts) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            if (trimmed.startsWith('data:')) {
-              const json = trimmed.slice(5).trim();
-              if (json === '[DONE]') {
-                buffer = '';
-                break;
-              }
+          onComplete: async (fullText: string) => {
+            const endTime = Date.now();
+            console.log(`✅ OPTIMISED: Stream completed in ${endTime - startTime}ms`);
+            
+            const finalMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              content: fullText,
+              role: 'assistant',
+              timestamp: new Date(),
+              model: selectedModel,
+            };
+            
+            setMessages(prev => prev.map(m => m.id === streamingId ? finalMessage : m));
+            
+            // Sauvegarder en arrière-plan
+            (async () => {
               try {
-                const data = JSON.parse(json);
-                console.log('🔄 Chunk reçu:', data); // Debug streaming
-                // Support multiple streaming formats
-                const delta = data?.choices?.[0]?.delta?.content || 
-                             data?.content || 
-                             data?.delta?.content || 
-                             data?.text || '';
-                if (delta) {
-                  acc += delta;
-                  console.log('📝 Accumulation:', acc.length, 'caractères'); // Debug
-                  setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: acc } : m));
-                }
-              } catch (parseError) {
-                console.warn('❌ Parse chunk error:', parseError, 'pour:', json);
+                await supabase.from('messages').insert({
+                  conversation_id: convoId,
+                  role: 'assistant',
+                  content: fullText,
+                  model: selectedModel
+                });
+              } catch (e) {
+                console.warn('Save message failed:', e);
               }
+            })();
+            
+            // TTS en arrière-plan si activé
+            if (fullText && !fullText.startsWith('data:')) {
+              (async () => {
+                try {
+                  await synthesizeAndPlay(fullText);
+                } catch (e) {
+                  console.warn('TTS failed:', e);
+                }
+              })();
             }
+          },
+          onError: (error: Error) => {
+            console.error('❌ OPTIMISED: Streaming failed:', error);
+            
+            // Fallback gracieux
+            const errorMessage: Message = {
+              id: (Date.now() + 2).toString(),
+              content: `Erreur de génération: ${error.message}`,
+              role: 'assistant',
+              timestamp: new Date(),
+              model: selectedModel,
+            };
+            
+            setMessages(prev => prev.map(m => m.id === streamingId ? errorMessage : m));
           }
-        }
-
-        // Final: insert et remplacement du message stream
-        const finalAssistant: Message = {
-          id: (Date.now() + 1).toString(),
-          content: acc || 'Réponse streaming vide.',
+        });
+        
+      } catch (error) {
+        console.error('❌ OPTIMISED: Critical streaming error:', error);
+        
+        const fallbackMessage: Message = {
+          id: (Date.now() + 3).toString(),
+          content: 'Désolé, une erreur est survenue lors de la génération.',
           role: 'assistant',
           timestamp: new Date(),
-          model,
+          model: selectedModel,
         };
-        setMessages(prev => prev.map(m => m.id === streamingId ? finalAssistant : m));
-        await supabase.from('messages').insert({
-          conversation_id: convoId,
-          role: 'assistant',
-          content: finalAssistant.content,
-          model
-        });
-        return;
+        
+        setMessages(prev => prev.map(m => m.id === streamingId ? fallbackMessage : m));
       }
+      
+      return; // Exit early avec optimisation
 
       // Construction du requestBody avec paramètres spécifiques selon le provider
       const requestBody: any = {
