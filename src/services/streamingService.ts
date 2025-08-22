@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { ErrorHandlingService } from './errorHandlingService';
+import { ModelRecommendationService } from './modelRecommendationService';
 
 export interface StreamingOptions {
   messages: Array<{ role: string; content: string }>;
@@ -132,18 +134,40 @@ export class StreamingService {
    * Stream avec fallback automatique
    */
   static async streamWithFallback(options: StreamingOptions): Promise<void> {
-    const primaryProvider = this.detectProvider(options.model);
-    
     try {
       await this.streamGeneration(options);
     } catch (error) {
-      console.warn(`❌ ${primaryProvider} streaming failed, trying OpenRouter fallback`);
+      console.warn('Primary streaming failed, attempting intelligent fallback:', error);
       
-      // Fallback vers OpenRouter qui supporte 400+ modèles
-      await this.streamGeneration({
+      // Analyser l'erreur et recommander un modèle de fallback
+      const errorInfo = ErrorHandlingService.analyzeError(error);
+      const fallbackModel = errorInfo.fallbackModel || 'openai/gpt-4o-mini';
+      
+      // Si on a un prompt, utiliser le service de recommandation
+      let intelligentFallback = fallbackModel;
+      if (options.messages.length > 0) {
+        const prompt = options.messages[options.messages.length - 1]?.content || '';
+        if (prompt.trim().length > 10) {
+          const analysis = ModelRecommendationService.analyzePrompt(prompt);
+          intelligentFallback = ModelRecommendationService.getBestModelForTask(analysis);
+        }
+      }
+      
+      const fallbackOptions = {
         ...options,
-        model: 'openai/gpt-4o-mini' // Modèle stable en fallback
-      });
+        model: intelligentFallback
+      };
+      
+      try {
+        await this.streamGeneration(fallbackOptions);
+      } catch (fallbackError) {
+        // Dernier recours : modèle le plus stable
+        const finalFallbackOptions = {
+          ...options,
+          model: 'openai/gpt-4o-mini'
+        };
+        await this.streamGeneration(finalFallbackOptions);
+      }
     }
   }
 
