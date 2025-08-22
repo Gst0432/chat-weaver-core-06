@@ -5,12 +5,16 @@ export interface ImageGenerationOptions {
   prompt: string;
   size?: '1024x1024' | '1792x1024' | '1024x1792';
   quality?: 'hd' | 'standard';
-  provider?: 'dalle' | 'runware';
+  provider?: 'dalle' | 'runware' | 'huggingface' | 'stable-diffusion' | 'midjourney' | 'auto';
   // Options avancées Runware pour fidélité
   cfgScale?: number; // 1-20, plus élevé = plus fidèle
   steps?: number; // 1-50, plus élevé = plus de détails
   scheduler?: string;
   seed?: number;
+  // Options Hugging Face
+  model?: string; // 'black-forest-labs/FLUX.1-schnell', 'stabilityai/stable-diffusion-xl-base-1.0'
+  width?: number;
+  height?: number;
 }
 
 export interface ImageEditOptions {
@@ -66,13 +70,47 @@ export class ImageService {
 
   /**
    * Génère une image avec le meilleur provider disponible
-   * Runware pour la fidélité, DALL-E en fallback
+   * Auto-sélection intelligente basée sur le type de demande
    */
   static async generateImage(options: ImageGenerationOptions): Promise<string> {
     const prompt = this.enhancePromptForFidelity(options.prompt);
+    let finalProvider = options.provider;
     
-    // Essayer Runware en premier si disponible et demandé
-    if (options.provider === 'runware' || (!options.provider && runwareInstance)) {
+    // Auto-sélection du meilleur provider
+    if (!finalProvider || finalProvider === 'auto') {
+      finalProvider = this.selectBestProvider(prompt);
+    }
+    
+    console.log(`🎨 Génération avec provider: ${finalProvider}`);
+    
+    // Essayer Hugging Face (FLUX.1, Stable Diffusion)
+    if (finalProvider === 'huggingface' || finalProvider === 'stable-diffusion') {
+      try {
+        const model = finalProvider === 'stable-diffusion' 
+          ? 'stabilityai/stable-diffusion-xl-base-1.0'
+          : options.model || 'black-forest-labs/FLUX.1-schnell';
+        
+        const { data, error } = await supabase.functions.invoke('huggingface-image', {
+          body: {
+            prompt,
+            model,
+            width: options.width || 1024,
+            height: options.height || 1024
+          }
+        });
+        
+        if (!error && data?.image) {
+          console.log('✅ Image générée avec Hugging Face');
+          return data.image;
+        }
+        console.warn('❌ Hugging Face failed, trying fallback');
+      } catch (error) {
+        console.error('❌ Erreur Hugging Face:', error);
+      }
+    }
+    
+    // Essayer Runware si disponible
+    if (finalProvider === 'runware' || (!finalProvider && runwareInstance)) {
       try {
         console.log('🎨 Génération avec Runware (fidélité maximale):', prompt);
         
@@ -241,5 +279,52 @@ export class ImageService {
       case '1024x1792': return [1024, 1792]; 
       default: return [1024, 1024];
     }
+  }
+
+  /**
+   * Sélectionne automatiquement le meilleur provider selon le type de demande
+   */
+  static selectBestProvider(prompt: string): 'dalle' | 'runware' | 'huggingface' | 'stable-diffusion' {
+    const lowerPrompt = prompt.toLowerCase();
+    
+    // Stable Diffusion pour art conceptuel et styles artistiques
+    if (lowerPrompt.includes('art style') || lowerPrompt.includes('painting') || 
+        lowerPrompt.includes('artistic') || lowerPrompt.includes('concept art')) {
+      return 'stable-diffusion';
+    }
+    
+    // FLUX.1 pour réalisme et photos
+    if (lowerPrompt.includes('realistic') || lowerPrompt.includes('photo') || 
+        lowerPrompt.includes('portrait') || lowerPrompt.includes('landscape')) {
+      return 'huggingface';
+    }
+    
+    // Runware pour fidélité maximale si disponible
+    if (runwareInstance) {
+      return 'runware';
+    }
+    
+    // DALL-E en fallback
+    return 'dalle';
+  }
+
+  /**
+   * Génère plusieurs images avec différents providers
+   */
+  static async generateMultipleProviders(options: ImageGenerationOptions): Promise<{ provider: string; url: string }[]> {
+    const providers = ['dalle', 'huggingface', 'runware'].filter(p => 
+      p === 'runware' ? runwareInstance : true
+    );
+    
+    const results = await Promise.allSettled(
+      providers.map(async (provider) => {
+        const url = await this.generateImage({ ...options, provider: provider as any });
+        return { provider, url };
+      })
+    );
+    
+    return results
+      .filter((r): r is PromiseFulfilledResult<{ provider: string; url: string }> => r.status === 'fulfilled')
+      .map(r => r.value);
   }
 }
