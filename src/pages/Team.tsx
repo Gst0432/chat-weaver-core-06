@@ -193,7 +193,11 @@ const Team = () => {
     }
   };
 
-  const canCreateTeam = teamLimit > 1 && teams.filter(t => t.isOwner).length === 0;
+  const ownedTeamsCount = teams.filter(t => t.isOwner).length;
+  const maxTeams = subscription.toLowerCase().includes('pro') ? 5 :
+                  subscription.toLowerCase().includes('business') ? 20 :
+                  subscription.toLowerCase().includes('enterprise') ? 999 : 1;
+  const canCreateTeam = teamLimit > 1 && ownedTeamsCount < maxTeams;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
@@ -220,7 +224,7 @@ const Team = () => {
                     Gestion d'équipe
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    Plan {subscription} - {teamLimit === 999 ? 'Illimité' : `${teamLimit} membres max`}
+                    Plan {subscription} - {ownedTeamsCount}/{maxTeams === 999 ? '∞' : maxTeams} équipes • {teamLimit === 999 ? 'Illimité' : `${teamLimit} membres max`}
                   </p>
                 </div>
               </div>
@@ -302,7 +306,7 @@ const Team = () => {
               <p className="text-muted-foreground mb-4">
                 {teamLimit <= 1 
                   ? "Votre plan ne permet pas de créer des équipes."
-                  : "Vous n'avez pas encore d'équipe. Créez-en une pour commencer à collaborer."
+                  : `Vous pouvez créer jusqu'à ${maxTeams === 999 ? 'un nombre illimité' : maxTeams} équipe${maxTeams > 1 ? 's' : ''} avec votre plan ${subscription}.`
                 }
               </p>
               {canCreateTeam && (

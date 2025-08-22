@@ -65,14 +65,23 @@ serve(async (req) => {
           throw new Error("Votre plan ne permet pas de créer des équipes. Passez au plan Pro ou supérieur.");
         }
 
-        // Check if user already has a team
+        // Check how many teams user already owns
         const { data: existingTeams } = await supabaseService
           .from('teams')
           .select('id')
           .eq('owner_id', user.id);
 
-        if (existingTeams && existingTeams.length > 0) {
-          throw new Error("Vous avez déjà une équipe. Un seul équipe par utilisateur est autorisée.");
+        const ownedTeamsCount = existingTeams?.length || 0;
+        const maxTeams = subscription?.subscription_tier?.toLowerCase().includes('pro') ? 5 :
+                        subscription?.subscription_tier?.toLowerCase().includes('business') ? 20 :
+                        subscription?.subscription_tier?.toLowerCase().includes('enterprise') ? 999 : 1;
+
+        if (ownedTeamsCount >= maxTeams) {
+          const planMessage = maxTeams === 1 ? 'Passez au plan Pro pour créer plusieurs équipes.' :
+                            maxTeams === 5 ? 'Passez au plan Business pour créer plus de 5 équipes.' :
+                            maxTeams === 20 ? 'Contactez-nous pour le plan Enterprise.' :
+                            'Limite atteinte.';
+          throw new Error(`Limite d'équipes atteinte (${ownedTeamsCount}/${maxTeams}). ${planMessage}`);
         }
 
         const { data: team, error: teamError } = await supabaseService
