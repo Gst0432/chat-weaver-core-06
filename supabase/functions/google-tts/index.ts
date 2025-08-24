@@ -21,10 +21,15 @@ serve(async (req) => {
       speakingRate = 1.0,
     } = await req.json()
 
+    console.log('🔊 Google TTS request:', { text: text?.substring(0, 50), languageCode, voiceName })
+
     if (!text || typeof text !== 'string') throw new Error('Text is required')
 
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY')
-    if (!GOOGLE_API_KEY) throw new Error('GOOGLE_API_KEY is not set')
+    if (!GOOGLE_API_KEY) {
+      console.error('❌ GOOGLE_API_KEY is not set')
+      throw new Error('GOOGLE_API_KEY is not set')
+    }
 
     const payload: any = {
       input: { text },
@@ -33,15 +38,25 @@ serve(async (req) => {
     }
     if (voiceName) payload.voice.name = voiceName
 
-    const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}` ,{
+    console.log('🚀 Calling Google TTS API with payload:', payload)
+    
+    const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
 
+    console.log('📡 Google TTS response status:', response.status, response.statusText)
+
     if (!response.ok) {
       const err = await response.text()
-      throw new Error(`Google TTS error: ${err}`)
+      console.error('❌ Google TTS API error:', err)
+      
+      if (response.status === 403) {
+        throw new Error(`Google TTS API access denied. Please check: 1) Text-to-Speech API is enabled in Google Cloud Console, 2) API key has proper permissions, 3) API key is valid. Error: ${err}`)
+      }
+      
+      throw new Error(`Google TTS error (${response.status}): ${err}`)
     }
 
     const data = await response.json()

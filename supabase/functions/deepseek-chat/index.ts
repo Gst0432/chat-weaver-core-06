@@ -15,6 +15,7 @@ serve(async (req) => {
 
   try {
     if (!DEEPSEEK_API_KEY) {
+      console.error("❌ DEEPSEEK_API_KEY is not set")
       return new Response(JSON.stringify({ error: "DEEPSEEK_API_KEY is not set" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -22,6 +23,8 @@ serve(async (req) => {
     }
 
     const { messages, model, temperature = 0.7, max_tokens = 800 } = await req.json();
+    
+    console.log('🤖 DeepSeek request:', { model, temperature, max_tokens, messagesCount: messages?.length });
 
     const payload = {
       model: model || "deepseek-chat",
@@ -29,6 +32,8 @@ serve(async (req) => {
       temperature,
       max_tokens,
     };
+
+    console.log('🚀 Calling DeepSeek API with model:', payload.model)
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
@@ -39,9 +44,12 @@ serve(async (req) => {
       body: JSON.stringify(payload),
     });
 
+    console.log('📡 DeepSeek response status:', response.status, response.statusText)
+
     if (!response.ok) {
       const err = await response.text();
-      return new Response(JSON.stringify({ error: err }), {
+      console.error('❌ DeepSeek API error:', err)
+      return new Response(JSON.stringify({ error: `DeepSeek API error (${response.status}): ${err}` }), {
         status: response.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

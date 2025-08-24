@@ -24,7 +24,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, model = "gemini-2.5-flash", temperature = 0.7, max_tokens = 800 } = await req.json();
+    const { messages, model = "gemini-1.5-flash", temperature = 0.7, max_tokens = 800 } = await req.json();
     console.log("📥 Paramètres reçus:", { model, temperature, max_tokens, messagesCount: messages?.length });
 
     // Convert OpenAI format to Gemini format
@@ -39,20 +39,23 @@ serve(async (req) => {
     const systemMessage = messages.find((msg: any) => msg.role === 'system');
     const systemInstruction = systemMessage ? systemMessage.content : undefined;
 
-    // Configuration optimisée pour les modèles 2.5
-    const is25Model = model.includes('2.5');
-    const isThinkingModel = model.includes('pro');
+    // Validate model name
+    const validModels = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'];
+    const finalModel = validModels.includes(model) ? model : 'gemini-1.5-flash';
+    
+    if (finalModel !== model) {
+      console.warn(`⚠️ Invalid model "${model}", using "${finalModel}" instead`);
+    }
     
     const payload: any = {
       contents,
       generationConfig: {
-        temperature: isThinkingModel ? 0.9 : temperature, // Plus de créativité pour "thinking"
-        maxOutputTokens: is25Model ? Math.min(max_tokens, 8000) : max_tokens, // Support context étendu
-        topP: is25Model ? 0.95 : 0.8, // Meilleure diversité pour 2.5
-        topK: is25Model ? 40 : 10 // Plus d'options pour modèles avancés
+        temperature,
+        maxOutputTokens: max_tokens,
+        topP: 0.8,
+        topK: 10
       },
-      // Paramètres de sécurité optimisés pour 2.5
-      safetySettings: is25Model ? [
+      safetySettings: [
         {
           category: "HARM_CATEGORY_HARASSMENT",
           threshold: "BLOCK_ONLY_HIGH"
@@ -69,7 +72,7 @@ serve(async (req) => {
           category: "HARM_CATEGORY_DANGEROUS_CONTENT",
           threshold: "BLOCK_ONLY_HIGH"
         }
-      ] : undefined
+      ]
     };
 
     if (systemInstruction) {
@@ -78,10 +81,10 @@ serve(async (req) => {
       };
     }
 
-    console.log("🚀 Appel API Gemini avec payload:", JSON.stringify(payload, null, 2));
+    console.log("🚀 Appel API Gemini avec model:", finalModel);
     
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${finalModel}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {

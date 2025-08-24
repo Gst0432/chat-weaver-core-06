@@ -12,14 +12,24 @@ serve(async (req) => {
   }
 
   try {
+    const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
+    
+    if (!DEEPSEEK_API_KEY) {
+      console.error('❌ DEEPSEEK_API_KEY is not set')
+      return new Response(JSON.stringify({ error: 'DEEPSEEK_API_KEY is not set' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { messages, model = 'deepseek-chat', temperature = 0.7, max_tokens = 2000, stream = true } = await req.json();
 
-    console.log('🚀 DeepSeek streaming with model:', model);
+    console.log('🚀 DeepSeek streaming with model:', model, 'stream:', stream);
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('DEEPSEEK_API_KEY')}`,
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -31,10 +41,12 @@ serve(async (req) => {
       })
     });
 
+    console.log('📡 DeepSeek response status:', response.status, response.statusText)
+
     if (!response.ok) {
       const error = await response.text();
       console.error('❌ DeepSeek API error:', error);
-      throw new Error(`DeepSeek API error: ${error}`);
+      throw new Error(`DeepSeek API error (${response.status}): ${error}`);
     }
 
     if (stream) {

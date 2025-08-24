@@ -12,9 +12,27 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, model = 'gemini-2.5-flash', temperature = 0.7, max_tokens = 2000, stream = true } = await req.json();
+    const { messages, model = 'gemini-1.5-flash', temperature = 0.7, max_tokens = 2000, stream = true } = await req.json();
 
-    console.log('🚀 Gemini streaming with model:', model);
+    // Validate API key
+    const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
+    if (!apiKey) {
+      console.error('❌ GEMINI_API_KEY is not set')
+      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY is not set' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate model name
+    const validModels = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'];
+    const finalModel = validModels.includes(model) ? model : 'gemini-1.5-flash';
+    
+    if (finalModel !== model) {
+      console.warn(`⚠️ Invalid model "${model}", using "${finalModel}" instead`);
+    }
+
+    console.log('🚀 Gemini streaming with model:', finalModel, 'stream:', stream);
 
     // Convert messages to Gemini format
     const contents = messages
@@ -40,10 +58,11 @@ serve(async (req) => {
       };
     }
 
-    const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
     const endpoint = stream 
-      ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
-      : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${finalModel}:streamGenerateContent?alt=sse&key=${apiKey}`
+      : `https://generativelanguage.googleapis.com/v1beta/models/${finalModel}:generateContent?key=${apiKey}`;
+
+    console.log('🔗 Calling endpoint:', endpoint.split('?')[0]);
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -53,10 +72,12 @@ serve(async (req) => {
       body: JSON.stringify(requestBody)
     });
 
+    console.log('📡 Gemini response status:', response.status, response.statusText)
+
     if (!response.ok) {
       const error = await response.text();
       console.error('❌ Gemini API error:', error);
-      throw new Error(`Gemini API error: ${error}`);
+      throw new Error(`Gemini API error (${response.status}): ${error}`);
     }
 
     if (stream) {
@@ -117,7 +138,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         generatedText,
         content: generatedText,
-        model,
+        model: finalModel,
         raw: data 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
