@@ -53,7 +53,16 @@ serve(async (req) => {
       console.error('❌ Google TTS API error:', err)
       
       if (response.status === 403) {
-        throw new Error(`Google TTS API access denied. Please check: 1) Text-to-Speech API is enabled in Google Cloud Console, 2) API key has proper permissions, 3) API key is valid. Error: ${err}`)
+        throw new Error(`🚫 Google TTS API Bloquée (403):
+
+ÉTAPES POUR CORRIGER:
+1. 📊 Google Cloud Console → https://console.cloud.google.com/
+2. 🔧 APIs & Services → Library → "Text-to-Speech API" → ENABLE
+3. 🔑 Credentials → Vérifier que votre API key a les permissions "Cloud Text-to-Speech API"
+4. 💳 Billing → Vérifier qu'un compte de facturation est configuré
+5. 🌍 API Key restrictions → Autoriser "Cloud Text-to-Speech API"
+
+Erreur API: ${err}`)
       }
       
       throw new Error(`Google TTS error (${response.status}): ${err}`)

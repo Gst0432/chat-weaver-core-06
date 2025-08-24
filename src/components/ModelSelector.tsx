@@ -100,46 +100,30 @@ const models = [
     description: "Version précédente - Expert programmation"
   },
 
-  // === 🌟 PHASE 2.2: GOOGLE GEMINI 2.0 (NOUVELLE GÉNÉRATION) ===
+  // === 🌟 PHASE 2.2: GOOGLE GEMINI (MODÈLES VALIDES UNIQUEMENT) ===
   {
-    id: "google/gemini-2.0-flash-exp",
-    name: "✨ Gemini 2.0 Flash Exp",
+    id: "google/gemini-1.5-pro",
+    name: "🚀 Gemini 1.5 Pro",
     provider: "Google",
-    icon: Globe,
+    icon: Sparkles,
     color: "gemini",
-    description: "Nouvelle génération 2.0 - Multimodal avancé"
+    description: "Modèle le plus capable - 2M tokens contexte"
   },
   {
-    id: "google/gemini-exp-1206",
-    name: "🧪 Gemini Exp 1206",
-    provider: "Google",
-    icon: Globe,
-    color: "gemini",
-    description: "Expérimental avancé - Nouvelles capacités"
-  },
-  {
-    id: "google/learnlm-1.5-pro-experimental",
-    name: "📚 LearnLM 1.5 Pro",
-    provider: "Google",
-    icon: Wrench,
-    color: "gemini",
-    description: "Spécialisé apprentissage et éducation"
-  },
-  {
-    id: "google/gemini-pro-1.5-exp",
-    name: "🚀 Gemini Pro 1.5 Exp",
-    provider: "Google",
-    icon: Globe,
-    color: "gemini",
-    description: "Pro expérimental - 2M tokens contexte"
-  },
-  {
-    id: "google/gemini-flash-1.5-8b",
-    name: "⚡ Gemini Flash 1.5 8B",
+    id: "google/gemini-1.5-flash",
+    name: "⚡ Gemini 1.5 Flash",
     provider: "Google",
     icon: Zap,
     color: "gemini",
-    description: "Version compacte - 1M tokens économique"
+    description: "Rapide et économique - 1M tokens"
+  },
+  {
+    id: "google/gemini-1.0-pro",
+    name: "📚 Gemini 1.0 Pro",
+    provider: "Google",
+    icon: Globe,
+    color: "gemini",
+    description: "Version stable et fiable"
   },
 
   // === 🦙 PHASE 2.3: META LLAMA 3.3 + VISION ===
@@ -253,11 +237,11 @@ const models = [
   },
   {
     id: "deepseek/deepseek-chat",
-    name: "💬 DeepSeek Chat",
+    name: "💬 DeepSeek Chat (Legacy)",
     provider: "DeepSeek",
     icon: Sparkles,
     color: "deepseek",
-    description: "Version chat polyvalente"
+    description: "Ancienne version - Utilise DeepSeek V3"
   },
   {
     id: "deepseek/deepseek-reasoner",
@@ -372,8 +356,8 @@ const models = [
     description: "Claude direct - Expert programmation"
   },
   {
-    id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash (Direct)",
+    id: "gemini-1.5-flash",
+    name: "Gemini 1.5 Flash (Direct)",
     provider: "Google AI",
     icon: Zap,
     color: "gemini",

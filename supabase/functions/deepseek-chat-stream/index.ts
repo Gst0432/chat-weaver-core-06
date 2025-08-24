@@ -22,9 +22,17 @@ serve(async (req) => {
       });
     }
 
-    const { messages, model = 'deepseek-chat', temperature = 0.7, max_tokens = 2000, stream = true } = await req.json();
+    const { messages, model = 'deepseek-v3', temperature = 0.7, max_tokens = 2000, stream = true } = await req.json();
 
-    console.log('🚀 DeepSeek streaming with model:', model, 'stream:', stream);
+    // Validate and fix model name
+    const validModels = ['deepseek-v3', 'deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
+    const finalModel = model === 'deepseek-chat' ? 'deepseek-v3' : (validModels.includes(model) ? model : 'deepseek-v3');
+    
+    if (finalModel !== model) {
+      console.warn(`⚠️ Model "${model}" corrected to "${finalModel}"`);
+    }
+
+    console.log('🚀 DeepSeek streaming with model:', finalModel, 'stream:', stream);
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
@@ -33,7 +41,7 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model,
+        model: finalModel,
         messages: Array.isArray(messages) ? messages : [],
         temperature,
         max_tokens,
@@ -102,7 +110,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         generatedText,
         content: generatedText,
-        model,
+        model: finalModel,
         raw: data 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

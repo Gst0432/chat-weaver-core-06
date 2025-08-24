@@ -26,8 +26,16 @@ serve(async (req) => {
     
     console.log('🤖 DeepSeek request:', { model, temperature, max_tokens, messagesCount: messages?.length });
 
+    // Validate and fix model name
+    const validModels = ['deepseek-v3', 'deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
+    const finalModel = model === 'deepseek-chat' ? 'deepseek-v3' : (validModels.includes(model) ? model : 'deepseek-v3');
+    
+    if (finalModel !== model) {
+      console.warn(`⚠️ Model "${model}" corrected to "${finalModel}"`);
+    }
+
     const payload = {
-      model: model || "deepseek-chat",
+      model: finalModel,
       messages: Array.isArray(messages) ? messages : [],
       temperature,
       max_tokens,
