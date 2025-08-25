@@ -14,7 +14,6 @@ interface Ebook {
   author: string;
   content_markdown: string;
   created_at: string;
-  cover_image_url?: string;
 }
 
 interface EbooksListProps {
@@ -99,27 +98,23 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
     URL.revokeObjectURL(url);
   };
 
-  const exportToPDF = async (ebook: Ebook, format: 'standard' | 'A4' | 'A5' = 'standard') => {
+  const exportToPDF = async (ebook: Ebook) => {
     try {
       const dataUri = await DocumentGeneratorService.generateDocument({
         content: ebook.content_markdown,
-        type: 'pdf',
-        template: format === 'A4' ? 'report' : format === 'A5' ? 'letter' : undefined,
-        title: ebook.title,
-        author: ebook.author,
-        coverImageUrl: ebook.cover_image_url
+        type: 'pdf'
       });
       
       const a = document.createElement('a');
       a.href = dataUri;
-      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}_${format}.pdf`;
+      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       
       toast({
         title: "Succès",
-        description: `PDF ${format} généré avec succès`,
+        description: "PDF généré avec succès",
       });
     } catch (error) {
       console.error('Error exporting to PDF:', error);
@@ -135,10 +130,7 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
     try {
       const dataUri = await DocumentGeneratorService.generateDocument({
         content: ebook.content_markdown,
-        type: 'docx',
-        title: ebook.title,
-        author: ebook.author,
-        coverImageUrl: ebook.cover_image_url
+        type: 'docx'
       });
       
       const a = document.createElement('a');
@@ -276,35 +268,16 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
                     </Button>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-1">
+                  <div className="grid grid-cols-2 gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => exportToPDF(ebook, 'standard')}
+                      onClick={() => exportToPDF(ebook)}
                       className="text-xs"
                     >
                       <FileImage className="w-3 h-3 mr-1" />
                       PDF
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => exportToPDF(ebook, 'A4')}
-                      className="text-xs"
-                    >
-                      PDF A4
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => exportToPDF(ebook, 'A5')}
-                      className="text-xs"
-                    >
-                      PDF A5
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -314,6 +287,9 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
                       <FileText className="w-3 h-3 mr-1" />
                       Word
                     </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1">
                     <Button
                       size="sm"
                       variant="ghost"

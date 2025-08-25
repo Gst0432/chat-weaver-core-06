@@ -1,8 +1,5 @@
 project_id = "jeurznrjcohqbevrzses"
 
-[functions.generate-ebook]
-verify_jwt = true
-
 [functions.team-management]
 verify_jwt = true
 

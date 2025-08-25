@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Wand2, BookOpen, Sparkles, Image } from 'lucide-react';
+import { Wand2, BookOpen, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,17 +25,6 @@ const templates = [
   { value: 'cookbook', label: 'Livre de Cuisine Complet', description: 'Recettes détaillées avec techniques, variantes et conseils de chef (100+ recettes)' }
 ];
 
-const languages = [
-  { value: 'fr', label: 'Français', description: 'Langue française' },
-  { value: 'en', label: 'English', description: 'English language' },
-  { value: 'es', label: 'Español', description: 'Idioma español' },
-  { value: 'de', label: 'Deutsch', description: 'Deutsche Sprache' },
-  { value: 'it', label: 'Italiano', description: 'Lingua italiana' },
-  { value: 'pt', label: 'Português', description: 'Língua portuguesa' },
-  { value: 'ar', label: 'العربية', description: 'اللغة العربية' },
-  { value: 'zh', label: '中文', description: '中文语言' }
-];
-
 const models = [
   { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1 (Recommandé)', description: 'Créatif et détaillé' },
   { value: 'gpt-5-2025-08-07', label: 'GPT-5', description: 'Plus avancé et nuancé' },
@@ -47,15 +36,9 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [author, setAuthor] = useState('');
   const [prompt, setPrompt] = useState('');
   const [template, setTemplate] = useState('business');
-  const [language, setLanguage] = useState('fr');
   const [useAI, setUseAI] = useState(true);
   const [model, setModel] = useState('gpt-4.1-2025-04-14');
   const [generating, setGenerating] = useState(false);
-  
-  const [includeCover, setIncludeCover] = useState(true);
-  const [includeAbout, setIncludeAbout] = useState(true);
-  const [includeToc, setIncludeToc] = useState(true);
-  
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -69,34 +52,23 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
     }
 
     setGenerating(true);
-    let generatedEbook = null;
-
     try {
-      toast({
-        title: "Génération en cours",
-        description: "Création de votre ebook complet...",
-      });
-
       const { data, error } = await supabase.functions.invoke('generate-ebook', {
         body: {
           title: title.trim(),
           author: author.trim(),
           prompt: prompt.trim(),
-          language,
           useAI,
           model,
           template,
-          format: 'markdown',
-          includeCover,
-          includeAbout,
-          includeToc
+          format: 'markdown'
         }
       });
 
       if (error) throw error;
 
       toast({
-        title: "Succès !",
+        title: "Succès",
         description: "Ebook généré avec succès !",
       });
 
@@ -105,13 +77,12 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
       setAuthor('');
       setPrompt('');
       
-      
       onEbookGenerated();
     } catch (error) {
       console.error('Error generating ebook:', error);
       toast({
         title: "Erreur",
-        description: `Impossible de générer l'ebook: ${error.message}`,
+        description: "Impossible de générer l'ebook. Vérifiez votre connexion.",
         variant: "destructive",
       });
     } finally {
@@ -133,7 +104,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="title">Titre de l'ebook *</Label>
             <Input
@@ -151,24 +122,6 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
               onChange={(e) => setAuthor(e.target.value)}
               placeholder="Votre nom"
             />
-          </div>
-          <div>
-            <Label htmlFor="language">Langue</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {languages.map((lang) => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    <div className="flex items-center gap-2">
-                      <span>{lang.label}</span>
-                      <span className="text-xs text-muted-foreground">({lang.description})</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -221,56 +174,23 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           </div>
 
           {useAI && (
-            <div className="space-y-4">
-              <div>
-                <Label>Modèle IA</Label>
-                <Select value={model} onValueChange={setModel}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {models.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        <div className="flex flex-col">
-                          <span>{m.label}</span>
-                          <span className="text-xs text-muted-foreground">{m.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-3">
-                <Label>Pages supplémentaires</Label>
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="includeCover"
-                      checked={includeCover}
-                      onCheckedChange={setIncludeCover}
-                    />
-                    <Label htmlFor="includeCover">Page de couverture</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="includeAbout"
-                      checked={includeAbout}
-                      onCheckedChange={setIncludeAbout}
-                    />
-                    <Label htmlFor="includeAbout">Page "À propos"</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="includeToc"
-                      checked={includeToc}
-                      onCheckedChange={setIncludeToc}
-                    />
-                    <Label htmlFor="includeToc">Table des matières</Label>
-                  </div>
-                </div>
-              </div>
-              
+            <div>
+              <Label>Modèle IA</Label>
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      <div className="flex flex-col">
+                        <span>{m.label}</span>
+                        <span className="text-xs text-muted-foreground">{m.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
@@ -296,12 +216,11 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
         </div>
 
         {generating && (
-          <div className="text-center text-sm text-muted-foreground space-y-3">
-            <p className="font-medium text-primary">📚 Génération de l'ebook en cours</p>
+          <div className="text-center text-sm text-muted-foreground space-y-2">
             <p>⏳ La génération peut prendre 60-120 secondes...</p>
             <p>Un ebook complet de 15 000+ mots avec 15-20 chapitres détaillés est en cours de création.</p>
             <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full animate-pulse w-2/3"></div>
+              <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
             </div>
           </div>
         )}

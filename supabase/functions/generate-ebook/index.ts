@@ -13,107 +13,50 @@ const supabase = createClient(
 );
 
 serve(async (req) => {
-  console.log('🚀 Generate-ebook function called:', req.method);
-  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('📝 Parsing request body...');
-    const body = await req.json();
-    console.log('📋 Request body parsed:', JSON.stringify(body, null, 2));
-    
     const { 
       prompt, 
       title, 
       author, 
-      language = 'fr',
       format = 'markdown',
       useAI = true,
       model = 'gpt-4.1-2025-04-14',
-      chapters = [],
-      template = 'business',
-      includeCover = true,
-      includeAbout = true,
-      includeToc = true,
-      coverImagePrompt = null
-    } = body;
+      chapters = []
+    } = await req.json();
 
-    console.log('📚 Generating ebook:', { title, language, format, useAI, chaptersCount: chapters.length, includeCover, includeAbout, includeToc });
+    console.log('📚 Generating ebook:', { title, format, useAI, chaptersCount: chapters.length });
 
     // Get authenticated user
-    console.log('🔐 Checking authentication...');
-    const authHeader = req.headers.get('Authorization');
-    console.log('🔑 Auth header present:', !!authHeader);
-    
-    if (!authHeader) {
-      console.error('❌ No authorization header');
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
-
+    const authHeader = req.headers.get('Authorization')!;
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
 
     if (authError || !user) {
-      console.error('❌ Authentication failed:', authError);
       return new Response(
-        JSON.stringify({ error: 'Authentication required', details: authError?.message }),
+        JSON.stringify({ error: 'Authentication required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
-    
-    console.log('✅ User authenticated:', user.id);
 
     let content = '';
 
-    // Validate required fields
-    if (!title || !author || !prompt) {
-      console.error('❌ Missing required fields:', { title: !!title, author: !!author, prompt: !!prompt });
-      return new Response(
-        JSON.stringify({ error: 'Title, author, and prompt are required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
-    }
-
-    // Check if OpenAI API key is available
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      console.error('❌ OpenAI API key not configured');
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-
     // Generate content with AI if requested
     if (useAI && prompt) {
-      const languageInstructions = {
-        'fr': 'Écris en français avec un style professionnel et engageant.',
-        'en': 'Write in English with a professional and engaging style.',
-        'es': 'Escribe en español con un estilo profesional y atractivo.',
-        'de': 'Schreibe auf Deutsch mit einem professionellen und ansprechenden Stil.',
-        'it': 'Scrivi in italiano con uno stile professionale e coinvolgente.',
-        'pt': 'Escreva em português com um estilo profissional e envolvente.',
-        'ar': 'اكتب باللغة العربية مع أسلوب مهني وجذاب.',
-        'zh': '用中文写作，风格专业且引人入胜。'
-      };
-
       const aiPrompt = `Create a comprehensive ebook with the following requirements:
 Title: ${title}
 Author: ${author}
 Topic: ${prompt}
-Language: ${language}
 
 CRITICAL REQUIREMENTS:
 - MINIMUM 15,000 words total
 - 15-20 detailed chapters
 - Each chapter should be 750-1000 words minimum
-- ${languageInstructions[language as keyof typeof languageInstructions] || languageInstructions['fr']}
+- Professional tone suitable for publication
 
 Structure the content as a complete ebook with:
 - Detailed Introduction (800+ words)
@@ -146,103 +89,7 @@ Generate the COMPLETE FULL-LENGTH content in markdown format. Do not summarize o
 
       if (aiResponse.ok) {
         const aiData = await aiResponse.json();
-        let generatedContent = aiData.choices[0].message.content;
-        
-        // Generate additional pages if requested
-        let coverPage = '';
-        let aboutPage = '';
-        let tocPage = '';
-        
-        if (includeCover) {
-          const coverPrompt = `Create a professional book cover page in markdown format for the ebook "${title}" by ${author}. Include:
-- Title prominently displayed
-- Author name
-- Brief compelling subtitle or tagline
-- Professional formatting
-- Language: ${language}
-- Template style: ${template}`;
-
-          const coverResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: 'system', content: 'You are a professional book designer who creates elegant cover pages.' },
-                { role: 'user', content: coverPrompt }
-              ],
-              max_completion_tokens: 1000,
-            }),
-          });
-
-          if (coverResponse.ok) {
-            const coverData = await coverResponse.json();
-            coverPage = coverData.choices[0].message.content;
-          }
-        }
-
-        if (includeAbout) {
-          const aboutPrompt = `Create an "About the Author" page in markdown format for ${author}, author of "${title}". Include:
-- Professional biography
-- Expertise and background
-- Why they wrote this book
-- Contact information (placeholder)
-- Language: ${language}
-- Keep it professional and credible`;
-
-          const aboutResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: 'system', content: 'You are a professional writer who creates compelling author biographies.' },
-                { role: 'user', content: aboutPrompt }
-              ],
-              max_completion_tokens: 1000,
-            }),
-          });
-
-          if (aboutResponse.ok) {
-            const aboutData = await aboutResponse.json();
-            aboutPage = aboutData.choices[0].message.content;
-          }
-        }
-
-        if (includeToc) {
-          // Extract chapter titles from the generated content
-          const chapterMatches = generatedContent.match(/^#{1,2}\s+(.+)$/gm) || [];
-          const chapters = chapterMatches
-            .filter(match => !match.toLowerCase().includes('introduction') && !match.toLowerCase().includes('conclusion'))
-            .map((match, index) => {
-              const title = match.replace(/^#{1,2}\s+/, '');
-              return `${index + 1}. ${title}`;
-            });
-
-          const tocContent = language === 'fr' ? 'Table des Matières' : 
-                           language === 'en' ? 'Table of Contents' :
-                           language === 'es' ? 'Índice' :
-                           language === 'de' ? 'Inhaltsverzeichnis' :
-                           language === 'it' ? 'Indice' :
-                           language === 'pt' ? 'Índice' :
-                           language === 'ar' ? 'جدول المحتويات' :
-                           language === 'zh' ? '目录' : 'Table des Matières';
-
-          tocPage = `# ${tocContent}\n\n${chapters.join('\n\n')}\n\n---\n\n`;
-        }
-        
-        // Combine all content
-        content = '';
-        if (coverPage) content += coverPage + '\n\n---\n\n';
-        if (tocPage) content += tocPage + '\n\n';
-        if (aboutPage) content += aboutPage + '\n\n---\n\n';
-        content += generatedContent;
+        content = aiData.choices[0].message.content;
         
         // Validate minimum word count
         const wordCount = content.split(/\s+/).length;
@@ -311,53 +158,6 @@ Please provide the expanded version with much more detailed content:`;
       fileExtension = 'epub';
     }
 
-    // Generate cover image if prompt provided
-    let coverImageUrl = null;
-    if (coverImagePrompt) {
-      try {
-        console.log('🎨 Generating cover image with prompt:', coverImagePrompt);
-        
-        const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-image-1',
-            prompt: `Professional book cover illustration: ${coverImagePrompt}. High quality book cover design, vertical format, elegant typography space`,
-            size: '1024x1792',
-            quality: 'hd'
-          }),
-        });
-
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json();
-          const imageUrl = imageData.data[0].url;
-          
-          // Download and upload to Supabase Storage
-          const imageBytes = await fetch(imageUrl);
-          const imageBlob = await imageBytes.blob();
-          const filename = `cover-${Date.now()}.png`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('uploads')
-            .upload(filename, imageBlob, { contentType: 'image/png' });
-
-          if (!uploadError) {
-            const { data: { publicUrl } } = supabase.storage
-              .from('uploads')
-              .getPublicUrl(filename);
-            
-            coverImageUrl = publicUrl;
-            console.log('✅ Cover image uploaded:', coverImageUrl);
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to generate cover image:', error);
-      }
-    }
-
     // Save to database
     const { data: ebook, error: dbError } = await supabase
       .from('ebooks')
@@ -365,8 +165,7 @@ Please provide the expanded version with much more detailed content:`;
         user_id: user.id,
         title,
         author,
-        content_markdown: content,
-        cover_image_url: coverImageUrl
+        content_markdown: content
       })
       .select()
       .single();
@@ -385,8 +184,7 @@ Please provide the expanded version with much more detailed content:`;
         content: generatedContent,
         format,
         mimeType,
-        fileExtension,
-        coverImageUrl
+        fileExtension
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
