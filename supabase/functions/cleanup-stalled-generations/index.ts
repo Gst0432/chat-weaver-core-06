@@ -20,14 +20,14 @@ serve(async (req) => {
   try {
     console.log('🧹 Starting cleanup of stalled generations...');
 
-    // Find generations that are stuck in progress for more than 20 minutes
-    const twentyMinutesAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+    // Find generations that are stuck in progress for more than 3 minutes
+    const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
     
     const { data: stalledGenerations, error: fetchError } = await supabase
       .from('ebook_generations')
       .select('*')
       .in('status', ['pending', 'generating_toc', 'generating_chapters', 'assembling'])
-      .lt('created_at', twentyMinutesAgo);
+      .lt('created_at', threeMinutesAgo);
 
     if (fetchError) {
       console.error('❌ Error fetching stalled generations:', fetchError);
@@ -56,7 +56,7 @@ serve(async (req) => {
           .from('ebook_generations')
           .update({
             status: 'failed',
-            error_message: 'Génération interrompue automatiquement après 20 minutes d\'inactivité. Problème technique temporaire.',
+            error_message: 'Génération interrompue automatiquement après 3 minutes d\'inactivité (timeout global atteint).',
             completed_at: new Date().toISOString()
           })
           .eq('id', generation.id);

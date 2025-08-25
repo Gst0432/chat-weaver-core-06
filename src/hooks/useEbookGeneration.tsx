@@ -55,10 +55,10 @@ export function useEbookGeneration(generationId?: string) {
     const elapsedMinutes = (now - createdAt) / (1000 * 60);
     
     // Consider generation stalled if:
-    // - In progress for more than 5 minutes (réduit pour mode rapide 3mn)
+    // - In progress for more than 3 minutes (adapté au timeout global)
     const isStalled = (
       (['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status)) &&
-      elapsedMinutes > 5
+      elapsedMinutes > 3
     );
     
     return isStalled;
