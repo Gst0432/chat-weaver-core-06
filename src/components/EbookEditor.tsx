@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Save, Eye, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +30,9 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
+  const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+  const isMinimumLength = wordCount >= 15000;
+
   useEffect(() => {
     if (ebook) {
       setTitle(ebook.title);
@@ -46,6 +50,15 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
       toast({
         title: "Erreur",
         description: "Le titre et l'auteur sont requis",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (wordCount < 15000) {
+      toast({
+        title: "Contenu insuffisant",
+        description: `Votre ebook contient ${wordCount} mots. Le minimum requis est de 15 000 mots.`,
         variant: "destructive",
       });
       return;
@@ -134,22 +147,42 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
       </CardHeader>
       <CardContent className="h-full pb-6">
         <div className="space-y-4 h-full flex flex-col">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Titre</label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Titre de l'ebook"
-              />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Titre</label>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Titre de l'ebook"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Auteur</label>
+                <Input
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  placeholder="Nom de l'auteur"
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Auteur</label>
-              <Input
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                placeholder="Nom de l'auteur"
-              />
+            
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span className="text-sm font-medium">Nombre de mots:</span>
+                <Badge variant={isMinimumLength ? "default" : "destructive"}>
+                  {wordCount.toLocaleString()}
+                </Badge>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Minimum: 15 000 mots
+                {!isMinimumLength && (
+                  <span className="text-destructive ml-2">
+                    ({(15000 - wordCount).toLocaleString()} mots manquants)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

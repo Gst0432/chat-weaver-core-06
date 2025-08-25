@@ -47,21 +47,29 @@ serve(async (req) => {
 
     // Generate content with AI if requested
     if (useAI && prompt) {
-      const aiPrompt = `Create a complete ebook with the following requirements:
+      const aiPrompt = `Create a comprehensive ebook with the following requirements:
 Title: ${title}
 Author: ${author}
 Topic: ${prompt}
 
-Structure the content as a professional ebook with:
-- Introduction
-- Multiple chapters (5-8 chapters)
-- Conclusion
-- Use markdown formatting for headers, lists, and emphasis
-- Each chapter should be substantial (500-800 words)
-- Include practical examples and actionable insights
+CRITICAL REQUIREMENTS:
+- MINIMUM 15,000 words total
+- 15-20 detailed chapters
+- Each chapter should be 750-1000 words minimum
 - Professional tone suitable for publication
 
-Generate the full content in markdown format:`;
+Structure the content as a complete ebook with:
+- Detailed Introduction (800+ words)
+- 15-20 substantial chapters (750-1000 words each)
+- Comprehensive Conclusion (500+ words)
+- Use markdown formatting for headers, lists, and emphasis
+- Include practical examples, case studies, and actionable insights
+- Add detailed explanations and elaborative content
+- Ensure each section is thoroughly developed
+
+Template style: ${template || 'business'}
+
+Generate the COMPLETE FULL-LENGTH content in markdown format. Do not summarize or abbreviate - provide the complete detailed content:`;
 
       const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -75,13 +83,50 @@ Generate the full content in markdown format:`;
             { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
             { role: 'user', content: aiPrompt }
           ],
-          max_completion_tokens: 8000,
+          max_completion_tokens: 16000,
         }),
       });
 
       if (aiResponse.ok) {
         const aiData = await aiResponse.json();
         content = aiData.choices[0].message.content;
+        
+        // Validate minimum word count
+        const wordCount = content.split(/\s+/).length;
+        console.log(`📊 Generated content: ${wordCount} words`);
+        
+        if (wordCount < 15000) {
+          console.warn(`⚠️ Content too short: ${wordCount} words. Extending...`);
+          // Try to extend content with additional prompt
+          const extendPrompt = `The following ebook content has ${wordCount} words but needs to reach at least 15,000 words. Please expand each chapter significantly with more detailed explanations, examples, case studies, and practical applications. Add more chapters if needed to reach the minimum word count:
+
+${content}
+
+Please provide the expanded version with much more detailed content:`;
+
+          const extendResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: 'You are a professional ebook writer who creates comprehensive, detailed content.' },
+                { role: 'user', content: extendPrompt }
+              ],
+              max_completion_tokens: 16000,
+            }),
+          });
+
+          if (extendResponse.ok) {
+            const extendData = await extendResponse.json();
+            content = extendData.choices[0].message.content;
+            const finalWordCount = content.split(/\s+/).length;
+            console.log(`📊 Extended content: ${finalWordCount} words`);
+          }
+        }
       } else {
         console.error('AI generation failed:', await aiResponse.text());
         content = `# ${title}\n\nBy ${author}\n\n## Introduction\n\n${prompt}\n\n## Chapter 1\n\nContent to be developed...`;

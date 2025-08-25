@@ -15,12 +15,14 @@ interface EbookGeneratorProps {
 }
 
 const templates = [
-  { value: 'business', label: 'Guide Business', description: 'Guide pratique pour entrepreneurs' },
-  { value: 'tech', label: 'Manuel Technique', description: 'Documentation technique détaillée' },
-  { value: 'education', label: 'Livre Éducatif', description: 'Contenu pédagogique structuré' },
-  { value: 'fiction', label: 'Roman Fiction', description: 'Histoire créative et narrative' },
-  { value: 'howto', label: 'Tutoriel Pratique', description: 'Guide étape par étape' },
-  { value: 'self-help', label: 'Développement Personnel', description: 'Conseils et méthodes de croissance' }
+  { value: 'business', label: 'Guide Business Complet', description: 'Guide détaillé avec stratégies, études de cas et plans d\'action (15-20 chapitres)' },
+  { value: 'tech', label: 'Manuel Technique Approfondi', description: 'Documentation complète avec tutoriels, exemples et bonnes pratiques (18-25 chapitres)' },
+  { value: 'education', label: 'Livre Éducatif Compréhensif', description: 'Contenu pédagogique avec exercices, cas pratiques et évaluations (16-22 chapitres)' },
+  { value: 'fiction', label: 'Roman Fiction Long Format', description: 'Histoire développée avec personnages complexes et intrigue détaillée (20-30 chapitres)' },
+  { value: 'howto', label: 'Guide Pratique Détaillé', description: 'Tutoriel complet avec méthodologie, outils et dépannage (15-20 étapes)' },
+  { value: 'self-help', label: 'Développement Personnel Intégral', description: 'Méthodes complètes avec exercices, réflexions et plan d\'action (18-25 modules)' },
+  { value: 'academic', label: 'Ouvrage Académique', description: 'Recherche approfondie avec références, analyses et conclusions (20-25 chapitres)' },
+  { value: 'cookbook', label: 'Livre de Cuisine Complet', description: 'Recettes détaillées avec techniques, variantes et conseils de chef (100+ recettes)' }
 ];
 
 const models = [
@@ -214,9 +216,12 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
         </div>
 
         {generating && (
-          <div className="text-center text-sm text-muted-foreground">
-            <p>⏳ La génération peut prendre 30-60 secondes...</p>
-            <p>Un ebook complet avec plusieurs chapitres est en cours de création.</p>
+          <div className="text-center text-sm text-muted-foreground space-y-2">
+            <p>⏳ La génération peut prendre 60-120 secondes...</p>
+            <p>Un ebook complet de 15 000+ mots avec 15-20 chapitres détaillés est en cours de création.</p>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
+            </div>
           </div>
         )}
       </CardContent>

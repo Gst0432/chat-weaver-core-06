@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Search, Trash2, Download, Edit } from 'lucide-react';
+import { BookOpen, Search, Trash2, Download, Edit, FileText, FileImage } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentGeneratorService } from '@/services/documentGeneratorService';
 
 interface Ebook {
   id: string;
@@ -97,6 +98,62 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
     URL.revokeObjectURL(url);
   };
 
+  const exportToPDF = async (ebook: Ebook) => {
+    try {
+      const dataUri = await DocumentGeneratorService.generateDocument({
+        content: ebook.content_markdown,
+        type: 'pdf'
+      });
+      
+      const a = document.createElement('a');
+      a.href = dataUri;
+      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Succès",
+        description: "PDF généré avec succès",
+      });
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'exporter en PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToWord = async (ebook: Ebook) => {
+    try {
+      const dataUri = await DocumentGeneratorService.generateDocument({
+        content: ebook.content_markdown,
+        type: 'docx'
+      });
+      
+      const a = document.createElement('a');
+      a.href = dataUri;
+      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Succès",
+        description: "Document Word généré avec succès",
+      });
+    } catch (error) {
+      console.error('Error exporting to Word:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'exporter en Word",
+        variant: "destructive",
+      });
+    }
+  };
+
   const convertToHTML = (markdown: string, title: string, author: string): string => {
     let html = markdown
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -180,10 +237,15 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
                 <p className="text-sm text-muted-foreground">Par {ebook.author}</p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(ebook.created_at).toLocaleDateString('fr-FR')}
-                  </p>
+                  <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(ebook.created_at).toLocaleDateString('fr-FR')}
+                    </p>
+                    <Badge variant="outline" className="text-xs">
+                      {ebook.content_markdown.split(/\s+/).length} mots
+                    </Badge>
+                  </div>
                   
                   <div className="flex gap-2">
                     <Button
@@ -199,14 +261,6 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => downloadEbook(ebook, 'md')}
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant="outline"
                       onClick={() => deleteEbook(ebook.id)}
                       className="text-destructive hover:text-destructive"
                     >
@@ -214,12 +268,41 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
                     </Button>
                   </div>
                   
-                  <div className="flex gap-1">
+                  <div className="grid grid-cols-2 gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => exportToPDF(ebook)}
+                      className="text-xs"
+                    >
+                      <FileImage className="w-3 h-3 mr-1" />
+                      PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => exportToWord(ebook)}
+                      className="text-xs"
+                    >
+                      <FileText className="w-3 h-3 mr-1" />
+                      Word
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => downloadEbook(ebook, 'md')}
+                      className="text-xs"
+                    >
+                      Markdown
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => downloadEbook(ebook, 'html')}
-                      className="text-xs flex-1"
+                      className="text-xs"
                     >
                       HTML
                     </Button>
