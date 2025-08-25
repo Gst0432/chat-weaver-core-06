@@ -55,10 +55,10 @@ export function useEbookGeneration(generationId?: string) {
     const elapsedMinutes = (now - createdAt) / (1000 * 60);
     
     // Consider generation stalled if:
-    // - In progress for more than 3 minutes (adapté au timeout global)
+    // - In progress for more than 2 minutes (adapté au mode ultra-rapide)
     const isStalled = (
       (['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status)) &&
-      elapsedMinutes > 3
+      elapsedMinutes > 2
     );
     
     return isStalled;
@@ -254,7 +254,7 @@ export function useEbookGeneration(generationId?: string) {
     const elapsedTime = Date.now() - new Date(generation.created_at).getTime();
     const elapsedMinutes = elapsedTime / (1000 * 60);
     
-    if (generation.progress === 0) return '2-3 minutes';
+    if (generation.progress === 0) return '90-120 secondes';
     
     const estimatedTotalMinutes = (elapsedMinutes / generation.progress) * 100;
     const remainingMinutes = Math.max(0, estimatedTotalMinutes - elapsedMinutes);

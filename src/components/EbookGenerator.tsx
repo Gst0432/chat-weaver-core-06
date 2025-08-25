@@ -18,14 +18,14 @@ interface EbookGeneratorProps {
 }
 
 const templates = [
-  { value: 'business', label: 'Guide Business Complet', description: 'Guide détaillé avec stratégies, études de cas et plans d\'action (15-25 chapitres, 15 000-25 000 mots)' },
-  { value: 'tech', label: 'Manuel Technique Approfondi', description: 'Documentation complète avec tutoriels, exemples et bonnes pratiques (18-25 chapitres, 15 000-25 000 mots)' },
-  { value: 'education', label: 'Livre Éducatif Compréhensif', description: 'Contenu pédagogique avec exercices, cas pratiques et évaluations (16-22 chapitres, 15 000-25 000 mots)' },
-  { value: 'fiction', label: 'Roman Fiction Long Format', description: 'Histoire développée avec personnages complexes et intrigue détaillée (20-30 chapitres, 20 000-30 000 mots)' },
-  { value: 'howto', label: 'Guide Pratique Détaillé', description: 'Tutoriel complet avec méthodologie, outils et dépannage (15-20 étapes, 15 000-25 000 mots)' },
-  { value: 'self-help', label: 'Développement Personnel Intégral', description: 'Méthodes complètes avec exercices, réflexions et plan d\'action (18-25 modules, 15 000-25 000 mots)' },
-  { value: 'academic', label: 'Ouvrage Académique', description: 'Recherche approfondie avec références, analyses et conclusions (20-25 chapitres, 18 000-30 000 mots)' },
-  { value: 'cookbook', label: 'Livre de Cuisine Complet', description: 'Recettes détaillées avec techniques, variantes et conseils de chef (100+ recettes, 15 000-25 000 mots)' }
+  { value: 'business', label: 'Guide Business Ultra-Rapide', description: 'Guide essentiels avec stratégies et plans d\'action (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
+  { value: 'tech', label: 'Manuel Technique Express', description: 'Documentation optimisée avec tutoriels et bonnes pratiques (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
+  { value: 'education', label: 'Livre Éducatif Rapide', description: 'Contenu pédagogique avec cas pratiques (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
+  { value: 'fiction', label: 'Nouvelle Fiction Express', description: 'Histoire captivante avec personnages développés (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
+  { value: 'howto', label: 'Guide Pratique Express', description: 'Tutoriel concis avec méthodologie claire (4-6 étapes, 5 000-8 000 mots, 90-120s)' },
+  { value: 'self-help', label: 'Développement Personnel Express', description: 'Méthodes pratiques avec exercices (4-6 modules, 5 000-8 000 mots, 90-120s)' },
+  { value: 'academic', label: 'Étude Académique Rapide', description: 'Recherche structurée avec analyses (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
+  { value: 'cookbook', label: 'Livre de Cuisine Express', description: 'Recettes sélectionnées avec techniques (25-30 recettes, 5 000-8 000 mots, 90-120s)' }
 ];
 
 const models = [
@@ -69,7 +69,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [prompt, setPrompt] = useState('');
   const [template, setTemplate] = useState('business');
   const [useAI, setUseAI] = useState(true);
-  const [model, setModel] = useState('gpt-5-nano-2025-08-07');
+  const [model, setModel] = useState('gpt-4o-mini');
   const [fastMode, setFastMode] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generationId, setGenerationId] = useState<string | null>(null);
@@ -246,7 +246,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" />
-              <Label htmlFor="fastMode">Mode Rapide (3 minutes max)</Label>
+              <Label htmlFor="fastMode">Mode Ultra-Rapide (90-120 secondes)</Label>
             </div>
             <Switch
               id="fastMode"
@@ -259,12 +259,12 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
             {fastMode ? (
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle className="w-4 h-4" />
-                <span><strong>Mode Rapide:</strong> 8-12 chapitres, 6k-10k mots, génération en 3 minutes maximum</span>
+                <span><strong>Mode Ultra-Rapide:</strong> 4-6 chapitres, 5k-8k mots, génération en 90-120 secondes ⚡</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-blue-600">
                 <BookOpen className="w-4 h-4" />
-                <span><strong>Mode Complet:</strong> 15-25 chapitres, 15k-25k mots, génération en 5-10 minutes</span>
+                <span><strong>Mode Standard:</strong> 6-8 chapitres, 8k-12k mots, génération en 3-5 minutes</span>
               </div>
             )}
           </div>
@@ -344,8 +344,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
               <Alert className="border-orange-200 bg-orange-50">
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
                 <AlertDescription className="text-orange-800 space-y-3">
-                  <p>La génération semble bloquée depuis plus de 5 minutes. 
-                  En mode rapide (3mn max), cela indique un problème d'API.</p>
+                  <p>La génération semble bloquée depuis plus de 2 minutes. 
+                  En mode ultra-rapide (90-120s max), cela indique un problème d'API.</p>
                   
                   <div className="flex gap-2 flex-wrap">
                     <Button

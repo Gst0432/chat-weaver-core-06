@@ -91,7 +91,7 @@ const Ebooks = () => {
                 Mes Ebooks
               </h1>
               <p className="text-muted-foreground">
-                Créez, éditez et gérez vos ebooks avec l'IA
+                Créez des ebooks en 90-120 secondes avec l'IA ultra-rapide ⚡
               </p>
             </div>
           </div>
@@ -109,7 +109,7 @@ const Ebooks = () => {
                 onClick={() => setActiveTab('generator')}
                 className="bg-gradient-primary hover:shadow-glow"
               >
-                Générer avec IA
+                Générer Ultra-Rapide ⚡
               </Button>
             </div>
           )}
