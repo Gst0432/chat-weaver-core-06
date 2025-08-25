@@ -242,9 +242,9 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
               </SidebarMenuItem>
               
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => handleNavigation('/video-translator')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                <SidebarMenuButton onClick={() => handleNavigation('/speech-to-text')} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Languages className="w-4 h-4" />
-                  {!isCollapsed && <span className="ml-2">Traducteur Vidéo</span>}
+                  {!isCollapsed && <span className="ml-2">Speech-to-Text</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               

@@ -15,10 +15,10 @@ import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import ResetPassword from "./pages/ResetPassword";
 import UpdatePassword from "./pages/UpdatePassword";
 import AcceptInvitation from "./pages/AcceptInvitation";
-import VideoTranslator from "./pages/VideoTranslator";
 import Ebooks from "./pages/Ebooks";
 import DalleStudio from "./pages/DalleStudio";
 import TTSStudio from "./pages/TTSStudio";
+import SpeechToText from "./pages/SpeechToText";
 
 const App = () => (
   <TooltipProvider>
@@ -35,7 +35,7 @@ const App = () => (
         <Route path="/settings" element={<Settings />} />
         <Route path="/team" element={<Team />} />
         <Route path="/team/accept-invitation" element={<AcceptInvitation />} />
-        <Route path="/video-translator" element={<VideoTranslator />} />
+        <Route path="/speech-to-text" element={<SpeechToText />} />
         <Route path="/ebooks" element={<Ebooks />} />
         <Route path="/dalle-studio" element={<DalleStudio />} />
         <Route path="/tts-studio" element={<TTSStudio />} />
