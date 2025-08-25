@@ -19,6 +19,7 @@ import Ebooks from "./pages/Ebooks";
 import DalleStudio from "./pages/DalleStudio";
 import TTSStudio from "./pages/TTSStudio";
 import SpeechToText from "./pages/SpeechToText";
+import CodeStudio from "./pages/CodeStudio";
 
 const App = () => (
   <TooltipProvider>
@@ -39,6 +40,7 @@ const App = () => (
         <Route path="/ebooks" element={<Ebooks />} />
         <Route path="/dalle-studio" element={<DalleStudio />} />
         <Route path="/tts-studio" element={<TTSStudio />} />
+        <Route path="/code-studio" element={<CodeStudio />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/super-admin" element={<SuperAdminDashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
