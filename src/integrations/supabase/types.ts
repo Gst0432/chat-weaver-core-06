@@ -112,6 +112,36 @@ export type Database = {
           },
         ]
       }
+      ebooks: {
+        Row: {
+          author: string
+          content_markdown: string | null
+          cover_image_url: string | null
+          created_at: string
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          author: string
+          content_markdown?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          author?: string
+          content_markdown?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       embeddings: {
         Row: {
           content: string
@@ -175,6 +205,45 @@ export type Database = {
           industry?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      generated_videos: {
+        Row: {
+          created_at: string | null
+          duration: number | null
+          height: number | null
+          id: string
+          prompt: string | null
+          provider: string | null
+          storage_path: string
+          title: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration?: number | null
+          height?: number | null
+          id?: string
+          prompt?: string | null
+          provider?: string | null
+          storage_path: string
+          title: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number | null
+          height?: number | null
+          id?: string
+          prompt?: string | null
+          provider?: string | null
+          storage_path?: string
+          title?: string
+          user_id?: string
+          width?: number | null
         }
         Relationships: []
       }

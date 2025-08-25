@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Save, Eye, FileText, Wand2 } from 'lucide-react';
+import { Save, Eye, FileText, Wand2, Image, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ImageService } from '@/services/imageService';
 
 interface Ebook {
   id: string;
@@ -15,6 +16,7 @@ interface Ebook {
   author: string;
   content_markdown: string;
   created_at: string;
+  cover_image_url?: string;
 }
 
 interface EbookEditorProps {
@@ -27,8 +29,11 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [coverPrompt, setCoverPrompt] = useState('');
   const [saving, setSaving] = useState(false);
   const [extending, setExtending] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const { toast } = useToast();
 
   const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
@@ -39,10 +44,14 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
       setTitle(ebook.title);
       setAuthor(ebook.author);
       setContent(ebook.content_markdown);
+      setCoverImageUrl(ebook.cover_image_url || '');
+      setCoverPrompt('');
     } else {
       setTitle('');
       setAuthor('');
       setContent('# Nouveau Ebook\n\n## Introduction\n\nVotre contenu ici...');
+      setCoverImageUrl('');
+      setCoverPrompt('');
     }
   }, [ebook]);
 
@@ -74,7 +83,8 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
           .update({
             title: title.trim(),
             author: author.trim(),
-            content_markdown: content
+            content_markdown: content,
+            cover_image_url: coverImageUrl || null
           })
           .eq('id', ebook.id);
 
@@ -86,7 +96,8 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
           .insert({
             title: title.trim(),
             author: author.trim(),
-            content_markdown: content
+            content_markdown: content,
+            cover_image_url: coverImageUrl || null
           });
 
         if (error) throw error;
@@ -171,6 +182,60 @@ Fournis la version étendue et enrichie :`
     }
   };
 
+  const generateCoverImage = async () => {
+    if (!coverPrompt.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez saisir un prompt pour générer l'image de couverture",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingImage(true);
+    try {
+      console.log('🎨 Generating cover image with prompt:', coverPrompt);
+      
+      const imageUrl = await ImageService.generateImage({
+        prompt: `Book cover illustration: ${coverPrompt}. Professional book cover design, high quality, vertical format`,
+        size: '1024x1792',
+        quality: 'hd',
+        provider: 'dalle'
+      });
+
+      // Upload to Supabase Storage
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const filename = `cover-${Date.now()}.png`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(filename, blob, { contentType: 'image/png' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filename);
+
+      setCoverImageUrl(publicUrl);
+      
+      toast({
+        title: "Image générée !",
+        description: "L'image de couverture a été générée avec succès",
+      });
+    } catch (error) {
+      console.error('Error generating cover image:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de générer l'image de couverture",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
   const renderPreview = (markdown: string) => {
     return markdown
       .split('\n')
@@ -226,6 +291,76 @@ Fournis la version étendue et enrichie :`
                   onChange={(e) => setAuthor(e.target.value)}
                   placeholder="Nom de l'auteur"
                 />
+              </div>
+            </div>
+
+            {/* Cover Image Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/10">
+              <div className="flex items-center gap-2">
+                <Image className="w-5 h-5" />
+                <h3 className="font-medium">Image de Couverture</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Prompt pour l'image</label>
+                    <Textarea
+                      value={coverPrompt}
+                      onChange={(e) => setCoverPrompt(e.target.value)}
+                      placeholder="ex: Couverture élégante avec un thème technologique, couleurs bleues et dorées, design moderne"
+                      className="h-20 resize-none"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={generateCoverImage}
+                    disabled={generatingImage || !coverPrompt.trim()}
+                    className="w-full"
+                  >
+                    {generatingImage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="w-4 h-4 mr-2" />
+                        Générer Image
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="space-y-2">
+                  {coverImageUrl ? (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium block">Aperçu</label>
+                      <div className="relative w-full h-48 border rounded-lg overflow-hidden bg-muted/20">
+                        <img 
+                          src={coverImageUrl} 
+                          alt="Cover preview" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <Button
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setCoverImageUrl('')}
+                        className="w-full"
+                      >
+                        Supprimer l'image
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="w-full h-48 border-2 border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center bg-muted/10">
+                      <div className="text-center text-muted-foreground">
+                        <Image className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Aucune image générée</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             

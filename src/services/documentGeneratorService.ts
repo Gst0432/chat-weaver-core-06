@@ -10,6 +10,9 @@ export interface DocumentGenerationOptions {
   template?: 'report' | 'presentation' | 'letter' | 'resume' | 'contract';
   enhanceWithAI?: boolean;
   model?: string; // OpenRouter model pour amélioration IA
+  title?: string;
+  author?: string;
+  coverImageUrl?: string;
 }
 
 /**
@@ -22,7 +25,7 @@ export class DocumentGeneratorService {
    * Génère un document avec amélioration IA optionnelle
    */
   static async generateDocument(options: DocumentGenerationOptions): Promise<string> {
-    let { content, type, template, enhanceWithAI = false, model = 'anthropic/claude-3.5-sonnet' } = options;
+    let { content, type, template, enhanceWithAI = false, model = 'anthropic/claude-3.5-sonnet', title, author, coverImageUrl } = options;
 
     console.log('📄 Génération document:', { type, template, enhanceWithAI });
 
@@ -34,9 +37,9 @@ export class DocumentGeneratorService {
     // Génération selon le format
     switch (type) {
       case 'pdf':
-        return await this.generatePDF(content, template);
+        return await this.generatePDF(content, template, title, author, coverImageUrl);
       case 'docx':
-        return await this.generateDOCX(content, template);
+        return await this.generateDOCX(content, template, title, author, coverImageUrl);
       case 'pptx':
         return await this.generatePPTX(content, template);
       case 'markdown':
@@ -110,10 +113,15 @@ export class DocumentGeneratorService {
   /**
    * Génère un PDF avec templates avancés
    */
-  private static async generatePDF(content: string, template?: string): Promise<string> {
+  private static async generatePDF(content: string, template?: string, title?: string, author?: string, coverImageUrl?: string): Promise<string> {
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    // Add cover page if cover image provided
+    if (coverImageUrl && title) {
+      await this.addCoverPage(pdfDoc, coverImageUrl, title, author, boldFont, font);
+    }
     
     let currentPage = pdfDoc.addPage();
     const { width, height } = currentPage.getSize();
@@ -157,8 +165,30 @@ export class DocumentGeneratorService {
   /**
    * Génère un DOCX avec formatage avancé
    */
-  private static async generateDOCX(content: string, template?: string): Promise<string> {
+  private static async generateDOCX(content: string, template?: string, title?: string, author?: string, coverImageUrl?: string): Promise<string> {
     const paragraphs: any[] = [];
+
+    // Add cover page if title provided
+    if (title) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: title, bold: true, size: 36 })],
+          heading: HeadingLevel.TITLE,
+          alignment: 'center'
+        })
+      );
+      
+      if (author) {
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: `par ${author}`, size: 24 })],
+            alignment: 'center'
+          })
+        );
+      }
+      
+      paragraphs.push(new Paragraph({ text: "" })); // Page break
+    }
 
     // En-tête selon le template
     if (template === 'resume') {
@@ -391,5 +421,64 @@ export class DocumentGeneratorService {
     });
     
     return y - 40;
+  }
+
+  private static async addCoverPage(pdfDoc: any, coverImageUrl: string, title: string, author?: string, boldFont?: any, font?: any): Promise<void> {
+    try {
+      // Fetch and embed cover image
+      const imageResponse = await fetch(coverImageUrl);
+      const imageBytes = await imageResponse.arrayBuffer();
+      const image = await pdfDoc.embedPng(imageBytes);
+      
+      const coverPage = pdfDoc.addPage();
+      const { width, height } = coverPage.getSize();
+      
+      // Scale image to fit page while maintaining aspect ratio
+      const imageAspectRatio = image.width / image.height;
+      const pageAspectRatio = width / height;
+      
+      let imageWidth, imageHeight;
+      if (imageAspectRatio > pageAspectRatio) {
+        imageWidth = width;
+        imageHeight = width / imageAspectRatio;
+      } else {
+        imageHeight = height;
+        imageWidth = height * imageAspectRatio;
+      }
+      
+      const x = (width - imageWidth) / 2;
+      const y = (height - imageHeight) / 2;
+      
+      coverPage.drawImage(image, {
+        x,
+        y,
+        width: imageWidth,
+        height: imageHeight,
+      });
+      
+      // Add title overlay if fonts available
+      if (boldFont && title) {
+        coverPage.drawText(title, {
+          x: 50,
+          y: 100,
+          size: 32,
+          font: boldFont,
+          color: rgb(1, 1, 1) // White text
+        });
+        
+        if (author && font) {
+          coverPage.drawText(`par ${author}`, {
+            x: 50,
+            y: 60,
+            size: 20,
+            font: font,
+            color: rgb(1, 1, 1)
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.warn('Failed to add cover image:', error);
+    }
   }
 }

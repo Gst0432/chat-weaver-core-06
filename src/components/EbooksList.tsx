@@ -14,6 +14,7 @@ interface Ebook {
   author: string;
   content_markdown: string;
   created_at: string;
+  cover_image_url?: string;
 }
 
 interface EbooksListProps {
@@ -103,7 +104,10 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
       const dataUri = await DocumentGeneratorService.generateDocument({
         content: ebook.content_markdown,
         type: 'pdf',
-        template: format === 'A4' ? 'report' : format === 'A5' ? 'letter' : undefined
+        template: format === 'A4' ? 'report' : format === 'A5' ? 'letter' : undefined,
+        title: ebook.title,
+        author: ebook.author,
+        coverImageUrl: ebook.cover_image_url
       });
       
       const a = document.createElement('a');
@@ -131,7 +135,10 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
     try {
       const dataUri = await DocumentGeneratorService.generateDocument({
         content: ebook.content_markdown,
-        type: 'docx'
+        type: 'docx',
+        title: ebook.title,
+        author: ebook.author,
+        coverImageUrl: ebook.cover_image_url
       });
       
       const a = document.createElement('a');

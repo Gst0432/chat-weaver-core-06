@@ -29,7 +29,8 @@ serve(async (req) => {
       chapters = [],
       includeCover = true,
       includeAbout = true,
-      includeToc = true
+      includeToc = true,
+      coverImagePrompt = null
     } = await req.json();
 
     console.log('📚 Generating ebook:', { title, language, format, useAI, chaptersCount: chapters.length, includeCover, includeAbout, includeToc });
@@ -270,6 +271,53 @@ Please provide the expanded version with much more detailed content:`;
       fileExtension = 'epub';
     }
 
+    // Generate cover image if prompt provided
+    let coverImageUrl = null;
+    if (coverImagePrompt) {
+      try {
+        console.log('🎨 Generating cover image with prompt:', coverImagePrompt);
+        
+        const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-image-1',
+            prompt: `Professional book cover illustration: ${coverImagePrompt}. High quality book cover design, vertical format, elegant typography space`,
+            size: '1024x1792',
+            quality: 'hd'
+          }),
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const imageUrl = imageData.data[0].url;
+          
+          // Download and upload to Supabase Storage
+          const imageBytes = await fetch(imageUrl);
+          const imageBlob = await imageBytes.blob();
+          const filename = `cover-${Date.now()}.png`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('uploads')
+            .upload(filename, imageBlob, { contentType: 'image/png' });
+
+          if (!uploadError) {
+            const { data: { publicUrl } } = supabase.storage
+              .from('uploads')
+              .getPublicUrl(filename);
+            
+            coverImageUrl = publicUrl;
+            console.log('✅ Cover image uploaded:', coverImageUrl);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to generate cover image:', error);
+      }
+    }
+
     // Save to database
     const { data: ebook, error: dbError } = await supabase
       .from('ebooks')
@@ -277,7 +325,8 @@ Please provide the expanded version with much more detailed content:`;
         user_id: user.id,
         title,
         author,
-        content_markdown: content
+        content_markdown: content,
+        cover_image_url: coverImageUrl
       })
       .select()
       .single();
@@ -296,7 +345,8 @@ Please provide the expanded version with much more detailed content:`;
         content: generatedContent,
         format,
         mimeType,
-        fileExtension
+        fileExtension,
+        coverImageUrl
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

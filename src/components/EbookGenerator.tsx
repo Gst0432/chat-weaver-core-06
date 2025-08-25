@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Wand2, BookOpen, Sparkles } from 'lucide-react';
+import { Wand2, BookOpen, Sparkles, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -54,6 +54,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [includeCover, setIncludeCover] = useState(true);
   const [includeAbout, setIncludeAbout] = useState(true);
   const [includeToc, setIncludeToc] = useState(true);
+  const [coverImagePrompt, setCoverImagePrompt] = useState('');
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -80,7 +81,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           format: 'markdown',
           includeCover,
           includeAbout,
-          includeToc
+          includeToc,
+          coverImagePrompt: coverImagePrompt.trim() || null
         }
       });
 
@@ -95,6 +97,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
       setTitle('');
       setAuthor('');
       setPrompt('');
+      setCoverImagePrompt('');
       
       onEbookGenerated();
     } catch (error) {
@@ -258,6 +261,27 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
                     />
                     <Label htmlFor="includeToc">Table des matières</Label>
                   </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4 p-3 border rounded-lg bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <Image className="w-4 h-4 text-primary" />
+                  <Label>Image de Couverture</Label>
+                </div>
+                
+                <div>
+                  <Label htmlFor="coverImagePrompt">Prompt pour générer une image (optionnel)</Label>
+                  <Textarea
+                    id="coverImagePrompt"
+                    value={coverImagePrompt}
+                    onChange={(e) => setCoverImagePrompt(e.target.value)}
+                    placeholder="ex: Design moderne avec couleurs bleues et dorées, thème technologique, élégant et professionnel"
+                    className="h-20 resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Une image de couverture sera générée automatiquement si vous fournissez un prompt
+                  </p>
                 </div>
               </div>
             </div>
