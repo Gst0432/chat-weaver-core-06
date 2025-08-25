@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Wand2, BookOpen, Sparkles, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Wand2, BookOpen, Sparkles, Clock, CheckCircle, AlertCircle, RotateCcw, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useEbookGeneration } from '@/hooks/useEbookGeneration';
@@ -73,7 +74,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [generationId, setGenerationId] = useState<string | null>(null);
   const { toast } = useToast();
   
-  const { generation, getStatusMessage, getEstimatedTimeRemaining, isCompleted, isFailed } = 
+  const { generation, getStatusMessage, getEstimatedTimeRemaining, isCompleted, isFailed, isStalled, 
+          retryGeneration, cancelGeneration, checkForStalledGeneration } = 
     useEbookGeneration(generationId || undefined);
 
   const handleGenerate = async () => {
@@ -307,6 +309,17 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
 
         {(generating || generation) && (
           <div className="text-center text-sm space-y-4 p-4 border rounded-lg bg-muted/20">
+            {/* Stalled generation alert */}
+            {isStalled && (
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800">
+                  La génération semble bloquée depuis plus de 15 minutes. 
+                  Cela peut être dû à des problèmes temporaires d'API.
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="flex items-center justify-center gap-2">
               {generation?.status === 'completed' ? (
                 <CheckCircle className="w-5 h-5 text-green-500" />
@@ -333,12 +346,88 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
                     Chapitre {generation.current_chapter || 0} sur {generation.total_chapters}
                   </div>
                 )}
+                
+                {/* Cancel button for ongoing generation */}
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await cancelGeneration();
+                      setGenerating(false);
+                      setGenerationId(null);
+                      toast({
+                        title: "Génération annulée",
+                        description: "La génération a été annulée avec succès.",
+                      });
+                    }}
+                    className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Annuler la génération
+                  </Button>
+                </div>
               </>
+            )}
+            
+            {/* Retry button for failed generation */}
+            {generation?.status === 'failed' && (
+              <div className="space-y-2">
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    {generation.error_message || "La génération a échoué"}
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="flex justify-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await retryGeneration();
+                        setGenerating(true);
+                        toast({
+                          title: "Génération relancée",
+                          description: "La génération a été relancée avec les mêmes paramètres.",
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: "Impossible de relancer la génération: " + error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Relancer la génération
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setGenerating(false);
+                      setGenerationId(null);
+                    }}
+                    className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Fermer
+                  </Button>
+                </div>
+              </div>
             )}
             
             <div className="text-xs text-muted-foreground space-y-1">
               <p>📚 Génération d'un ebook professionnel de 15 000-25 000 mots</p>
               <p>🔄 La génération continue en arrière-plan, vous pouvez fermer cette page</p>
+              {generation?.status === 'generating_chapters' && (
+                <p>⚡ Retry automatique activé en cas d'erreur temporaire d'API</p>
+              )}
             </div>
           </div>
         )}

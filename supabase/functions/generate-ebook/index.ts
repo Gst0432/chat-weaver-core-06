@@ -22,80 +22,164 @@ function isOpenRouterModel(model: string): boolean {
          model.includes('claude');
 }
 
-async function callAI(prompt: string, model: string, useOpenRouter: boolean): Promise<any> {
-  if (useOpenRouter) {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://chatelix.com',
-        'X-Title': 'Chatelix Ebook Generator'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 8000,
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ OpenRouter API error:', errorText);
+// Enhanced retry logic with exponential backoff
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt > maxRetries) {
+        throw error;
+      }
       
-      if (response.status === 401) {
-        throw new Error('Clé API OpenRouter invalide');
-      } else if (response.status === 429) {
-        throw new Error('Limite de taux OpenRouter atteinte');
+      // Check if error is retryable
+      const errorMessage = error.message.toLowerCase();
+      const isRetryable = errorMessage.includes('502') || 
+                         errorMessage.includes('503') || 
+                         errorMessage.includes('429') ||
+                         errorMessage.includes('timeout') ||
+                         errorMessage.includes('network');
+      
+      if (!isRetryable) {
+        throw error;
+      }
+      
+      const delayMs = baseDelay * Math.pow(2, attempt - 1);
+      console.log(`🔄 Retry attempt ${attempt}/${maxRetries} after ${delayMs}ms delay`);
+      await delay(delayMs);
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
+async function callAI(prompt: string, model: string, useOpenRouter: boolean, retryCount: number = 0): Promise<any> {
+  // Enhanced AI calling with fallback and retry
+  const callWithRetry = async (useRouter: boolean, modelToUse: string) => {
+    return await retryWithBackoff(async () => {
+      if (useRouter) {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://chatelix.com',
+            'X-Title': 'Chatelix Ebook Generator'
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: [
+              { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
+              { role: 'user', content: prompt }
+            ],
+            max_tokens: 8000,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ OpenRouter API error:', errorText);
+          
+          if (response.status === 401) {
+            throw new Error('Clé API OpenRouter invalide');
+          } else if (response.status === 429) {
+            throw new Error('Limite de taux OpenRouter atteinte (429)');
+          } else if (response.status === 502) {
+            throw new Error('Erreur serveur OpenRouter (502 Bad Gateway)');
+          } else if (response.status === 503) {
+            throw new Error('Service OpenRouter temporairement indisponible (503)');
+          } else {
+            throw new Error(`Erreur OpenRouter (${response.status}): ${errorText}`);
+          }
+        }
+        
+        return await response.json();
       } else {
-        throw new Error(`Erreur OpenRouter (${response.status}): ${errorText}`);
+        const requestBody: any = {
+          model: modelToUse,
+          messages: [
+            { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
+            { role: 'user', content: prompt }
+          ]
+        };
+
+        // Handle API parameter differences for newer vs legacy models
+        if (modelToUse.includes('gpt-5') || modelToUse.includes('o3') || modelToUse.includes('o4') || modelToUse.includes('gpt-4.1')) {
+          requestBody.max_completion_tokens = 8000;
+        } else {
+          requestBody.max_tokens = 8000;
+          requestBody.temperature = 0.7;
+        }
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ OpenAI API error:', errorText);
+          
+          if (response.status === 401) {
+            throw new Error('Clé API OpenAI invalide');
+          } else if (response.status === 429) {
+            throw new Error('Limite de taux OpenAI atteinte (429)');
+          } else if (response.status === 502) {
+            throw new Error('Erreur serveur OpenAI (502 Bad Gateway)');
+          } else if (response.status === 503) {
+            throw new Error('Service OpenAI temporairement indisponible (503)');
+          } else {
+            throw new Error(`Erreur OpenAI (${response.status}): ${errorText}`);
+          }
+        }
+        
+        return await response.json();
+      }
+    }, 3, 2000); // 3 retries with 2s base delay
+  };
+
+  try {
+    // Primary attempt with specified provider
+    return await callWithRetry(useOpenRouter, model);
+  } catch (error) {
+    console.log(`⚠️ Primary API failed: ${error.message}`);
+    
+    // Fallback strategy: try the other provider if available
+    if (!useOpenRouter && Deno.env.get('OPENROUTER_API_KEY')) {
+      console.log('🔄 Falling back to OpenRouter...');
+      try {
+        // Use a reliable OpenRouter model as fallback
+        const fallbackModel = 'openai/gpt-4o-mini';
+        return await callWithRetry(true, fallbackModel);
+      } catch (fallbackError) {
+        console.error('❌ Fallback to OpenRouter also failed:', fallbackError.message);
+        throw new Error(`Toutes les APIs ont échoué. OpenAI: ${error.message}, OpenRouter: ${fallbackError.message}`);
+      }
+    } else if (useOpenRouter && Deno.env.get('OPENAI_API_KEY')) {
+      console.log('🔄 Falling back to OpenAI...');
+      try {
+        // Use a reliable OpenAI model as fallback
+        const fallbackModel = 'gpt-4o-mini';
+        return await callWithRetry(false, fallbackModel);
+      } catch (fallbackError) {
+        console.error('❌ Fallback to OpenAI also failed:', fallbackError.message);
+        throw new Error(`Toutes les APIs ont échoué. OpenRouter: ${error.message}, OpenAI: ${fallbackError.message}`);
       }
     }
     
-    return await response.json();
-  } else {
-    const requestBody: any = {
-      model,
-      messages: [
-        { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
-        { role: 'user', content: prompt }
-      ]
-    };
-
-    // Handle API parameter differences for newer vs legacy models
-    if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4') || model.includes('gpt-4.1')) {
-      requestBody.max_completion_tokens = 8000;
-    } else {
-      requestBody.max_tokens = 8000;
-      requestBody.temperature = 0.7;
-    }
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ OpenAI API error:', errorText);
-      
-      if (response.status === 401) {
-        throw new Error('Clé API OpenAI invalide');
-      } else if (response.status === 429) {
-        throw new Error('Limite de taux OpenAI atteinte');
-      } else {
-        throw new Error(`Erreur OpenAI (${response.status}): ${errorText}`);
-      }
-    }
-    
-    return await response.json();
+    // No fallback available, re-throw original error
+    throw error;
   }
 }
 

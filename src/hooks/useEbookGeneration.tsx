@@ -5,6 +5,9 @@ export interface EbookGeneration {
   id: string;
   title: string;
   author: string;
+  prompt?: string;
+  model?: string;
+  template?: string;
   status: 'pending' | 'generating_toc' | 'generating_chapters' | 'assembling' | 'completed' | 'failed';
   progress: number;
   current_chapter: number;
@@ -40,6 +43,85 @@ export function useEbookGeneration(generationId?: string) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Check for stalled generations (zombie detection)
+  const checkForStalledGeneration = () => {
+    if (!generation) return false;
+    
+    const now = Date.now();
+    const createdAt = new Date(generation.created_at).getTime();
+    const elapsedMinutes = (now - createdAt) / (1000 * 60);
+    
+    // Consider generation stalled if:
+    // - In progress for more than 15 minutes
+    // - Or stuck at same progress for more than 5 minutes with no chapter progress
+    const isStalled = (
+      (['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status)) &&
+      elapsedMinutes > 15
+    );
+    
+    return isStalled;
+  };
+
+  // Retry failed generation
+  const retryGeneration = async () => {
+    if (!generation) return;
+    
+    try {
+      setError(null);
+      await supabase.from('ebook_generations').update({
+        status: 'pending',
+        progress: 0,
+        current_chapter: 0,
+        generated_chapters: 0,
+        error_message: null
+      }).eq('id', generation.id);
+      
+      // Trigger a new generation by calling the edge function
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) {
+        throw new Error('Authentication required');
+      }
+
+      const response = await supabase.functions.invoke('generate-ebook', {
+        body: {
+          prompt: generation.prompt,
+          title: generation.title,
+          author: generation.author,
+          model: generation.model,
+          template: generation.template
+        },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+      
+    } catch (err: any) {
+      console.error('Error retrying generation:', err);
+      setError(err.message);
+    }
+  };
+
+  // Cancel ongoing generation
+  const cancelGeneration = async () => {
+    if (!generation) return;
+    
+    try {
+      setError(null);
+      await supabase.from('ebook_generations').update({
+        status: 'failed',
+        error_message: 'Génération annulée par l\'utilisateur'
+      }).eq('id', generation.id);
+      
+    } catch (err: any) {
+      console.error('Error canceling generation:', err);
+      setError(err.message);
     }
   };
 
@@ -139,10 +221,14 @@ export function useEbookGeneration(generationId?: string) {
     loading,
     error,
     fetchGeneration,
+    retryGeneration,
+    cancelGeneration,
+    checkForStalledGeneration,
     getStatusMessage,
     getEstimatedTimeRemaining,
     isCompleted: generation?.status === 'completed',
     isFailed: generation?.status === 'failed',
-    isInProgress: generation && ['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status)
+    isInProgress: generation && ['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status),
+    isStalled: checkForStalledGeneration()
   };
 }
