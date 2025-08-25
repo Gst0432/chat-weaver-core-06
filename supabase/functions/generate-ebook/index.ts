@@ -79,7 +79,7 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
               { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
               { role: 'user', content: prompt }
             ],
-            max_tokens: 8000,
+            max_tokens: 4000, // Réduit pour vitesse
           }),
         });
         
@@ -111,10 +111,11 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
         };
 
         // Handle API parameter differences for newer vs legacy models
+        // Réduire max_tokens pour vitesse (8000 -> 4000)
         if (modelToUse.includes('gpt-5') || modelToUse.includes('o3') || modelToUse.includes('o4') || modelToUse.includes('gpt-4.1')) {
-          requestBody.max_completion_tokens = 8000;
+          requestBody.max_completion_tokens = 4000;
         } else {
-          requestBody.max_tokens = 8000;
+          requestBody.max_tokens = 4000;
           requestBody.temperature = 0.7;
         }
 
@@ -146,7 +147,7 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
         
         return await response.json();
       }
-    }, 3, 2000); // 3 retries with 2s base delay
+    }, 3, 1000); // 3 retries with 1s base delay (réduit pour vitesse)
   };
 
   try {
@@ -195,10 +196,11 @@ serve(async (req) => {
       author, 
       format = 'markdown',
       useAI = true,
-      model = 'gpt-4.1-2025-04-14',
+      model = 'gpt-5-nano-2025-08-07', // Ultra-rapide par défaut
       template = 'business',
       chapters = [],
-      resume_generation_id = null // For resuming partial generations
+      resume_generation_id = null, // For resuming partial generations
+      fast_mode = true // Mode rapide par défaut pour 3mn
     } = await req.json();
 
     console.log('📚 Starting 3-phase ebook generation:', { title, format, useAI, model, template });
@@ -287,8 +289,19 @@ serve(async (req) => {
 
     console.log('🎯 Generation record created:', generation.id);
 
-    // Background task for long ebook generation
+    // Background task with 3-minute timeout
     const backgroundGeneration = async () => {
+      const startTime = Date.now();
+      const TIMEOUT_MS = 180000; // 3 minutes
+      
+      const checkTimeout = () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > TIMEOUT_MS) {
+          throw new Error('Generation timeout (3 minutes exceeded)');
+        }
+        return elapsed;
+      };
+
       try {
         let content = '';
 
@@ -303,6 +316,11 @@ serve(async (req) => {
           }).eq('id', generation.id);
 
           console.log('📋 Phase 1: Generating table of contents...');
+          // Mode rapide ou complet selon le paramètre
+          const targetWords = fast_mode ? '6,000-10,000' : '15,000-25,000';
+          const chapterCount = fast_mode ? '8-12' : '15-25';
+          const chapterWords = fast_mode ? '400-600' : '800-1200';
+
           const tocPrompt = `Create a detailed table of contents for a professional ebook:
 
 Title: ${title}
@@ -310,17 +328,17 @@ Author: ${author}
 Topic: ${prompt}
 Template: ${template}
 
-REQUIREMENTS:
-- Target: 15,000-25,000 words total (comprehensive ebook)
-- 15-25 chapters (800-1200 words each)
+REQUIREMENTS FOR ${fast_mode ? 'FAST MODE (3-minute generation)' : 'FULL MODE'}:
+- Target: ${targetWords} words total
+- ${chapterCount} chapters (${chapterWords} words each)
 - Professional structure suitable for publication
 
-MANDATORY STRUCTURE:
-1. Avant-propos (400-600 mots)
+MANDATORY STRUCTURE FOR ${fast_mode ? 'FAST MODE' : 'FULL MODE'}:
+1. Avant-propos (${fast_mode ? '300-400' : '400-600'} mots)
 2. Table des matières (auto-generated)
-3. Introduction (800-1000 mots)
-4. 15-20 core chapters (800-1200 mots each) 
-5. Conclusion (600-800 mots)
+3. Introduction (${fast_mode ? '400-600' : '800-1000'} mots)
+4. ${fast_mode ? '6-8' : '15-20'} core chapters (${chapterWords} mots each) 
+5. Conclusion (${fast_mode ? '300-500' : '600-800'} mots)
 
 Return ONLY a JSON object with this exact structure:
 {
@@ -382,6 +400,9 @@ Focus on ${template} style content. Be comprehensive and professional.`;
           for (let i = 0; i < tableOfContents.chapters.length; i++) {
             const chapter = tableOfContents.chapters[i];
             if (chapter.type === 'toc') continue; // Skip TOC entry
+            
+            // Vérifier timeout avant chaque chapitre
+            checkTimeout();
             
             console.log(`📝 Generating chapter ${i + 1}/${tableOfContents.chapters.length}: "${chapter.title}"`);
             
@@ -449,8 +470,8 @@ Write the COMPLETE chapter content in Markdown format:`;
                 generated_chapters: i + 1
               }).eq('id', generation.id);
               
-              // Small delay to avoid rate limiting
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // Small delay to avoid rate limiting (réduit pour vitesse)
+              await new Promise(resolve => setTimeout(resolve, 200));
               
             } catch (error) {
               console.error(`❌ Failed to generate chapter "${chapter.title}":`, error);
@@ -517,11 +538,19 @@ Write the COMPLETE chapter content in Markdown format:`;
 
         console.log('✅ Ebook generation completed successfully!');
 
-      } catch (error) {
-        console.error('❌ Background generation error:', error);
+      } catch (error: any) {
+        console.error('❌ Background generation failed:', error);
+        
+        // En cas de timeout, sauvegarder le contenu partiel
+        const isTimeout = error.message?.includes('timeout');
+        const errorMessage = isTimeout ? 
+          'Timeout (3 minutes) - Contenu partiel disponible' : 
+          error.message;
+        
         await supabase.from('ebook_generations').update({
           status: 'failed',
-          error_message: error.message
+          error_message: errorMessage,
+          completed_at: new Date().toISOString()
         }).eq('id', generation.id);
       }
     };

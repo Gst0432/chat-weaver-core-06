@@ -69,7 +69,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [prompt, setPrompt] = useState('');
   const [template, setTemplate] = useState('business');
   const [useAI, setUseAI] = useState(true);
-  const [model, setModel] = useState('gpt-5-mini-2025-08-07');
+  const [model, setModel] = useState('gpt-5-nano-2025-08-07');
+  const [fastMode, setFastMode] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generationId, setGenerationId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -103,7 +104,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           useAI,
           model,
           template,
-          format: 'markdown'
+          format: 'markdown',
+          fast_mode: fastMode
         }
       });
 
@@ -239,7 +241,34 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           />
         </div>
 
+        {/* Mode de génération */}
         <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
+              <Label htmlFor="fastMode">Mode Rapide (3 minutes max)</Label>
+            </div>
+            <Switch
+              id="fastMode"
+              checked={fastMode}
+              onCheckedChange={setFastMode}
+            />
+          </div>
+          
+          <div className="text-sm text-muted-foreground">
+            {fastMode ? (
+              <div className="flex items-center gap-2 text-green-600">
+                <CheckCircle className="w-4 h-4" />
+                <span><strong>Mode Rapide:</strong> 8-12 chapitres, 6k-10k mots, génération en 3 minutes maximum</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-blue-600">
+                <BookOpen className="w-4 h-4" />
+                <span><strong>Mode Complet:</strong> 15-25 chapitres, 15k-25k mots, génération en 5-10 minutes</span>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -315,8 +344,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
               <Alert className="border-orange-200 bg-orange-50">
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
                 <AlertDescription className="text-orange-800 space-y-3">
-                  <p>La génération semble bloquée depuis plus de 15 minutes. 
-                  Cela peut être dû à des problèmes temporaires d'API.</p>
+                  <p>La génération semble bloquée depuis plus de 5 minutes. 
+                  En mode rapide (3mn max), cela indique un problème d'API.</p>
                   
                   <div className="flex gap-2 flex-wrap">
                     <Button
