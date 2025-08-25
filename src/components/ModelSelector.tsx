@@ -16,66 +16,58 @@ const models = [
     description: "Sélection automatique du meilleur modèle selon la tâche"
   },
 
-  // === 🏆 GPT-5 SERIES (FLAGSHIP 2025) ===
+  // === 🏆 OPENAI MODELS (REAL) ===
   {
-    id: "openai/gpt-5-2025-08-07",
-    name: "🏆 GPT-5 Flagship",
+    id: "openai/gpt-4o",
+    name: "🏆 GPT-4o",
     provider: "OpenAI",
     icon: Sparkles,
     color: "openai",
-    description: "Le flagship GPT-5 via OpenRouter - Capacités révolutionnaires"
+    description: "GPT-4 Omni - Multimodal et puissant"
   },
   {
-    id: "openai/gpt-5-mini-2025-08-07",
-    name: "⚡ GPT-5 Mini",
+    id: "openai/gpt-4o-mini",
+    name: "⚡ GPT-4o Mini",
     provider: "OpenAI",
     icon: Zap,
     color: "openai",
-    description: "GPT-5 économique et rapide - Meilleur rapport qualité/prix"
+    description: "Version économique et rapide"
   },
   {
-    id: "openai/gpt-5-nano-2025-08-07",
-    name: "🚀 GPT-5 Nano",
+    id: "openai/gpt-4-turbo",
+    name: "🚀 GPT-4 Turbo",
     provider: "OpenAI",
     icon: Zap,
     color: "openai",
-    description: "GPT-5 ultra-rapide pour réponses instantanées"
+    description: "GPT-4 Turbo optimisé performance"
   },
 
   // === 🧠 REASONING MODELS ===
   {
-    id: "openai/o3-2025-04-16",
-    name: "🧠 O3 Reasoning",
+    id: "openai/o1-preview",
+    name: "🧠 O1 Preview",
     provider: "OpenAI",
     icon: Cpu,
     color: "openai",
-    description: "Raisonnement avancé O3 - Analyses complexes"
+    description: "Raisonnement avancé O1 preview"
   },
   {
-    id: "openai/o4-mini-2025-04-16",
-    name: "⚡ O4 Mini Reasoning",
+    id: "openai/o1-mini",
+    name: "⚡ O1 Mini",
     provider: "OpenAI",
     icon: Cpu,
     color: "openai",
     description: "Raisonnement rapide et efficace"
   },
 
-  // === 👑 CLAUDE 4 SERIES ===
+  // === 👑 CLAUDE SERIES (REAL) ===
   {
-    id: "anthropic/claude-opus-4-20250514",
-    name: "👑 Claude Opus 4",
+    id: "anthropic/claude-3.5-sonnet",
+    name: "👑 Claude 3.5 Sonnet",
     provider: "Anthropic",
     icon: Sparkles,
     color: "claude",
-    description: "Le plus capable - Raisonnement supérieur Claude 4"
-  },
-  {
-    id: "anthropic/claude-sonnet-4-20250514",
-    name: "🎯 Claude Sonnet 4",
-    provider: "Anthropic",
-    icon: Sparkles,
-    color: "claude",
-    description: "Haute performance - Raisonnement exceptionnel"
+    description: "Le plus capable - Intelligence supérieure"
   },
   {
     id: "anthropic/claude-3-5-haiku-20241022",
@@ -132,14 +124,22 @@ const models = [
     description: "Raisonnement optimisé preview"
   },
 
-  // === 🚀 GOOGLE GEMINI ===
+  // === 🚀 GOOGLE GEMINI (REAL) ===
   {
-    id: "google/gemini-1.5-pro",
-    name: "🚀 Gemini 1.5 Pro",
+    id: "google/gemini-pro-1.5",
+    name: "🚀 Gemini Pro 1.5",
     provider: "Google",
     icon: Sparkles,
     color: "gemini",
-    description: "Modèle le plus capable - 2M tokens contexte"
+    description: "Gemini Pro - 2M tokens contexte"
+  },
+  {
+    id: "google/gemini-flash-1.5",
+    name: "⚡ Gemini Flash 1.5",
+    provider: "Google",
+    icon: Zap,
+    color: "gemini",
+    description: "Version rapide et économique"
   }
 ];
 interface ModelSelectorProps {

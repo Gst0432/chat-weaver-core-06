@@ -42,17 +42,7 @@ export class StreamingService {
 
       console.log(`📡 Calling ${functionName} for provider ${provider}`);
 
-      // Utiliser le client Supabase authentifié au lieu de fetch manuel
-      const { data: response, error: functionError } = await supabase.functions.invoke(functionName, {
-        body: streamingPayload
-      });
-
-      if (functionError) {
-        console.error(`❌ Function error for ${model}:`, functionError);
-        throw new Error(`Function failed: ${functionError.message || 'Unknown error'}`);
-      }
-
-      // Pour le streaming, on doit utiliser une approche différente
+      // Direct streaming call to avoid double API calls
       const streamResponse = await fetch(`https://jeurznrjcohqbevrzses.supabase.co/functions/v1/${functionName}`, {
         method: 'POST',
         headers: {

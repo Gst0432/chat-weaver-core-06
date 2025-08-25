@@ -17,71 +17,62 @@ export class OpenRouterService {
   // Categories de modèles populaires - Mise à jour avec GPT-5 et derniers modèles
   static getPopularModels(): OpenRouterModel[] {
     return [
-      // === PHASE 1: GPT-5 OPENAI (via OpenRouter) ===
+      // === PHASE 1: OPENAI MODELS (REAL MODELS) ===
       {
-        id: 'openai/gpt-5-2025-08-07',
-        name: 'GPT-5',
+        id: 'openai/gpt-4o',
+        name: 'GPT-4o',
         provider: 'OpenAI',
         category: 'Flagship',
-        pricing: { prompt: 0.01, completion: 0.03 },
-        context_length: 200000,
-        description: 'Le flagship GPT-5 avec capacités avancées'
+        pricing: { prompt: 0.005, completion: 0.015 },
+        context_length: 128000,
+        description: 'OpenAI GPT-4 Omni - multimodal et puissant'
       },
       {
-        id: 'openai/gpt-5-mini-2025-08-07',
-        name: 'GPT-5 Mini',
+        id: 'openai/gpt-4o-mini',
+        name: 'GPT-4o Mini',
         provider: 'OpenAI',
         category: 'Économique',
-        pricing: { prompt: 0.0005, completion: 0.002 },
-        context_length: 200000,
-        description: 'Version économique et rapide de GPT-5'
-      },
-      {
-        id: 'openai/gpt-5-nano-2025-08-07',
-        name: 'GPT-5 Nano',
-        provider: 'OpenAI',
-        category: 'Ultra-rapide',
-        pricing: { prompt: 0.0001, completion: 0.0005 },
+        pricing: { prompt: 0.00015, completion: 0.0006 },
         context_length: 128000,
-        description: 'Version ultra-rapide pour tâches simples'
+        description: 'Version économique et rapide de GPT-4o'
       },
       {
-        id: 'openai/o3-2025-04-16',
-        name: 'O3',
+        id: 'openai/gpt-4-turbo',
+        name: 'GPT-4 Turbo',
+        provider: 'OpenAI',
+        category: 'Performance',
+        pricing: { prompt: 0.01, completion: 0.03 },
+        context_length: 128000,
+        description: 'GPT-4 Turbo optimisé pour la performance'
+      },
+      {
+        id: 'openai/o1-preview',
+        name: 'O1 Preview',
         provider: 'OpenAI',
         category: 'Raisonnement',
-        pricing: { prompt: 0.02, completion: 0.08 },
-        context_length: 200000,
-        description: 'Modèle de raisonnement très puissant'
+        pricing: { prompt: 0.015, completion: 0.06 },
+        context_length: 128000,
+        description: 'Modèle de raisonnement O1 preview'
       },
       {
-        id: 'openai/o4-mini-2025-04-16',
-        name: 'O4 Mini',
+        id: 'openai/o1-mini',
+        name: 'O1 Mini',
         provider: 'OpenAI',
         category: 'Raisonnement rapide',
-        pricing: { prompt: 0.005, completion: 0.02 },
+        pricing: { prompt: 0.003, completion: 0.012 },
         context_length: 128000,
         description: 'Raisonnement rapide et efficace'
       },
 
-      // === PHASE 2.1: ANTHROPIC CLAUDE 4 + NOUVEAUX ===
+      // === PHASE 2.1: ANTHROPIC CLAUDE (REAL MODELS) ===
       {
-        id: 'anthropic/claude-opus-4-20250514',
-        name: 'Claude Opus 4',
+        id: 'anthropic/claude-3.5-sonnet',
+        name: 'Claude 3.5 Sonnet',
         provider: 'Anthropic',
         category: 'Flagship',
-        pricing: { prompt: 0.015, completion: 0.075 },
+        pricing: { prompt: 0.003, completion: 0.015 },
         context_length: 200000,
-        description: 'Le plus capable et intelligent avec raisonnement supérieur'
-      },
-      {
-        id: 'anthropic/claude-sonnet-4-20250514',
-        name: 'Claude Sonnet 4',
-        provider: 'Anthropic',
-        category: 'Performance',
-        pricing: { prompt: 0.008, completion: 0.04 },
-        context_length: 200000,
-        description: 'Haute performance avec raisonnement exceptionnel'
+        description: 'Claude 3.5 Sonnet - Le plus capable'
       },
       {
         id: 'anthropic/claude-3-5-haiku-20241022',
@@ -111,51 +102,24 @@ export class OpenRouterService {
         description: 'Modèle précédent intelligent (remplacé)'
       },
 
-      // === PHASE 2.2: GOOGLE GEMINI 2.0 + DERNIERS ===
+      // === PHASE 2.2: GOOGLE GEMINI (REAL MODELS) ===
       {
-        id: 'google/gemini-2.0-flash-exp',
-        name: 'Gemini 2.0 Flash Exp',
+        id: 'google/gemini-pro-1.5',
+        name: 'Gemini Pro 1.5',
         provider: 'Google',
-        category: 'Nouvelle génération',
-        pricing: { prompt: 0.001, completion: 0.004 },
-        context_length: 1000000,
-        description: 'Nouvelle génération multimodale avancée'
-      },
-      {
-        id: 'google/gemini-exp-1206',
-        name: 'Gemini Exp 1206',
-        provider: 'Google',
-        category: 'Expérimental',
-        pricing: { prompt: 0.002, completion: 0.008 },
-        context_length: 2000000,
-        description: 'Expérimental avancé avec nouvelles capacités'
-      },
-      {
-        id: 'google/learnlm-1.5-pro-experimental',
-        name: 'LearnLM 1.5 Pro',
-        provider: 'Google',
-        category: 'Apprentissage',
-        pricing: { prompt: 0.0015, completion: 0.006 },
-        context_length: 1000000,
-        description: 'Spécialisé apprentissage et éducation'
-      },
-      {
-        id: 'google/gemini-pro-1.5-exp',
-        name: 'Gemini Pro 1.5 Exp',
-        provider: 'Google',
-        category: 'Pro expérimental',
+        category: 'Pro',
         pricing: { prompt: 0.00125, completion: 0.005 },
         context_length: 2000000,
-        description: 'Pro expérimental avec capacités étendues'
+        description: 'Gemini Pro 1.5 - context 2M tokens'
       },
       {
-        id: 'google/gemini-flash-1.5-8b',
-        name: 'Gemini Flash 1.5 8B',
+        id: 'google/gemini-flash-1.5',
+        name: 'Gemini Flash 1.5',
         provider: 'Google',
-        category: 'Compacte',
-        pricing: { prompt: 0.0001, completion: 0.0004 },
+        category: 'Rapide',
+        pricing: { prompt: 0.00015, completion: 0.0006 },
         context_length: 1000000,
-        description: 'Version compacte et économique'
+        description: 'Version rapide et économique'
       },
 
       // === PHASE 2.3: META LLAMA 3.3 + VARIANTS ===
@@ -454,13 +418,13 @@ export class OpenRouterService {
   }
 
   static getRecommendedModel(taskType: 'code' | 'creative' | 'reasoning' | 'general' | 'fast'): string {
-    // PHASE 4: Recommandations mises à jour avec nouveaux modèles
+    // Recommandations avec modèles réels et testés
     const recommendations = {
-      code: 'mistralai/codestral-2405', // Spécialisé code dernière version
-      creative: 'anthropic/claude-opus-4-20250514', // Claude 4 pour créativité
-      reasoning: 'openai/o3-2025-04-16', // O3 pour raisonnement avancé
-      general: 'openai/gpt-5-mini-2025-08-07', // GPT-5 Mini par défaut
-      fast: 'openai/gpt-5-nano-2025-08-07' // GPT-5 Nano ultra-rapide
+      code: 'mistralai/codestral-2405', // Spécialisé code
+      creative: 'anthropic/claude-3.5-sonnet', // Claude 3.5 pour créativité
+      reasoning: 'openai/o1-preview', // O1 pour raisonnement
+      general: 'openai/gpt-4o-mini', // GPT-4o Mini par défaut
+      fast: 'openai/gpt-4o-mini' // GPT-4o Mini rapide
     };
 
     return recommendations[taskType] || recommendations.general;
