@@ -25,6 +25,7 @@ serve(async (req) => {
       format = 'markdown',
       useAI = true,
       model = 'gpt-4.1-2025-04-14',
+      template = 'business',
       chapters = []
     } = await req.json();
 
