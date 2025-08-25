@@ -281,7 +281,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
         {generating && (
           <div className="text-center text-sm text-muted-foreground space-y-2">
             <p>⏳ Génération en cours (30-90 secondes)...</p>
-            <p>Création d'un ebook professionnel avec 8-12 chapitres.</p>
+            <p>Création d'un ebook professionnel de 5 000-8 000 mots avec 8-12 chapitres.</p>
             <div className="w-full bg-muted rounded-full h-2">
               <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
             </div>
