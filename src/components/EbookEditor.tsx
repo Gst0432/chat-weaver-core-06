@@ -65,14 +65,8 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
       return;
     }
 
-    if (wordCount < 15000) {
-      toast({
-        title: "Contenu insuffisant",
-        description: `Votre ebook contient ${wordCount} mots. Le minimum requis est de 15 000 mots.`,
-        variant: "destructive",
-      });
-      return;
-    }
+    // Allow saving as draft even under 15,000 words
+    const isDraft = wordCount < 15000;
 
     setSaving(true);
     try {
@@ -105,7 +99,9 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
 
       toast({
         title: "Succès",
-        description: ebook ? "Ebook mis à jour" : "Ebook créé avec succès",
+        description: isDraft 
+          ? `${ebook ? "Brouillon mis à jour" : "Brouillon sauvegardé"} (${wordCount.toLocaleString()} mots)`
+          : `${ebook ? "Ebook mis à jour" : "Ebook créé"} (${wordCount.toLocaleString()} mots)`,
       });
 
       onSave();
@@ -156,7 +152,8 @@ ${content}
 Fournis la version étendue et enrichie :`
             }
           ],
-          model: 'gpt-4.1-2025-04-14'
+          model: 'gpt-4.1-2025-04-14',
+          max_completion_tokens: 16000
         }
       });
 
@@ -203,22 +200,28 @@ Fournis la version étendue et enrichie :`
         provider: 'dalle'
       });
 
-      // Upload to Supabase Storage
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const filename = `cover-${Date.now()}.png`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('uploads')
-        .upload(filename, blob, { contentType: 'image/png' });
+      // Check if imageUrl is a base64 data URL or external URL
+      if (imageUrl.startsWith('data:')) {
+        // Direct base64 image - use it directly
+        setCoverImageUrl(imageUrl);
+      } else {
+        // External URL - fetch and upload to Supabase Storage
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const filename = `cover-${Date.now()}.png`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('uploads')
+          .upload(filename, blob, { contentType: 'image/png' });
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('uploads')
-        .getPublicUrl(filename);
+        const { data: { publicUrl } } = supabase.storage
+          .from('uploads')
+          .getPublicUrl(filename);
 
-      setCoverImageUrl(publicUrl);
+        setCoverImageUrl(publicUrl);
+      }
       
       toast({
         title: "Image générée !",
@@ -368,15 +371,20 @@ Fournis la version étendue et enrichie :`
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 <span className="text-sm font-medium">Nombre de mots:</span>
-                <Badge variant={isMinimumLength ? "default" : "destructive"}>
+                <Badge variant={isMinimumLength ? "default" : "secondary"}>
                   {wordCount.toLocaleString()}
                 </Badge>
+                {!isMinimumLength && (
+                  <Badge variant="outline" className="text-xs">
+                    Brouillon
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-sm text-muted-foreground">
-                  Minimum: 15 000 mots
+                  Minimum pour export: 15 000 mots
                   {!isMinimumLength && (
-                    <span className="text-destructive ml-2">
+                    <span className="text-muted-foreground ml-2">
                       ({(15000 - wordCount).toLocaleString()} mots manquants)
                     </span>
                   )}
@@ -387,8 +395,17 @@ Fournis la version étendue et enrichie :`
                   onClick={extendContent}
                   disabled={extending || !content.trim()}
                 >
-                  <Wand2 className="w-4 h-4 mr-1" />
-                  {extending ? 'Extension...' : 'Étendre avec IA'}
+                  {extending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      Extension...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-4 h-4 mr-1" />
+                      Étendre avec IA
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
