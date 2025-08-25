@@ -22,13 +22,14 @@ serve(async (req) => {
       prompt, 
       title, 
       author, 
+      language = 'fr',
       format = 'markdown',
       useAI = true,
       model = 'gpt-4.1-2025-04-14',
       chapters = []
     } = await req.json();
 
-    console.log('📚 Generating ebook:', { title, format, useAI, chaptersCount: chapters.length });
+    console.log('📚 Generating ebook:', { title, language, format, useAI, chaptersCount: chapters.length });
 
     // Get authenticated user
     const authHeader = req.headers.get('Authorization')!;
@@ -47,16 +48,28 @@ serve(async (req) => {
 
     // Generate content with AI if requested
     if (useAI && prompt) {
+      const languageInstructions = {
+        'fr': 'Écris en français avec un style professionnel et engageant.',
+        'en': 'Write in English with a professional and engaging style.',
+        'es': 'Escribe en español con un estilo profesional y atractivo.',
+        'de': 'Schreibe auf Deutsch mit einem professionellen und ansprechenden Stil.',
+        'it': 'Scrivi in italiano con uno stile professionale e coinvolgente.',
+        'pt': 'Escreva em português com um estilo profissional e envolvente.',
+        'ar': 'اكتب باللغة العربية مع أسلوب مهني وجذاب.',
+        'zh': '用中文写作，风格专业且引人入胜。'
+      };
+
       const aiPrompt = `Create a comprehensive ebook with the following requirements:
 Title: ${title}
 Author: ${author}
 Topic: ${prompt}
+Language: ${language}
 
 CRITICAL REQUIREMENTS:
 - MINIMUM 15,000 words total
 - 15-20 detailed chapters
 - Each chapter should be 750-1000 words minimum
-- Professional tone suitable for publication
+- ${languageInstructions[language as keyof typeof languageInstructions] || languageInstructions['fr']}
 
 Structure the content as a complete ebook with:
 - Detailed Introduction (800+ words)

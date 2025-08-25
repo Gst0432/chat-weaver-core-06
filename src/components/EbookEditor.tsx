@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Save, Eye, FileText } from 'lucide-react';
+import { Save, Eye, FileText, Wand2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,6 +28,7 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [extending, setExtending] = useState(false);
   const { toast } = useToast();
 
   const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
@@ -104,8 +105,69 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
         description: "Impossible de sauvegarder l'ebook",
         variant: "destructive",
       });
+    }
+  };
+
+  const extendContent = async () => {
+    if (!content.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Aucun contenu à étendre",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setExtending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          messages: [
+            {
+              role: 'system',
+              content: 'Tu es un écrivain professionnel qui développe et enrichit le contenu existant pour atteindre au moins 15,000 mots.'
+            },
+            {
+              role: 'user',
+              content: `Le contenu suivant de l'ebook "${title}" contient actuellement ${wordCount} mots. Je dois l'étendre pour atteindre au moins 15,000 mots. 
+
+Développe chaque section existante avec :
+- Plus de détails et d'explications
+- Des exemples concrets et des études de cas
+- Des sous-sections supplémentaires
+- Du contenu pratique et actionnable
+- Des anecdotes et des témoignages
+- Des conseils d'experts
+
+Contenu actuel :
+${content}
+
+Fournis la version étendue et enrichie :`
+            }
+          ],
+          model: 'gpt-4.1-2025-04-14'
+        }
+      });
+
+      if (error) throw error;
+
+      const extendedContent = data.choices[0].message.content;
+      setContent(extendedContent);
+      
+      const newWordCount = extendedContent.split(/\s+/).filter(word => word.length > 0).length;
+      toast({
+        title: "Contenu étendu !",
+        description: `Contenu étendu de ${wordCount} à ${newWordCount} mots`,
+      });
+    } catch (error) {
+      console.error('Error extending content:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'étendre le contenu",
+        variant: "destructive",
+      });
     } finally {
-      setSaving(false);
+      setExtending(false);
     }
   };
 
@@ -175,13 +237,24 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
                   {wordCount.toLocaleString()}
                 </Badge>
               </div>
-              <div className="text-sm text-muted-foreground">
-                Minimum: 15 000 mots
-                {!isMinimumLength && (
-                  <span className="text-destructive ml-2">
-                    ({(15000 - wordCount).toLocaleString()} mots manquants)
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-muted-foreground">
+                  Minimum: 15 000 mots
+                  {!isMinimumLength && (
+                    <span className="text-destructive ml-2">
+                      ({(15000 - wordCount).toLocaleString()} mots manquants)
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={extendContent}
+                  disabled={extending || !content.trim()}
+                >
+                  <Wand2 className="w-4 h-4 mr-1" />
+                  {extending ? 'Extension...' : 'Étendre avec IA'}
+                </Button>
               </div>
             </div>
           </div>

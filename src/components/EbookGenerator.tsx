@@ -25,6 +25,17 @@ const templates = [
   { value: 'cookbook', label: 'Livre de Cuisine Complet', description: 'Recettes détaillées avec techniques, variantes et conseils de chef (100+ recettes)' }
 ];
 
+const languages = [
+  { value: 'fr', label: 'Français', description: 'Langue française' },
+  { value: 'en', label: 'English', description: 'English language' },
+  { value: 'es', label: 'Español', description: 'Idioma español' },
+  { value: 'de', label: 'Deutsch', description: 'Deutsche Sprache' },
+  { value: 'it', label: 'Italiano', description: 'Lingua italiana' },
+  { value: 'pt', label: 'Português', description: 'Língua portuguesa' },
+  { value: 'ar', label: 'العربية', description: 'اللغة العربية' },
+  { value: 'zh', label: '中文', description: '中文语言' }
+];
+
 const models = [
   { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1 (Recommandé)', description: 'Créatif et détaillé' },
   { value: 'gpt-5-2025-08-07', label: 'GPT-5', description: 'Plus avancé et nuancé' },
@@ -36,6 +47,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [author, setAuthor] = useState('');
   const [prompt, setPrompt] = useState('');
   const [template, setTemplate] = useState('business');
+  const [language, setLanguage] = useState('fr');
   const [useAI, setUseAI] = useState(true);
   const [model, setModel] = useState('gpt-4.1-2025-04-14');
   const [generating, setGenerating] = useState(false);
@@ -58,6 +70,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           title: title.trim(),
           author: author.trim(),
           prompt: prompt.trim(),
+          language,
           useAI,
           model,
           template,
@@ -104,7 +117,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="title">Titre de l'ebook *</Label>
             <Input
@@ -122,6 +135,24 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
               onChange={(e) => setAuthor(e.target.value)}
               placeholder="Votre nom"
             />
+          </div>
+          <div>
+            <Label htmlFor="language">Langue</Label>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {languages.map((lang) => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    <div className="flex items-center gap-2">
+                      <span>{lang.label}</span>
+                      <span className="text-xs text-muted-foreground">({lang.description})</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
