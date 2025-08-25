@@ -48,29 +48,34 @@ serve(async (req) => {
 
     // Generate content with AI if requested
     if (useAI && prompt) {
-      const aiPrompt = `Create a comprehensive ebook with the following requirements:
+      const aiPrompt = `Create a comprehensive professional ebook with the following requirements:
 Title: ${title}
 Author: ${author}
 Topic: ${prompt}
 
 CRITICAL REQUIREMENTS:
-- MINIMUM 15,000 words total
-- 15-20 detailed chapters
-- Each chapter should be 750-1000 words minimum
+- BETWEEN 8,900 and 15,000 words total (TARGET: 12,000 words)
+- Professional structure with complete book elements
+- Each chapter should be 600-1000 words
 - Professional tone suitable for publication
 
-Structure the content as a complete ebook with:
-- Detailed Introduction (800+ words)
-- 15-20 substantial chapters (750-1000 words each)
-- Comprehensive Conclusion (500+ words)
-- Use markdown formatting for headers, lists, and emphasis
+MANDATORY STRUCTURE (in this exact order):
+1. **Avant-propos** (400-600 mots) - Introduce the topic, author's perspective, and book objectives
+2. **Sommaire/Table des matières** - Auto-generated based on chapter titles
+3. **Introduction** (800-1200 mots) - Comprehensive introduction to the topic
+4. **10-15 detailed chapters** (600-1000 mots each) - Core content with practical insights
+5. **Conclusion** (500-800 mots) - Summary, key takeaways, and next steps
+
+FORMATTING REQUIREMENTS:
+- Use proper Markdown hierarchy (# ## ###)
 - Include practical examples, case studies, and actionable insights
 - Add detailed explanations and elaborative content
-- Ensure each section is thoroughly developed
+- Ensure professional formatting throughout
+- Create clear section breaks between major parts
 
 Template style: ${template || 'business'}
 
-Generate the COMPLETE FULL-LENGTH content in markdown format. Do not summarize or abbreviate - provide the complete detailed content:`;
+Generate the COMPLETE FULL-LENGTH content in markdown format with ALL required sections. Do not summarize or abbreviate - provide the complete detailed professional content:`;
 
       const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -96,10 +101,10 @@ Generate the COMPLETE FULL-LENGTH content in markdown format. Do not summarize o
         const wordCount = content.split(/\s+/).length;
         console.log(`📊 Generated content: ${wordCount} words`);
         
-        if (wordCount < 15000) {
+        if (wordCount < 8900) {
           console.warn(`⚠️ Content too short: ${wordCount} words. Extending...`);
           // Try to extend content with additional prompt
-          const extendPrompt = `The following ebook content has ${wordCount} words but needs to reach at least 15,000 words. Please expand each chapter significantly with more detailed explanations, examples, case studies, and practical applications. Add more chapters if needed to reach the minimum word count:
+          const extendPrompt = `The following ebook content has ${wordCount} words but needs to reach between 8,900-15,000 words. Please expand each chapter significantly with more detailed explanations, examples, case studies, and practical applications. Add more chapters if needed to reach the target word count:
 
 ${content}
 
@@ -126,6 +131,13 @@ Please provide the expanded version with much more detailed content:`;
             content = extendData.choices[0].message.content;
             const finalWordCount = content.split(/\s+/).length;
             console.log(`📊 Extended content: ${finalWordCount} words`);
+            
+            // If still too long, truncate to maximum
+            if (finalWordCount > 15000) {
+              const words = content.split(/\s+/);
+              content = words.slice(0, 15000).join(' ') + '\n\n## Conclusion\n\nCe livre vous a fourni les bases essentielles du sujet traité. Les concepts présentés constituent un fondement solide pour votre développement dans ce domaine.';
+              console.log(`📊 Truncated to 15,000 words`);
+            }
           }
         }
       } else {

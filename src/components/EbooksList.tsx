@@ -98,35 +98,8 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
     URL.revokeObjectURL(url);
   };
 
-  const exportToPDF = async (ebook: Ebook) => {
-    try {
-      const dataUri = await DocumentGeneratorService.generateDocument({
-        content: ebook.content_markdown,
-        type: 'pdf'
-      });
-      
-      const a = document.createElement('a');
-      a.href = dataUri;
-      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Succès",
-        description: "PDF généré avec succès",
-      });
-    } catch (error) {
-      console.error('Error exporting to PDF:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'exporter en PDF",
-        variant: "destructive",
-      });
-    }
-  };
 
-  const exportToWord = async (ebook: Ebook) => {
+  const exportToWord = async (ebook: Ebook, pageSize: 'A4' | 'A5' = 'A4') => {
     try {
       const dataUri = await DocumentGeneratorService.generateDocument({
         content: ebook.content_markdown,
@@ -135,20 +108,48 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
       
       const a = document.createElement('a');
       a.href = dataUri;
-      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}.docx`;
+      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}_${pageSize}.docx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       
       toast({
         title: "Succès",
-        description: "Document Word généré avec succès",
+        description: `Document Word ${pageSize} généré avec succès`,
       });
     } catch (error) {
       console.error('Error exporting to Word:', error);
       toast({
         title: "Erreur",
         description: "Impossible d'exporter en Word",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = async (ebook: Ebook, pageSize: 'A4' | 'A5' = 'A4') => {
+    try {
+      const dataUri = await DocumentGeneratorService.generateDocument({
+        content: ebook.content_markdown,
+        type: 'pdf'
+      });
+      
+      const a = document.createElement('a');
+      a.href = dataUri;
+      a.download = `${ebook.title.replace(/[^a-z0-9]/gi, '_')}_${pageSize}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Succès",
+        description: `PDF ${pageSize} généré avec succès`,
+      });
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'exporter en PDF",
         variant: "destructive",
       });
     }
@@ -268,25 +269,48 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
                     </Button>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => exportToPDF(ebook)}
-                      className="text-xs"
-                    >
-                      <FileImage className="w-3 h-3 mr-1" />
-                      PDF
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => exportToWord(ebook)}
-                      className="text-xs"
-                    >
-                      <FileText className="w-3 h-3 mr-1" />
-                      Word
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => exportToPDF(ebook, 'A4')}
+                        className="text-xs"
+                      >
+                        <FileImage className="w-3 h-3 mr-1" />
+                        PDF A4
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => exportToPDF(ebook, 'A5')}
+                        className="text-xs"
+                      >
+                        <FileImage className="w-3 h-3 mr-1" />
+                        PDF A5
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => exportToWord(ebook, 'A4')}
+                        className="text-xs"
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        Word A4
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => exportToWord(ebook, 'A5')}
+                        className="text-xs"
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        Word A5
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-1">

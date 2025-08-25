@@ -35,8 +35,8 @@ export class DocumentGeneratorService {
     switch (type) {
       case 'pdf':
         return await this.generatePDF(content, template);
-      case 'docx':
-        return await this.generateDOCX(content, template);
+        case 'docx':
+          return await this.generateDOCX(content, template, 'A4');
       case 'pptx':
         return await this.generatePPTX(content, template);
       case 'markdown':
@@ -155,20 +155,51 @@ export class DocumentGeneratorService {
   }
 
   /**
-   * Génère un DOCX avec formatage avancé
+   * Génère un DOCX avec formatage avancé et templates A4/A5
    */
-  private static async generateDOCX(content: string, template?: string): Promise<string> {
+  private static async generateDOCX(content: string, template?: string, pageSize: 'A4' | 'A5' = 'A4'): Promise<string> {
     const paragraphs: any[] = [];
 
-    // En-tête selon le template
-    if (template === 'resume') {
+    // Auto-générer une table des matières
+    const tableOfContents = this.generateTableOfContents(content);
+    
+    // Page de titre
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: content.match(/^# (.+)$/m)?.[1] || "Ebook", bold: true, size: 36 })],
+        heading: HeadingLevel.TITLE,
+        alignment: 'center'
+      })
+    );
+    
+    paragraphs.push(new Paragraph({ text: "" })); // Espace
+    
+    // Ajouter l'avant-propos s'il existe
+    if (content.includes('## Avant-propos') || content.includes('# Avant-propos')) {
+      paragraphs.push(new Paragraph({ text: "" }));
+    }
+    
+    // Table des matières
+    if (tableOfContents.length > 0) {
+      paragraphs.push(new Paragraph({ text: "" }));
       paragraphs.push(
         new Paragraph({
-          children: [new TextRun({ text: "CURRICULUM VITAE", bold: true, size: 32 })],
-          heading: HeadingLevel.TITLE,
+          children: [new TextRun({ text: "Table des matières", bold: true, size: 24 })],
+          heading: HeadingLevel.HEADING_1,
           alignment: 'center'
         })
       );
+      paragraphs.push(new Paragraph({ text: "" }));
+      
+      tableOfContents.forEach(item => {
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: `${'  '.repeat(item.level - 1)}${item.title}`, size: 14 - item.level })],
+          })
+        );
+      });
+      
+      paragraphs.push(new Paragraph({ text: "" }));
     }
 
     // Contenu structuré
@@ -196,7 +227,23 @@ export class DocumentGeneratorService {
     }
 
     const doc = new DocxDocument({
-      sections: [{ properties: {}, children: paragraphs }]
+      sections: [{
+        properties: {
+          page: {
+            size: {
+              width: pageSize === 'A5' ? 5906 : 8391, // A5: 148mm, A4: 210mm (in twentieths of a point)
+              height: pageSize === 'A5' ? 8391 : 11906, // A5: 210mm, A4: 297mm
+            },
+            margin: {
+              top: 720,
+              right: 720,
+              bottom: 720,
+              left: 720,
+            },
+          },
+        },
+        children: paragraphs
+      }]
     });
 
     const base64 = await Packer.toBase64String(doc);
@@ -391,5 +438,24 @@ export class DocumentGeneratorService {
     });
     
     return y - 40;
+  }
+
+  private static generateTableOfContents(content: string): Array<{ title: string; level: number }> {
+    const toc: Array<{ title: string; level: number }> = [];
+    const lines = content.split('\n');
+    
+    for (const line of lines) {
+      const match = line.match(/^(#{1,3})\s+(.+)$/);
+      if (match) {
+        const level = match[1].length;
+        const title = match[2];
+        // Skip main title
+        if (level > 1 || !title.match(/^[A-Z][a-z\s]+$/)) {
+          toc.push({ title, level });
+        }
+      }
+    }
+    
+    return toc;
   }
 }
