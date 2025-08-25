@@ -35,11 +35,8 @@ const TARGET_LANGUAGES = {
   'es': 'Espagnol',
   'de': 'Allemand',
   'it': 'Italien',
-  'pt': 'Portugais',
   'ru': 'Russe',
-  'ja': 'Japonais',
   'ko': 'Coréen',
-  'zh': 'Chinois',
   'ar': 'Arabe'
 };
 
