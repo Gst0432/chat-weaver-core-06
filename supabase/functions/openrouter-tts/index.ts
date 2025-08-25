@@ -46,6 +46,16 @@ serve(async (req) => {
         'onyx': 'onyx',
         'nova': 'nova',
         'shimmer': 'shimmer'
+      },
+      'microsoft/azure-tts': {
+        'fr-FR-DeniseNeural': 'fr-FR-DeniseNeural',
+        'fr-FR-HenriNeural': 'fr-FR-HenriNeural',
+        'en-US-JennyNeural': 'en-US-JennyNeural',
+        'en-US-GuyNeural': 'en-US-GuyNeural',
+        'es-ES-ElviraNeural': 'es-ES-ElviraNeural',
+        'es-ES-AlvaroNeural': 'es-ES-AlvaroNeural',
+        'ar-SA-ZariyahNeural': 'ar-SA-ZariyahNeural',
+        'ar-SA-HamedNeural': 'ar-SA-HamedNeural'
       }
     };
 

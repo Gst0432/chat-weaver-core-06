@@ -73,7 +73,7 @@ Erreur API: ${err}`)
     const mime = audioEncoding === 'LINEAR16' ? 'audio/wav' : 'audio/mpeg'
 
     return new Response(
-      JSON.stringify({ audio, mime }),
+      JSON.stringify({ audioContent: audio, mime }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (error: any) {

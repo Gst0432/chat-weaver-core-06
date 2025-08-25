@@ -13,7 +13,7 @@ import { TextToSpeechService, TTSSettings } from "@/services/textToSpeechService
 const TTSStudio = () => {
   const navigate = useNavigate();
   const [text, setText] = useState("");
-  const [provider, setProvider] = useState<'openai' | 'google' | 'openrouter'>('openai');
+  const [provider, setProvider] = useState<'openai' | 'google' | 'openrouter' | 'azure'>('openai');
   const [voice, setVoice] = useState("alloy");
   const [language, setLanguage] = useState("fr-FR");
   const [speed, setSpeed] = useState([1.0]);
@@ -136,6 +136,7 @@ const TTSStudio = () => {
                     <SelectItem value="openai">OpenAI</SelectItem>
                     <SelectItem value="google">Google</SelectItem>
                     <SelectItem value="openrouter">OpenRouter</SelectItem>
+                    <SelectItem value="azure">Azure</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

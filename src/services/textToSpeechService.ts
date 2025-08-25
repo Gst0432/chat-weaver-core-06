@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TTSSettings {
-  provider: 'openai' | 'google' | 'openrouter';
+  provider: 'openai' | 'google' | 'openrouter' | 'azure';
   voice: string;
   language?: string;
   speed?: number;
@@ -27,6 +27,8 @@ export class TextToSpeechService {
         return await this.generateOpenAISpeech(text, settings);
       } else if (settings.provider === 'google') {
         return await this.generateGoogleSpeech(text, settings);
+      } else if (settings.provider === 'azure') {
+        return await this.generateAzureSpeech(text, settings);
       } else {
         return await this.generateOpenRouterSpeech(text, settings);
       }
@@ -67,10 +69,10 @@ export class TextToSpeechService {
     });
 
     if (error) throw new Error(error.message);
-    if (!data?.audio) throw new Error('Pas de contenu audio reçu');
+    if (!data?.audioContent) throw new Error('Pas de contenu audio reçu');
 
     return {
-      audioContent: data.audio,
+      audioContent: data.audioContent,
       mime: data.mime || 'audio/mpeg'
     };
   }
@@ -139,6 +141,31 @@ export class TextToSpeechService {
     };
   }
 
+  private static async generateAzureSpeech(text: string, settings: TTSSettings): Promise<TTSResult> {
+    const { data, error } = await supabase.functions.invoke('openrouter-tts', {
+      body: {
+        text,
+        model: 'microsoft/azure-tts',
+        voice: settings.voice,
+        format: settings.format,
+        speed: settings.speed
+      }
+    });
+
+    if (error) {
+      throw new Error(`Erreur Azure TTS: ${error.message}`);
+    }
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    return {
+      audioContent: data.audioContent,
+      mime: data.mime || 'audio/mpeg'
+    };
+  }
+
   static base64ToBlob(base64: string, mimeType: string): Blob {
     const byteCharacters = atob(base64);
     const byteNumbers = new Array(byteCharacters.length);
@@ -151,23 +178,27 @@ export class TextToSpeechService {
     return new Blob([byteArray], { type: mimeType });
   }
 
-  static getAvailableVoices(): Record<string, { openai: string[]; google: string[] }> {
+  static getAvailableVoices(): Record<string, { openai: string[]; google: string[]; azure: string[] }> {
     return {
       'fr': {
         openai: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-        google: ['fr-FR-Wavenet-A', 'fr-FR-Wavenet-B', 'fr-FR-Wavenet-C', 'fr-FR-Wavenet-D']
+        google: ['fr-FR-Neural2-A', 'fr-FR-Neural2-B', 'fr-FR-Neural2-C', 'fr-FR-Neural2-D'],
+        azure: ['fr-FR-DeniseNeural', 'fr-FR-HenriNeural', 'fr-FR-AlainNeural', 'fr-FR-BrigitteNeural']
       },
       'en': {
         openai: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-        google: ['en-US-Wavenet-A', 'en-US-Wavenet-B', 'en-US-Wavenet-C', 'en-US-Wavenet-D']
+        google: ['en-US-Neural2-A', 'en-US-Neural2-C', 'en-US-Neural2-D', 'en-US-Neural2-F'],
+        azure: ['en-US-JennyNeural', 'en-US-GuyNeural', 'en-US-AriaNeural', 'en-US-DavisNeural']
       },
       'es': {
         openai: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-        google: ['es-ES-Wavenet-A', 'es-ES-Wavenet-B', 'es-ES-Wavenet-C', 'es-ES-Wavenet-D']
+        google: ['es-ES-Neural2-A', 'es-ES-Neural2-B', 'es-ES-Neural2-C', 'es-ES-Neural2-D'],
+        azure: ['es-ES-ElviraNeural', 'es-ES-AlvaroNeural', 'es-ES-AbrilNeural', 'es-ES-ArnauNeural']
       },
       'ar': {
         openai: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-        google: ['ar-XA-Wavenet-A', 'ar-XA-Wavenet-B', 'ar-XA-Wavenet-C']
+        google: ['ar-XA-Wavenet-A', 'ar-XA-Wavenet-B', 'ar-XA-Wavenet-C'],
+        azure: ['ar-SA-ZariyahNeural', 'ar-SA-HamedNeural', 'ar-EG-SalmaNeural', 'ar-EG-ShakirNeural']
       }
     };
   }

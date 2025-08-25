@@ -35,22 +35,22 @@ const TTS_PROVIDERS = {
   google: {
     name: 'Google Cloud',
     voices: {
-      'fr': ['fr-FR-Wavenet-A', 'fr-FR-Wavenet-B', 'fr-FR-Wavenet-C', 'fr-FR-Wavenet-D'],
-      'en': ['en-US-Wavenet-A', 'en-US-Wavenet-B', 'en-US-Wavenet-C', 'en-US-Wavenet-D'],
-      'es': ['es-ES-Wavenet-A', 'es-ES-Wavenet-B', 'es-ES-Wavenet-C', 'es-ES-Wavenet-D'],
+      'fr': ['fr-FR-Neural2-A', 'fr-FR-Neural2-B', 'fr-FR-Neural2-C', 'fr-FR-Neural2-D'],
+      'en': ['en-US-Neural2-A', 'en-US-Neural2-C', 'en-US-Neural2-D', 'en-US-Neural2-F'],
+      'es': ['es-ES-Neural2-A', 'es-ES-Neural2-B', 'es-ES-Neural2-C', 'es-ES-Neural2-D'],
       'ar': ['ar-XA-Wavenet-A', 'ar-XA-Wavenet-B', 'ar-XA-Wavenet-C'],
-      'de': ['de-DE-Wavenet-A', 'de-DE-Wavenet-B', 'de-DE-Wavenet-C', 'de-DE-Wavenet-D'],
-      'it': ['it-IT-Wavenet-A', 'it-IT-Wavenet-B', 'it-IT-Wavenet-C', 'it-IT-Wavenet-D'],
-      'pt': ['pt-BR-Wavenet-A', 'pt-BR-Wavenet-B', 'pt-BR-Wavenet-C'],
+      'de': ['de-DE-Neural2-A', 'de-DE-Neural2-B', 'de-DE-Neural2-C', 'de-DE-Neural2-D'],
+      'it': ['it-IT-Neural2-A', 'it-IT-Neural2-B', 'it-IT-Neural2-C', 'it-IT-Neural2-D'],
+      'pt': ['pt-BR-Neural2-A', 'pt-BR-Neural2-B', 'pt-BR-Neural2-C'],
       'ru': ['ru-RU-Wavenet-A', 'ru-RU-Wavenet-B', 'ru-RU-Wavenet-C', 'ru-RU-Wavenet-D'],
-      'ja': ['ja-JP-Wavenet-A', 'ja-JP-Wavenet-B', 'ja-JP-Wavenet-C', 'ja-JP-Wavenet-D'],
+      'ja': ['ja-JP-Neural2-A', 'ja-JP-Neural2-B', 'ja-JP-Neural2-C', 'ja-JP-Neural2-D'],
       'ko': ['ko-KR-Wavenet-A', 'ko-KR-Wavenet-B', 'ko-KR-Wavenet-C'],
       'zh': ['cmn-CN-Wavenet-A', 'cmn-CN-Wavenet-B', 'cmn-CN-Wavenet-C', 'cmn-CN-Wavenet-D'],
       'hi': ['hi-IN-Wavenet-A', 'hi-IN-Wavenet-B', 'hi-IN-Wavenet-C', 'hi-IN-Wavenet-D']
     }
   },
   openrouter: {
-    name: 'OpenRouter',
+    name: 'OpenRouter (OpenAI)',
     voices: {
       'fr': ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
       'en': ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
@@ -64,6 +64,23 @@ const TTS_PROVIDERS = {
       'ko': ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
       'zh': ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
       'hi': ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+    }
+  },
+  azure: {
+    name: 'Azure Cognitive Services',
+    voices: {
+      'fr': ['fr-FR-DeniseNeural', 'fr-FR-HenriNeural', 'fr-FR-AlainNeural', 'fr-FR-BrigitteNeural'],
+      'en': ['en-US-JennyNeural', 'en-US-GuyNeural', 'en-US-AriaNeural', 'en-US-DavisNeural'],
+      'es': ['es-ES-ElviraNeural', 'es-ES-AlvaroNeural', 'es-ES-AbrilNeural', 'es-ES-ArnauNeural'],
+      'ar': ['ar-SA-ZariyahNeural', 'ar-SA-HamedNeural', 'ar-EG-SalmaNeural', 'ar-EG-ShakirNeural'],
+      'de': ['de-DE-KatjaNeural', 'de-DE-ConradNeural', 'de-DE-AmalaNeural', 'de-DE-BerndNeural'],
+      'it': ['it-IT-ElsaNeural', 'it-IT-IsabellaNeural', 'it-IT-DiegoNeural', 'it-IT-BenignoNeural'],
+      'pt': ['pt-BR-FranciscaNeural', 'pt-BR-AntonioNeural', 'pt-BR-BrendaNeural', 'pt-BR-DonatoNeural'],
+      'ru': ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural', 'ru-RU-DariyaNeural', 'ru-RU-PavelNeural'],
+      'ja': ['ja-JP-NanamiNeural', 'ja-JP-KeitaNeural', 'ja-JP-AoiNeural', 'ja-JP-DaichiNeural'],
+      'ko': ['ko-KR-SunHiNeural', 'ko-KR-InJoonNeural', 'ko-KR-BongJinNeural', 'ko-KR-GookMinNeural'],
+      'zh': ['zh-CN-XiaoxiaoNeural', 'zh-CN-YunxiNeural', 'zh-CN-YunyangNeural', 'zh-CN-XiaohanNeural'],
+      'hi': ['hi-IN-MadhurNeural', 'hi-IN-SwaraNeural', 'hi-IN-AnanyaNeural', 'hi-IN-KavyaNeural']
     }
   }
 };
