@@ -54,9 +54,9 @@ Author: ${author}
 Topic: ${prompt}
 
 CRITICAL REQUIREMENTS:
-- Target: 5,000-8,000 words total (optimal for readability)
+- Target: 8,000+ words minimum (comprehensive content)
 - Professional structure with complete book elements
-- Each chapter should be 400-600 words (focused and clear)
+- Each chapter should be 600-800 words (detailed and informative)
 - Professional tone suitable for publication
 
 MANDATORY STRUCTURE (in this exact order):
