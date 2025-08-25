@@ -5,30 +5,28 @@ import { Badge } from "@/components/ui/badge";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Plus, 
   Save, 
-  FolderOpen, 
   Trash2, 
   FileCode2, 
   Globe, 
   Smartphone, 
   Tablet, 
   Monitor,
-  ExternalLink,
-  RotateCcw,
   Download,
-  Share2,
-  Code2
+  Code2,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { WebPreview } from "@/components/WebPreview";
+import { CodeStudioChat } from "@/components/CodeStudioChat";
 
 interface SavedCode {
   id: string;
@@ -51,6 +49,7 @@ export default function CodeStudio() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('html');
   const [viewMode, setViewMode] = useState<ViewMode>('desktop');
+  const [showChat, setShowChat] = useState(true);
   
   // Code content state
   const [htmlContent, setHtmlContent] = useState('<!DOCTYPE html>\n<html lang="fr">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Nouveau Projet</title>\n</head>\n<body>\n    <h1>Bienvenue dans Code Studio</h1>\n    <p>Commencez à créer votre application web ici.</p>\n</body>\n</html>');
@@ -297,6 +296,25 @@ ${jsContent}
     }
   };
 
+  const handleInsertCode = (code: string, tab: 'html' | 'css' | 'javascript') => {
+    switch (tab) {
+      case 'html':
+        setHtmlContent(prev => prev + '\n' + code);
+        break;
+      case 'css':
+        setCssContent(prev => prev + '\n' + code);
+        break;
+      case 'javascript':
+        setJsContent(prev => prev + '\n' + code);
+        break;
+    }
+    setActiveTab(tab);
+    toast({
+      title: "Code inséré",
+      description: `Code ajouté dans l'onglet ${tab.toUpperCase()}`
+    });
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
@@ -375,168 +393,215 @@ ${jsContent}
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Left Panel - Saved Codes */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <Card className="h-full rounded-none border-r border-t-0">
-              <div className="p-4 border-b border-border">
-                <h3 className="font-semibold text-foreground">Codes sauvegardés</h3>
-              </div>
-              
-              <ScrollArea className="h-[calc(100%-60px)]">
-                <div className="p-2">
-                  {isLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  ) : savedCodes.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileCode2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Aucun code sauvegardé</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {savedCodes.map((code) => (
-                        <div
-                          key={code.id}
-                          className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                            activeCode?.id === code.id
-                              ? 'bg-primary/10 border-primary/30'
-                              : 'bg-card hover:bg-accent border-border'
-                          }`}
-                          onClick={() => loadCode(code)}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              {getTypeIcon(code.type)}
-                              <span className="font-medium text-sm text-foreground truncate">
-                                {code.name}
-                              </span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteCode(code.id);
-                              }}
-                              className="w-6 h-6 p-0 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                          
-                          <Badge variant="secondary" className={`text-xs ${getTypeBadgeColor(code.type)}`}>
-                            {code.type === 'web-app' ? 'App Web' : 
-                             code.type === 'component' ? 'Composant' : 'Prototype'}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </Card>
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          {/* Center Panel - Code Editor */}
-          <ResizablePanel defaultSize={50} minSize={30}>
-            <Card className="h-full rounded-none border-r border-t-0">
-              {/* Editor Tabs */}
-              <div className="flex border-b border-border bg-muted/30">
-                {(['html', 'css', 'javascript'] as ActiveTab[]).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
-                      activeTab === tab
-                        ? 'bg-background text-foreground border-b-2 border-primary'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {tab.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
-              {/* Editor */}
-              <div className="h-[calc(100%-49px)]">
-                <Editor
-                  height="100%"
-                  language={activeTab === 'javascript' ? 'javascript' : activeTab}
-                  value={getCurrentContent()}
-                  onChange={(value) => updateCurrentContent(value || '')}
-                  theme={theme === 'dark' ? 'vs-dark' : 'light'}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    automaticLayout: true,
-                    wordWrap: 'on',
-                    tabSize: 2,
-                    insertSpaces: true
-                  }}
-                />
-              </div>
-            </Card>
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          {/* Right Panel - Web Preview */}
-          <ResizablePanel defaultSize={30} minSize={25}>
-            <Card className="h-full rounded-none border-t-0">
-              <div className="p-4 border-b border-border">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground">Aperçu Web</h3>
+        <ResizablePanelGroup direction="vertical" className="h-full">
+          {/* Code Editor Area */}
+          <ResizablePanel defaultSize={showChat ? 70 : 100} minSize={50}>
+            <ResizablePanelGroup direction="horizontal" className="h-full">
+              {/* Left Panel - Saved Codes */}
+              <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+                <Card className="h-full rounded-none border-r border-t-0">
+                  <div className="p-4 border-b border-border">
+                    <h3 className="font-semibold text-foreground">Codes sauvegardés</h3>
+                  </div>
                   
-                  <div className="flex items-center space-x-2">
-                    {/* View Mode Buttons */}
-                    <div className="flex border border-border rounded-lg p-1">
-                      <Button
-                        variant={viewMode === 'desktop' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewMode('desktop')}
-                        className="w-8 h-8 p-0"
+                  <ScrollArea className="h-[calc(100%-60px)]">
+                    <div className="p-2">
+                      {isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      ) : savedCodes.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileCode2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Aucun code sauvegardé</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {savedCodes.map((code) => (
+                            <div
+                              key={code.id}
+                              className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                                activeCode?.id === code.id
+                                  ? 'bg-primary/10 border-primary/30'
+                                  : 'bg-card hover:bg-accent border-border'
+                              }`}
+                              onClick={() => loadCode(code)}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  {getTypeIcon(code.type)}
+                                  <span className="font-medium text-sm text-foreground truncate">
+                                    {code.name}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteCode(code.id);
+                                  }}
+                                  className="w-6 h-6 p-0 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                              
+                              <Badge variant="secondary" className={`text-xs ${getTypeBadgeColor(code.type)}`}>
+                                {code.type === 'web-app' ? 'App Web' : 
+                                 code.type === 'component' ? 'Composant' : 'Prototype'}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </Card>
+              </ResizablePanel>
+
+              <ResizableHandle />
+
+              {/* Center Panel - Code Editor */}
+              <ResizablePanel defaultSize={50} minSize={30}>
+                <Card className="h-full rounded-none border-r border-t-0">
+                  {/* Editor Tabs */}
+                  <div className="flex border-b border-border bg-muted/30">
+                    {(['html', 'css', 'javascript'] as ActiveTab[]).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-4 py-2 text-sm font-medium transition-colors ${
+                          activeTab === tab
+                            ? 'bg-background text-foreground border-b-2 border-primary'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
                       >
-                        <Monitor className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === 'tablet' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewMode('tablet')}
-                        className="w-8 h-8 p-0"
-                      >
-                        <Tablet className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === 'mobile' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewMode('mobile')}
-                        className="w-8 h-8 p-0"
-                      >
-                        <Smartphone className="w-4 h-4" />
-                      </Button>
+                        {tab.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Editor */}
+                  <div className="h-[calc(100%-49px)]">
+                    <Editor
+                      height="100%"
+                      language={activeTab === 'javascript' ? 'javascript' : activeTab}
+                      value={getCurrentContent()}
+                      onChange={(value) => updateCurrentContent(value || '')}
+                      theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: 'on',
+                        automaticLayout: true,
+                        wordWrap: 'on',
+                        tabSize: 2,
+                        insertSpaces: true
+                      }}
+                    />
+                  </div>
+                </Card>
+              </ResizablePanel>
+
+              <ResizableHandle />
+
+              {/* Right Panel - Web Preview */}
+              <ResizablePanel defaultSize={30} minSize={25}>
+                <Card className="h-full rounded-none border-t-0">
+                  <div className="p-4 border-b border-border">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">Aperçu Web</h3>
+                      
+                      <div className="flex items-center space-x-2">
+                        {/* View Mode Buttons */}
+                        <div className="flex border border-border rounded-lg p-1">
+                          <Button
+                            variant={viewMode === 'desktop' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setViewMode('desktop')}
+                            className="w-8 h-8 p-0"
+                          >
+                            <Monitor className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant={viewMode === 'tablet' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setViewMode('tablet')}
+                            className="w-8 h-8 p-0"
+                          >
+                            <Tablet className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant={viewMode === 'mobile' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setViewMode('mobile')}
+                            className="w-8 h-8 p-0"
+                          >
+                            <Smartphone className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Preview Area */}
-              <div className="h-[calc(100%-73px)] p-4">
-                <WebPreview 
-                  content={{
-                    html: htmlContent,
-                    css: cssContent,
-                    javascript: jsContent
-                  }}
-                />
-              </div>
-            </Card>
+                  {/* Preview Area */}
+                  <div className="h-[calc(100%-73px)] p-4">
+                    <WebPreview 
+                      content={{
+                        html: htmlContent,
+                        css: cssContent,
+                        javascript: jsContent
+                      }}
+                    />
+                  </div>
+                </Card>
+              </ResizablePanel>
+            </ResizablePanelGroup>
           </ResizablePanel>
+
+          {/* Chat Panel */}
+          {showChat && (
+            <>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+                <div className="h-full relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 z-10 h-6 w-6 p-0"
+                    onClick={() => setShowChat(false)}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                  <CodeStudioChat
+                    currentCode={{
+                      html: htmlContent,
+                      css: cssContent,
+                      javascript: jsContent
+                    }}
+                    activeTab={activeTab}
+                    onInsertCode={handleInsertCode}
+                    selectedModel="gpt-4.1-2025-04-14"
+                  />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
+        
+        {/* Chat Toggle Button */}
+        {!showChat && (
+          <Button
+            variant="default"
+            size="sm"
+            className="fixed bottom-4 right-4 h-10 px-4 bg-gradient-primary shadow-elegant"
+            onClick={() => setShowChat(true)}
+          >
+            <ChevronUp className="w-4 h-4 mr-2" />
+            Assistant IA
+          </Button>
+        )}
       </div>
     </div>
   );
