@@ -23,17 +23,27 @@ serve(async (req) => {
 
     const { messages, model, temperature, max_tokens, max_completion_tokens } = await req.json();
 
-    // Mapper GPT-5 vers GPT-4.1 en backend
-    let actualModel = model || "gpt-4.1-2025-04-14";
-    if (model && model.startsWith('gpt-5')) {
-      if (model.includes('mini')) {
+    // Nettoyer le modèle : supprimer les préfixes provider
+    let cleanModel = model || "gpt-4.1-2025-04-14";
+    
+    // Supprimer tous les préfixes de providers
+    if (cleanModel.includes('/')) {
+      const parts = cleanModel.split('/');
+      cleanModel = parts[parts.length - 1]; // Prendre la dernière partie après le dernier '/'
+      console.log(`🧹 Cleaned model name: ${model} -> ${cleanModel}`);
+    }
+
+    // Mapper GPT-5 vers GPT-4.1 en backend (après nettoyage)
+    let actualModel = cleanModel;
+    if (cleanModel.startsWith('gpt-5')) {
+      if (cleanModel.includes('mini')) {
         actualModel = "gpt-4.1-mini-2025-04-14";
-      } else if (model.includes('nano')) {
+      } else if (cleanModel.includes('nano')) {
         actualModel = "gpt-4.1-mini-2025-04-14"; // Utiliser mini pour nano aussi
       } else {
         actualModel = "gpt-4.1-2025-04-14"; // GPT-5 standard -> GPT-4.1
       }
-      console.log(`🔄 Mapping ${model} -> ${actualModel}`);
+      console.log(`🔄 Mapping ${cleanModel} -> ${actualModel}`);
     }
 
     // Support nouveaux modèles OpenAI (GPT-4.1, O3, etc.)

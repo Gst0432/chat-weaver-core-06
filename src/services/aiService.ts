@@ -241,8 +241,24 @@ export const aiService = {
 
     console.log('🚀 Génération avec:', { model: finalModel, analysis, params });
 
-    // Appel API avec paramètres optimisés
-    const { data, error } = await supabase.functions.invoke('openai-chat', {
+    // Appel API intelligent avec routage automatique
+    let targetFunction = 'openai-chat';
+    
+    // Détecter le provider basé sur le modèle
+    if (finalModel.startsWith('openai/') || finalModel.startsWith('anthropic/') || 
+        finalModel.includes('gpt-5') || finalModel.includes('o3-') || finalModel.includes('o4-') ||
+        finalModel.startsWith('meta/') || finalModel.startsWith('google/')) {
+      targetFunction = 'openrouter-chat';
+      console.log(`🎯 Using OpenRouter for model: ${finalModel}`);
+    } else if (finalModel.includes('claude')) {
+      targetFunction = 'claude-chat';
+    } else if (finalModel.includes('gemini')) {
+      targetFunction = 'gemini-chat';
+    } else if (finalModel.includes('deepseek')) {
+      targetFunction = 'deepseek-chat';
+    }
+
+    const { data, error } = await supabase.functions.invoke(targetFunction, {
       body: {
         messages: [
           { role: 'system', content: systemPrompt },
@@ -304,7 +320,8 @@ export const aiService = {
       if (error) throw error;
       return data.response || data.content || 'No code generated';
     } else {
-      const { data, error } = await supabase.functions.invoke('openai-chat', {
+      // Utiliser OpenRouter pour les nouveaux modèles GPT-5
+      const { data, error } = await supabase.functions.invoke('openrouter-chat', {
         body: {
           messages: [
             {
@@ -316,13 +333,13 @@ export const aiService = {
               content: prompt
             }
           ],
-          model: 'gpt-5-2025-08-07',
+          model: 'openai/gpt-5-2025-08-07', // Préfixe OpenRouter pour GPT-5
           max_completion_tokens: 2000
         }
       });
 
       if (error) throw error;
-      return data.content || 'No code generated';
+      return data.text || data.content || 'No code generated';
     }
   },
 
@@ -387,15 +404,16 @@ Retourne un objet JSON avec la structure suivante:
       if (error) throw error;
       responseText = data.response || data.content || '';
     } else {
-      const { data, error } = await supabase.functions.invoke('openai-chat', {
+      // Utiliser OpenRouter pour les nouveaux modèles GPT-5
+      const { data, error } = await supabase.functions.invoke('openrouter-chat', {
         body: {
           messages,
-          model: 'gpt-5-2025-08-07',
+          model: 'openai/gpt-5-2025-08-07', // Préfixe OpenRouter pour GPT-5
           max_completion_tokens: 4000
         }
       });
       if (error) throw error;
-      responseText = data.content || '';
+      responseText = data.text || data.content || '';
     }
 
     try {

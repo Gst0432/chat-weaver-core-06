@@ -136,13 +136,29 @@ export class StreamingService {
    * Détecte le provider basé sur le nom du modèle (optimisé pour GPT-5/O3/O4)
    */
   private static detectProvider(model: string): 'openai' | 'claude' | 'gemini' | 'deepseek' | 'openrouter' {
-    // Support optimisé pour les nouveaux modèles
-    if (model.includes('gpt-5') || model.includes('o3-') || model.includes('o4-')) {
-      return 'openrouter'; // Via OpenRouter pour GPT-5
+    console.log(`🔍 Detecting provider for model: ${model}`);
+    
+    // PRIORITÉ: Vérifier les préfixes d'abord pour forcer le routage OpenRouter
+    if (model.startsWith('openai/') || model.startsWith('anthropic/') || model.startsWith('meta/') || 
+        model.startsWith('google/') || model.startsWith('mistralai/') || model.startsWith('cohere/') ||
+        model.startsWith('perplexity/') || model.startsWith('nvidia/')) {
+      console.log(`🎯 Model has provider prefix, routing to OpenRouter`);
+      return 'openrouter';
     }
-    if (model.includes('gpt') || model.includes('o1')) {
+    
+    // Support optimisé pour les nouveaux modèles (sans préfixe)
+    if (model.includes('gpt-5') || model.includes('o3-') || model.includes('o4-')) {
+      console.log(`🚀 New generation model detected, routing to OpenRouter`);
+      return 'openrouter';
+    }
+    
+    // Modèles OpenAI directs (sans préfixe)
+    if ((model.includes('gpt-4') || model.includes('gpt-3') || model.includes('o1')) && !model.includes('/')) {
+      console.log(`🤖 Direct OpenAI model detected`);
       return 'openai';
     }
+    
+    // Autres providers spécifiques
     if (model.includes('claude')) {
       return 'claude';
     }
@@ -152,7 +168,9 @@ export class StreamingService {
     if (model.includes('deepseek')) {
       return 'deepseek';
     }
+    
     // Par défaut, utiliser OpenRouter qui supporte 400+ modèles
+    console.log(`📦 Fallback to OpenRouter for model: ${model}`);
     return 'openrouter';
   }
 
