@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2, Video, Languages } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2, Video, Languages, Image, Volume2 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -213,16 +213,23 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => handleNavigation('/team')} className="w-full justify-start text-muted-foreground hover:text-foreground">
-                  <Users className="w-4 h-4" />
-                  {!isCollapsed && <span className="ml-2">Équipe</span>}
+                <SidebarMenuButton onClick={() => handleNavigation('/ebooks')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Wand2 className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Ebooks</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => handleNavigation('/ebooks')} className="w-full justify-start text-muted-foreground hover:text-foreground">
-                  <Wand2 className="w-4 h-4" />
-                  {!isCollapsed && <span className="ml-2">Ebooks</span>}
+                <SidebarMenuButton onClick={() => handleNavigation('/dalle-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Image className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Studio DALL-E</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/tts-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Volume2 className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Studio TTS</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               

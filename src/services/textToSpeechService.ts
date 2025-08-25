@@ -139,7 +139,7 @@ export class TextToSpeechService {
     };
   }
 
-  private static base64ToBlob(base64: string, mimeType: string): Blob {
+  static base64ToBlob(base64: string, mimeType: string): Blob {
     const byteCharacters = atob(base64);
     const byteNumbers = new Array(byteCharacters.length);
     
