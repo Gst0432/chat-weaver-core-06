@@ -123,44 +123,45 @@ export class StreamingService {
   }
 
   /**
-   * Détecte le provider basé sur le nom du modèle (optimisé pour GPT-5/O3/O4)
+   * Détecte le provider basé sur le nom du modèle - Priorité aux clés API directes
    */
   private static detectProvider(model: string): 'openai' | 'claude' | 'gemini' | 'deepseek' | 'openrouter' {
     console.log(`🔍 Detecting provider for model: ${model}`);
     
-    // PRIORITÉ: Vérifier les préfixes d'abord pour forcer le routage OpenRouter
-    if (model.startsWith('openai/') || model.startsWith('anthropic/') || model.startsWith('meta/') || 
-        model.startsWith('google/') || model.startsWith('mistralai/') || model.startsWith('cohere/') ||
-        model.startsWith('perplexity/') || model.startsWith('nvidia/')) {
-      console.log(`🎯 Model has provider prefix, routing to OpenRouter`);
-      return 'openrouter';
-    }
-    
-    // Support optimisé pour les nouveaux modèles (sans préfixe)
-    if (model.includes('gpt-5') || model.includes('o3-') || model.includes('o4-')) {
-      console.log(`🚀 New generation model detected, routing to OpenRouter`);
-      return 'openrouter';
-    }
-    
-    // Modèles OpenAI directs (sans préfixe)
-    if ((model.includes('gpt-4') || model.includes('gpt-3') || model.includes('o1')) && !model.includes('/')) {
-      console.log(`🤖 Direct OpenAI model detected`);
+    // PRIORITÉ 1: Modèles OpenAI - utiliser clé API directe
+    if (model.startsWith('openai/') || model.includes('gpt-4') || model.includes('gpt-3') || 
+        model.includes('o1') || model.includes('gpt') || model.includes('chatgpt')) {
+      console.log(`🤖 OpenAI model detected, using direct API key`);
       return 'openai';
     }
     
-    // Autres providers spécifiques
-    if (model.includes('claude')) {
-      return 'claude';
-    }
-    if (model.includes('gemini')) {
+    // PRIORITÉ 2: Modèles Google/Gemini - utiliser clé API directe
+    if (model.startsWith('google/') || model.includes('gemini') || model.includes('bard')) {
+      console.log(`🧠 Google/Gemini model detected, using direct API key`);
       return 'gemini';
     }
-    if (model.includes('deepseek')) {
+    
+    // PRIORITÉ 3: Modèles DeepSeek - utiliser clé API directe
+    if (model.startsWith('deepseek/') || model.includes('deepseek')) {
+      console.log(`🚀 DeepSeek model detected, using direct API key`);
       return 'deepseek';
     }
     
-    // Par défaut, utiliser OpenRouter qui supporte 400+ modèles
-    console.log(`📦 Fallback to OpenRouter for model: ${model}`);
+    // PRIORITÉ 4: Modèles Claude - utiliser clé API directe si disponible
+    if (model.startsWith('anthropic/') || model.includes('claude')) {
+      console.log(`👑 Claude model detected, using direct API key`);
+      return 'claude';
+    }
+    
+    // FALLBACK: Autres modèles via OpenRouter (Meta, Mistral, Cohere, etc.)
+    if (model.startsWith('meta/') || model.startsWith('mistralai/') || model.startsWith('cohere/') ||
+        model.startsWith('perplexity/') || model.startsWith('nvidia/') || model.startsWith('x-ai/')) {
+      console.log(`📦 Third-party model, routing to OpenRouter`);
+      return 'openrouter';
+    }
+    
+    // Par défaut, utiliser OpenRouter
+    console.log(`📦 Unknown model, fallback to OpenRouter: ${model}`);
     return 'openrouter';
   }
 

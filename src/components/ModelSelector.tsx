@@ -16,58 +16,58 @@ const models = [
     description: "Sélection automatique du meilleur modèle selon la tâche"
   },
 
-  // === 🏆 OPENAI MODELS (REAL) ===
+  // === 🏆 OPENAI MODELS (CLÉS API DIRECTES) ===
   {
-    id: "openai/gpt-4o",
+    id: "gpt-4o",
     name: "🏆 GPT-4o",
-    provider: "OpenAI",
+    provider: "OpenAI Direct",
     icon: Sparkles,
     color: "openai",
-    description: "GPT-4 Omni - Multimodal et puissant"
+    description: "GPT-4 Omni - Avec ta clé API"
   },
   {
-    id: "openai/gpt-4o-mini",
+    id: "gpt-4o-mini",
     name: "⚡ GPT-4o Mini",
-    provider: "OpenAI",
+    provider: "OpenAI Direct",
     icon: Zap,
     color: "openai",
-    description: "Version économique et rapide"
+    description: "Version économique - Clé API directe"
   },
   {
-    id: "openai/gpt-4-turbo",
+    id: "gpt-4-turbo",
     name: "🚀 GPT-4 Turbo",
-    provider: "OpenAI",
+    provider: "OpenAI Direct",
     icon: Zap,
     color: "openai",
-    description: "GPT-4 Turbo optimisé performance"
+    description: "GPT-4 Turbo - Clé API directe"
   },
 
-  // === 🧠 REASONING MODELS ===
+  // === 🧠 REASONING MODELS (CLÉS API DIRECTES) ===
   {
-    id: "openai/o1-preview",
+    id: "o1-preview",
     name: "🧠 O1 Preview",
-    provider: "OpenAI",
+    provider: "OpenAI Direct",
     icon: Cpu,
     color: "openai",
-    description: "Raisonnement avancé O1 preview"
+    description: "Raisonnement O1 - Clé API directe"
   },
   {
-    id: "openai/o1-mini",
+    id: "o1-mini",
     name: "⚡ O1 Mini",
-    provider: "OpenAI",
+    provider: "OpenAI Direct",
     icon: Cpu,
     color: "openai",
-    description: "Raisonnement rapide et efficace"
+    description: "Raisonnement rapide - Clé API directe"
   },
 
-  // === 👑 CLAUDE SERIES (REAL) ===
+  // === 👑 CLAUDE SERIES (CLÉS API DIRECTES) ===
   {
-    id: "anthropic/claude-3.5-sonnet",
+    id: "claude-3-5-sonnet-20241022",
     name: "👑 Claude 3.5 Sonnet",
-    provider: "Anthropic",
+    provider: "Anthropic Direct",
     icon: Sparkles,
     color: "claude",
-    description: "Le plus capable - Intelligence supérieure"
+    description: "Claude 3.5 - Avec ta clé API"
   },
   {
     id: "anthropic/claude-3-5-haiku-20241022",
@@ -124,23 +124,41 @@ const models = [
     description: "Raisonnement optimisé preview"
   },
 
-  // === 🚀 GOOGLE GEMINI (REAL) ===
+  // === 🚀 GOOGLE GEMINI (CLÉS API DIRECTES) ===
   {
-    id: "google/gemini-pro-1.5",
-    name: "🚀 Gemini Pro 1.5",
-    provider: "Google",
+    id: "gemini-1.5-pro",
+    name: "🚀 Gemini 1.5 Pro",
+    provider: "Google Direct",
     icon: Sparkles,
     color: "gemini",
-    description: "Gemini Pro - 2M tokens contexte"
+    description: "Gemini Pro - Avec ta clé API"
   },
   {
-    id: "google/gemini-flash-1.5",
-    name: "⚡ Gemini Flash 1.5",
-    provider: "Google",
+    id: "gemini-1.5-flash",
+    name: "⚡ Gemini Flash",
+    provider: "Google Direct",
     icon: Zap,
     color: "gemini",
-    description: "Version rapide et économique"
-  }
+    description: "Version rapide - Clé API directe"
+  },
+
+  // === 🧠 DEEPSEEK MODELS (CLÉS API DIRECTES) ===
+  {
+    id: "deepseek-chat",
+    name: "🧠 DeepSeek Chat",
+    provider: "DeepSeek Direct",
+    icon: Sparkles,
+    color: "deepseek",
+    description: "DeepSeek Chat - Avec ta clé API"
+  },
+  {
+    id: "deepseek-coder",
+    name: "💻 DeepSeek Coder",
+    provider: "DeepSeek Direct",
+    icon: Code2,
+    color: "deepseek",
+    description: "Spécialisé code - Clé API directe"
+  },
 ];
 interface ModelSelectorProps {
   selectedModel: string;

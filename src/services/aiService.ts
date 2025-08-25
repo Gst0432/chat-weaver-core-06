@@ -244,20 +244,24 @@ export const aiService = {
     // Appel API intelligent avec routage automatique
     let targetFunction = 'openai-chat';
     
-    // Détecter le provider basé sur le modèle
-    if (finalModel.startsWith('openai/') || finalModel.startsWith('anthropic/') || 
-        finalModel.includes('gpt-5') || finalModel.includes('o3-') || finalModel.includes('o4-') ||
-        finalModel.startsWith('meta/') || finalModel.startsWith('google/')) {
-      targetFunction = 'openrouter-chat';
-      console.log(`🎯 Using OpenRouter for model: ${finalModel}`);
-    } else if (finalModel.includes('claude')) {
+    // Détecter le provider basé sur le modèle - PRIORITÉ AUX CLÉS API DIRECTES
+    if (finalModel.includes('gpt') || finalModel.includes('openai') || finalModel.includes('o1')) {
+      targetFunction = 'openai-chat';
+    } else if (finalModel.includes('claude') || finalModel.includes('anthropic')) {
       targetFunction = 'claude-chat';
-    } else if (finalModel.includes('gemini')) {
+    } else if (finalModel.includes('gemini') || finalModel.includes('google')) {
       targetFunction = 'gemini-chat';
     } else if (finalModel.includes('deepseek')) {
       targetFunction = 'deepseek-chat';
+    } else {
+      // Autres modèles via OpenRouter (Meta, Mistral, etc.)
+      targetFunction = 'openrouter-chat';
     }
-
+    
+    // Nettoyer le nom du modèle pour les APIs directes
+    if (targetFunction !== 'openrouter-chat') {
+      finalModel = finalModel.replace(/^(openai|anthropic|google|deepseek)\//, '');
+    }
     const { data, error } = await supabase.functions.invoke(targetFunction, {
       body: {
         messages: [
@@ -300,46 +304,38 @@ export const aiService = {
       throw new Error(quotaResult.error || 'Quota exceeded');
     }
 
-    // Generate code based on provider
+    // Utiliser les clés API directes avec modèles appropriés
+    const messages = [
+      {
+        role: 'system',
+        content: 'You are a helpful coding assistant. Generate clean, well-commented code based on user requirements. Always provide complete, working code examples.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+
     if (provider === 'deepseek') {
       const { data, error } = await supabase.functions.invoke('deepseek-chat', {
         body: {
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful coding assistant. Generate clean, well-commented code based on user requirements. Always provide complete, working code examples.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ]
+          messages,
+          model: 'deepseek-chat'
         }
       });
-
       if (error) throw error;
       return data.response || data.content || 'No code generated';
     } else {
-      // Utiliser OpenRouter pour les nouveaux modèles GPT-5
-      const { data, error } = await supabase.functions.invoke('openrouter-chat', {
+      // Utiliser OpenAI direct avec clé API
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
         body: {
-          messages: [
-            {
-              role: 'system', 
-              content: 'You are a helpful coding assistant. Generate clean, well-commented code based on user requirements. Always provide complete, working code examples.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          model: 'openai/gpt-5-2025-08-07', // Préfixe OpenRouter pour GPT-5
-          max_completion_tokens: 2000
+          messages,
+          model: 'gpt-4o-mini',
+          max_tokens: 2000
         }
       });
-
       if (error) throw error;
-      return data.text || data.content || 'No code generated';
+      return data.choices?.[0]?.message?.content || 'No code generated';
     }
   },
 
@@ -399,21 +395,24 @@ Retourne un objet JSON avec la structure suivante:
     let responseText: string;
     if (provider === 'deepseek') {
       const { data, error } = await supabase.functions.invoke('deepseek-chat', {
-        body: { messages }
+        body: { 
+          messages,
+          model: 'deepseek-chat'
+        }
       });
       if (error) throw error;
       responseText = data.response || data.content || '';
     } else {
-      // Utiliser OpenRouter pour les nouveaux modèles GPT-5
-      const { data, error } = await supabase.functions.invoke('openrouter-chat', {
+      // Utiliser OpenAI direct avec clé API
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
         body: {
           messages,
-          model: 'openai/gpt-5-2025-08-07', // Préfixe OpenRouter pour GPT-5
-          max_completion_tokens: 4000
+          model: 'gpt-4o',
+          max_tokens: 4000
         }
       });
       if (error) throw error;
-      responseText = data.text || data.content || '';
+      responseText = data.choices?.[0]?.message?.content || '';
     }
 
     try {
