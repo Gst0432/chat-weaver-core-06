@@ -51,6 +51,9 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [useAI, setUseAI] = useState(true);
   const [model, setModel] = useState('gpt-4.1-2025-04-14');
   const [generating, setGenerating] = useState(false);
+  const [includeCover, setIncludeCover] = useState(true);
+  const [includeAbout, setIncludeAbout] = useState(true);
+  const [includeToc, setIncludeToc] = useState(true);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -74,7 +77,10 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           useAI,
           model,
           template,
-          format: 'markdown'
+          format: 'markdown',
+          includeCover,
+          includeAbout,
+          includeToc
         }
       });
 
@@ -205,23 +211,55 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           </div>
 
           {useAI && (
-            <div>
-              <Label>Modèle IA</Label>
-              <Select value={model} onValueChange={setModel}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {models.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      <div className="flex flex-col">
-                        <span>{m.label}</span>
-                        <span className="text-xs text-muted-foreground">{m.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div>
+                <Label>Modèle IA</Label>
+                <Select value={model} onValueChange={setModel}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        <div className="flex flex-col">
+                          <span>{m.label}</span>
+                          <span className="text-xs text-muted-foreground">{m.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-3">
+                <Label>Pages supplémentaires</Label>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="includeCover"
+                      checked={includeCover}
+                      onCheckedChange={setIncludeCover}
+                    />
+                    <Label htmlFor="includeCover">Page de couverture</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="includeAbout"
+                      checked={includeAbout}
+                      onCheckedChange={setIncludeAbout}
+                    />
+                    <Label htmlFor="includeAbout">Page "À propos"</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="includeToc"
+                      checked={includeToc}
+                      onCheckedChange={setIncludeToc}
+                    />
+                    <Label htmlFor="includeToc">Table des matières</Label>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

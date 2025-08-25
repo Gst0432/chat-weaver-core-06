@@ -26,10 +26,13 @@ serve(async (req) => {
       format = 'markdown',
       useAI = true,
       model = 'gpt-4.1-2025-04-14',
-      chapters = []
+      chapters = [],
+      includeCover = true,
+      includeAbout = true,
+      includeToc = true
     } = await req.json();
 
-    console.log('📚 Generating ebook:', { title, language, format, useAI, chaptersCount: chapters.length });
+    console.log('📚 Generating ebook:', { title, language, format, useAI, chaptersCount: chapters.length, includeCover, includeAbout, includeToc });
 
     // Get authenticated user
     const authHeader = req.headers.get('Authorization')!;
@@ -102,7 +105,103 @@ Generate the COMPLETE FULL-LENGTH content in markdown format. Do not summarize o
 
       if (aiResponse.ok) {
         const aiData = await aiResponse.json();
-        content = aiData.choices[0].message.content;
+        let generatedContent = aiData.choices[0].message.content;
+        
+        // Generate additional pages if requested
+        let coverPage = '';
+        let aboutPage = '';
+        let tocPage = '';
+        
+        if (includeCover) {
+          const coverPrompt = `Create a professional book cover page in markdown format for the ebook "${title}" by ${author}. Include:
+- Title prominently displayed
+- Author name
+- Brief compelling subtitle or tagline
+- Professional formatting
+- Language: ${language}
+- Template style: ${template}`;
+
+          const coverResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: 'You are a professional book designer who creates elegant cover pages.' },
+                { role: 'user', content: coverPrompt }
+              ],
+              max_completion_tokens: 1000,
+            }),
+          });
+
+          if (coverResponse.ok) {
+            const coverData = await coverResponse.json();
+            coverPage = coverData.choices[0].message.content;
+          }
+        }
+
+        if (includeAbout) {
+          const aboutPrompt = `Create an "About the Author" page in markdown format for ${author}, author of "${title}". Include:
+- Professional biography
+- Expertise and background
+- Why they wrote this book
+- Contact information (placeholder)
+- Language: ${language}
+- Keep it professional and credible`;
+
+          const aboutResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: 'You are a professional writer who creates compelling author biographies.' },
+                { role: 'user', content: aboutPrompt }
+              ],
+              max_completion_tokens: 1000,
+            }),
+          });
+
+          if (aboutResponse.ok) {
+            const aboutData = await aboutResponse.json();
+            aboutPage = aboutData.choices[0].message.content;
+          }
+        }
+
+        if (includeToc) {
+          // Extract chapter titles from the generated content
+          const chapterMatches = generatedContent.match(/^#{1,2}\s+(.+)$/gm) || [];
+          const chapters = chapterMatches
+            .filter(match => !match.toLowerCase().includes('introduction') && !match.toLowerCase().includes('conclusion'))
+            .map((match, index) => {
+              const title = match.replace(/^#{1,2}\s+/, '');
+              return `${index + 1}. ${title}`;
+            });
+
+          const tocContent = language === 'fr' ? 'Table des Matières' : 
+                           language === 'en' ? 'Table of Contents' :
+                           language === 'es' ? 'Índice' :
+                           language === 'de' ? 'Inhaltsverzeichnis' :
+                           language === 'it' ? 'Indice' :
+                           language === 'pt' ? 'Índice' :
+                           language === 'ar' ? 'جدول المحتويات' :
+                           language === 'zh' ? '目录' : 'Table des Matières';
+
+          tocPage = `# ${tocContent}\n\n${chapters.join('\n\n')}\n\n---\n\n`;
+        }
+        
+        // Combine all content
+        content = '';
+        if (coverPage) content += coverPage + '\n\n---\n\n';
+        if (tocPage) content += tocPage + '\n\n';
+        if (aboutPage) content += aboutPage + '\n\n---\n\n';
+        content += generatedContent;
         
         // Validate minimum word count
         const wordCount = content.split(/\s+/).length;
