@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Wand2, BookOpen, Sparkles, Clock, CheckCircle, AlertCircle, RotateCcw, X, AlertTriangle } from 'lucide-react';
+import { Wand2, BookOpen, Sparkles, Clock, CheckCircle, AlertCircle, RotateCcw, X, AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useEbookGeneration } from '@/hooks/useEbookGeneration';
@@ -77,7 +77,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   
   const { generation, getStatusMessage, getEstimatedTimeRemaining, isCompleted, isFailed, isStalled, 
           retryGeneration, cancelGeneration, checkForStalledGeneration, getPartialContent, 
-          savePartialContent, resumeFromCheckpoint } = 
+          savePartialContent, resumeFromCheckpoint, forceRefresh, isRealtimeConnected } = 
     useEbookGeneration(generationId || undefined);
 
   const handleGenerate = async () => {
@@ -339,6 +339,31 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
 
         {(generating || generation) && (
           <div className="text-center text-sm space-y-4 p-4 border rounded-lg bg-muted/20">
+            {/* Connection status indicator */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-xs">
+                {isRealtimeConnected ? (
+                  <>
+                    <Wifi className="w-3 h-3 text-green-500" />
+                    <span className="text-green-600">Temps réel actif</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-3 h-3 text-orange-500" />
+                    <span className="text-orange-600">Polling de sécurité</span>
+                  </>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={forceRefresh}
+                className="h-6 px-2"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Actualiser
+              </Button>
+            </div>
             {/* Stalled generation alert with recovery options */}
             {isStalled && (
               <Alert className="border-orange-200 bg-orange-50">

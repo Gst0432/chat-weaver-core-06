@@ -23,6 +23,8 @@ export function useEbookGeneration(generationId?: string) {
   const [generation, setGeneration] = useState<EbookGeneration | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
 
   const fetchGeneration = async (id: string) => {
     try {
@@ -124,9 +126,13 @@ export function useEbookGeneration(generationId?: string) {
     }
   };
 
-  // Real-time updates - replaced polling for better scalability
+  // Enhanced real-time with polling fallback
   useEffect(() => {
     if (!generationId) return;
+
+    let pollingInterval: NodeJS.Timeout;
+    let heartbeatInterval: NodeJS.Timeout;
+    let autoRefreshTimeout: NodeJS.Timeout;
 
     const channel = supabase
       .channel(`ebook-generation-${generationId}`)
@@ -141,6 +147,8 @@ export function useEbookGeneration(generationId?: string) {
         (payload) => {
           console.log('🔄 Generation update received:', payload);
           setGeneration(payload.new as EbookGeneration);
+          setLastUpdateTime(Date.now());
+          setIsRealtimeConnected(true);
         }
       )
       .on(
@@ -153,16 +161,50 @@ export function useEbookGeneration(generationId?: string) {
         },
         (payload) => {
           console.log('📝 New chapter saved:', payload);
-          // Trigger a refresh to get updated counts
           fetchGeneration(generationId);
+          setLastUpdateTime(Date.now());
         }
       )
-      .subscribe();
+      .subscribe(async (status) => {
+        console.log('📡 Realtime status:', status);
+        setIsRealtimeConnected(status === 'SUBSCRIBED');
+        
+        if (status === 'SUBSCRIBED') {
+          // Start heartbeat system
+          heartbeatInterval = setInterval(() => {
+            const timeSinceUpdate = Date.now() - lastUpdateTime;
+            if (timeSinceUpdate > 30000) { // 30 seconds without update
+              console.log('⚠️ No realtime updates for 30s, checking connection...');
+              fetchGeneration(generationId);
+            }
+          }, 15000); // Check every 15 seconds
+        }
+      });
+
+    // Security polling every 10 seconds during generation
+    pollingInterval = setInterval(() => {
+      if (generation && ['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status)) {
+        console.log('🔄 Security polling...');
+        fetchGeneration(generationId);
+      }
+    }, 10000);
+
+    // Auto-refresh if no state change for 30 seconds
+    autoRefreshTimeout = setTimeout(() => {
+      const timeSinceUpdate = Date.now() - lastUpdateTime;
+      if (timeSinceUpdate > 30000) {
+        console.log('🔄 Auto-refresh triggered');
+        fetchGeneration(generationId);
+      }
+    }, 30000);
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollingInterval);
+      clearInterval(heartbeatInterval);
+      clearTimeout(autoRefreshTimeout);
     };
-  }, [generationId]);
+  }, [generationId, generation?.status, lastUpdateTime]);
 
   // Initial fetch
   useEffect(() => {
@@ -267,6 +309,15 @@ export function useEbookGeneration(generationId?: string) {
     return `${hours}h ${mins}m`;
   };
 
+  // Force refresh function
+  const forceRefresh = () => {
+    console.log('🔄 Force refresh requested');
+    if (generationId) {
+      fetchGeneration(generationId);
+      setLastUpdateTime(Date.now());
+    }
+  };
+
   return {
     generation,
     loading,
@@ -280,6 +331,8 @@ export function useEbookGeneration(generationId?: string) {
     getPartialContent,
     savePartialContent,
     resumeFromCheckpoint,
+    forceRefresh,
+    isRealtimeConnected,
     isCompleted: generation?.status === 'completed',
     isFailed: generation?.status === 'failed',
     isInProgress: generation && ['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status),
