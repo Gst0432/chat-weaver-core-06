@@ -279,14 +279,6 @@ serve(async (req) => {
       generation = newGeneration;
     }
 
-    if (generationError) {
-      console.error('❌ Generation record creation error:', generationError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create generation record' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-
     console.log('🎯 Generation record created:', generation.id);
 
     // Background task with 3-minute timeout
