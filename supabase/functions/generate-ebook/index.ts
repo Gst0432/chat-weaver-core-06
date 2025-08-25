@@ -48,34 +48,33 @@ serve(async (req) => {
 
     // Generate content with AI if requested
     if (useAI && prompt) {
-      const aiPrompt = `Create a comprehensive professional ebook with the following requirements:
+      const aiPrompt = `Create a professional ebook with the following requirements:
 Title: ${title}
 Author: ${author}
 Topic: ${prompt}
 
 CRITICAL REQUIREMENTS:
-- BETWEEN 8,900 and 15,000 words total (TARGET: 12,000 words)
+- Target: 5,000-8,000 words total (optimal for readability)
 - Professional structure with complete book elements
-- Each chapter should be 600-1000 words
+- Each chapter should be 400-600 words (focused and clear)
 - Professional tone suitable for publication
 
 MANDATORY STRUCTURE (in this exact order):
-1. **Avant-propos** (400-600 mots) - Introduce the topic, author's perspective, and book objectives
+1. **Avant-propos** (300-400 mots) - Introduce the topic and objectives
 2. **Sommaire/Table des matières** - Auto-generated based on chapter titles
-3. **Introduction** (800-1200 mots) - Comprehensive introduction to the topic
-4. **10-15 detailed chapters** (600-1000 mots each) - Core content with practical insights
-5. **Conclusion** (500-800 mots) - Summary, key takeaways, and next steps
+3. **Introduction** (500-700 mots) - Comprehensive introduction to the topic
+4. **8-12 focused chapters** (400-600 mots each) - Core content with practical insights
+5. **Conclusion** (400-600 mots) - Summary, key takeaways, and next steps
 
 FORMATTING REQUIREMENTS:
 - Use proper Markdown hierarchy (# ## ###)
-- Include practical examples, case studies, and actionable insights
-- Add detailed explanations and elaborative content
+- Include practical examples and actionable insights
 - Ensure professional formatting throughout
 - Create clear section breaks between major parts
 
 Template style: ${template || 'business'}
 
-Generate the COMPLETE FULL-LENGTH content in markdown format with ALL required sections. Do not summarize or abbreviate - provide the complete detailed professional content:`;
+Generate the COMPLETE content in markdown format with ALL required sections. Be comprehensive but concise:`;
 
       // Determine if model uses OpenRouter or OpenAI directly
       const isOpenRouterModel = model.includes('/') || 
@@ -103,7 +102,7 @@ Generate the COMPLETE FULL-LENGTH content in markdown format with ALL required s
               { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
               { role: 'user', content: aiPrompt }
             ],
-            max_tokens: 16000,
+            max_tokens: 8000,
           }),
         });
       } else {
@@ -118,10 +117,10 @@ Generate the COMPLETE FULL-LENGTH content in markdown format with ALL required s
 
         // Handle API parameter differences for newer vs legacy models
         if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4') || model.includes('gpt-4.1')) {
-          requestBody.max_completion_tokens = 16000;
+          requestBody.max_completion_tokens = 8000;
           // Don't include temperature for newer models
         } else {
-          requestBody.max_tokens = 16000;
+          requestBody.max_tokens = 8000;
           requestBody.temperature = 0.7;
         }
 
@@ -139,83 +138,30 @@ Generate the COMPLETE FULL-LENGTH content in markdown format with ALL required s
         const aiData = await aiResponse.json();
         content = aiData.choices[0].message.content;
         
-        // Validate minimum word count
+        // Validate and log word count
         const wordCount = content.split(/\s+/).length;
         console.log(`📊 Generated content: ${wordCount} words`);
         
-        if (wordCount < 8900) {
-          console.warn(`⚠️ Content too short: ${wordCount} words. Extending...`);
-          // Try to extend content with additional prompt
-          const extendPrompt = `The following ebook content has ${wordCount} words but needs to reach between 8,900-15,000 words. Please expand each chapter significantly with more detailed explanations, examples, case studies, and practical applications. Add more chapters if needed to reach the target word count:
-
-${content}
-
-Please provide the expanded version with much more detailed content:`;
-
-          // Use same routing logic for extension
-          let extendResponse;
-          
-          if (isOpenRouterModel) {
-            extendResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://chatelix.com',
-                'X-Title': 'Chatelix Ebook Generator'
-              },
-              body: JSON.stringify({
-                model,
-                messages: [
-                  { role: 'system', content: 'You are a professional ebook writer who creates comprehensive, detailed content.' },
-                  { role: 'user', content: extendPrompt }
-                ],
-                max_tokens: 16000,
-              }),
-            });
-          } else {
-            const extendRequestBody: any = {
-              model,
-              messages: [
-                { role: 'system', content: 'You are a professional ebook writer who creates comprehensive, detailed content.' },
-                { role: 'user', content: extendPrompt }
-              ]
-            };
-
-            if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4') || model.includes('gpt-4.1')) {
-              extendRequestBody.max_completion_tokens = 16000;
-            } else {
-              extendRequestBody.max_tokens = 16000;
-              extendRequestBody.temperature = 0.7;
-            }
-
-            extendResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(extendRequestBody),
-            });
-          }
-
-          if (extendResponse.ok) {
-            const extendData = await extendResponse.json();
-            content = extendData.choices[0].message.content;
-            const finalWordCount = content.split(/\s+/).length;
-            console.log(`📊 Extended content: ${finalWordCount} words`);
-            
-            // If still too long, truncate to maximum
-            if (finalWordCount > 15000) {
-              const words = content.split(/\s+/);
-              content = words.slice(0, 15000).join(' ') + '\n\n## Conclusion\n\nCe livre vous a fourni les bases essentielles du sujet traité. Les concepts présentés constituent un fondement solide pour votre développement dans ce domaine.';
-              console.log(`📊 Truncated to 15,000 words`);
-            }
-          }
+        // Accept content as-is (no extension to avoid timeouts)
+        if (wordCount < 3000) {
+          console.warn(`⚠️ Content shorter than expected: ${wordCount} words`);
+          // Add a simple conclusion if too short
+          content = content + '\n\n## Conclusion\n\nCe guide vous a fourni les bases essentielles du sujet traité. Les concepts présentés constituent un fondement solide pour votre développement dans ce domaine.';
         }
       } else {
-        console.error('AI generation failed:', await aiResponse.text());
-        content = `# ${title}\n\nBy ${author}\n\n## Introduction\n\n${prompt}\n\n## Chapter 1\n\nContent to be developed...`;
+        const errorText = await aiResponse.text();
+        console.error('❌ AI generation failed:', errorText);
+        
+        // Check for specific errors
+        if (aiResponse.status === 401) {
+          throw new Error('Clé API invalide. Vérifiez votre configuration.');
+        } else if (aiResponse.status === 429) {
+          throw new Error('Limite de taux atteinte. Essayez dans quelques minutes.');
+        } else if (aiResponse.status >= 500) {
+          throw new Error('Erreur du service IA. Essayez avec un autre modèle.');
+        } else {
+          throw new Error(`Erreur IA (${aiResponse.status}): ${errorText}`);
+        }
       }
     } else if (chapters.length > 0) {
       // Use provided chapters

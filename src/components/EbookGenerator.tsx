@@ -82,17 +82,24 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
 
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-ebook', {
-        body: {
-          title: title.trim(),
-          author: author.trim(),
-          prompt: prompt.trim(),
-          useAI,
-          model,
-          template,
-          format: 'markdown'
-        }
-      });
+      console.log('🚀 Starting ebook generation...', { model, template });
+      
+      const { data, error } = await Promise.race([
+        supabase.functions.invoke('generate-ebook', {
+          body: {
+            title: title.trim(),
+            author: author.trim(),
+            prompt: prompt.trim(),
+            useAI,
+            model,
+            template,
+            format: 'markdown'
+          }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout de génération (120s)')), 120000)
+        )
+      ]) as any;
 
       if (error) throw error;
 
@@ -107,11 +114,24 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
       setPrompt('');
       
       onEbookGenerated();
-    } catch (error) {
-      console.error('Error generating ebook:', error);
+    } catch (error: any) {
+      console.error('❌ Error generating ebook:', error);
+      
+      let errorMessage = "Impossible de générer l'ebook.";
+      
+      if (error.message?.includes('Timeout')) {
+        errorMessage = "Génération trop longue. Essayez avec un prompt plus court ou un modèle plus rapide.";
+      } else if (error.message?.includes('Clé API invalide')) {
+        errorMessage = "Clé API invalide. Contactez l'administrateur.";
+      } else if (error.message?.includes('Limite')) {
+        errorMessage = "Limite atteinte. Essayez dans quelques minutes.";
+      } else if (error.message?.includes('Failed to fetch')) {
+        errorMessage = "Erreur de connexion. Vérifiez votre réseau et réessayez.";
+      }
+      
       toast({
         title: "Erreur",
-        description: "Impossible de générer l'ebook. Vérifiez votre connexion.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -260,8 +280,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
 
         {generating && (
           <div className="text-center text-sm text-muted-foreground space-y-2">
-            <p>⏳ La génération peut prendre 60-120 secondes...</p>
-            <p>Un ebook complet de 15 000+ mots avec 15-20 chapitres détaillés est en cours de création.</p>
+            <p>⏳ Génération en cours (30-90 secondes)...</p>
+            <p>Création d'un ebook professionnel de 5 000-8 000 mots avec 8-12 chapitres.</p>
             <div className="w-full bg-muted rounded-full h-2">
               <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
             </div>
