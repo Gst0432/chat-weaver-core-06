@@ -57,6 +57,8 @@ serve(async (req) => {
     // Generate unique task UUID
     const taskUUID = crypto.randomUUID();
 
+    console.log('Using KlingAI 2.1 Master model for video generation...');
+
     // Prepare authentication request
     const authRequest = {
       taskType: "authentication",
@@ -70,10 +72,11 @@ serve(async (req) => {
       positivePrompt: positivePrompt,
       duration: duration,
       width: width,
-      height: height
+      height: height,
+      CFGScale: 0.5
     };
 
-    // Add negative prompt if provided
+    // Add negative prompt if provided  
     if (negativePrompt) {
       videoRequest.negativePrompt = negativePrompt;
     }
