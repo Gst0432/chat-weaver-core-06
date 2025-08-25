@@ -5,11 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Loader2, Play, Download, Volume2 } from "lucide-react";
+import { Loader2, Play, Download, Volume2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { TextToSpeechService, TTSSettings } from "@/services/textToSpeechService";
 
 const TTSStudio = () => {
+  const navigate = useNavigate();
   const [text, setText] = useState("");
   const [provider, setProvider] = useState<'openai' | 'google' | 'openrouter'>('openai');
   const [voice, setVoice] = useState("alloy");
@@ -85,6 +87,16 @@ const TTSStudio = () => {
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-8">
+        <div className="flex items-center gap-4 mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/app')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour au chat
+          </Button>
+        </div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Studio Text-to-Speech</h1>
         <p className="text-muted-foreground">Convertissez votre texte en audio avec différentes voix et langues</p>
       </div>

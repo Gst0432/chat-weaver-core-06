@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Download, Sparkles } from "lucide-react";
+import { Loader2, Download, Sparkles, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 const DalleStudio = () => {
+  const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState("1024x1024");
   const [quality, setQuality] = useState("standard");
@@ -62,6 +64,16 @@ const DalleStudio = () => {
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-8">
+        <div className="flex items-center gap-4 mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/app')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour au chat
+          </Button>
+        </div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Studio DALL-E</h1>
         <p className="text-muted-foreground">Générez des images avec l'intelligence artificielle DALL-E</p>
       </div>
