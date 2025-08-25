@@ -32,7 +32,7 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [coverPrompt, setCoverPrompt] = useState('');
   const [saving, setSaving] = useState(false);
-  const [extending, setExtending] = useState(false);
+  
   const [generatingImage, setGeneratingImage] = useState(false);
   const { toast } = useToast();
 
@@ -115,69 +115,6 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
     }
   };
 
-  const extendContent = async () => {
-    if (!content.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Aucun contenu à étendre",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setExtending(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('openai-chat', {
-        body: {
-          messages: [
-            {
-              role: 'system',
-              content: 'Tu es un écrivain professionnel qui développe et enrichit le contenu existant pour atteindre au moins 15,000 mots.'
-            },
-            {
-              role: 'user',
-              content: `Le contenu suivant de l'ebook "${title}" contient actuellement ${wordCount} mots. Je dois l'étendre pour atteindre au moins 15,000 mots. 
-
-Développe chaque section existante avec :
-- Plus de détails et d'explications
-- Des exemples concrets et des études de cas
-- Des sous-sections supplémentaires
-- Du contenu pratique et actionnable
-- Des anecdotes et des témoignages
-- Des conseils d'experts
-
-Contenu actuel :
-${content}
-
-Fournis la version étendue et enrichie :`
-            }
-          ],
-          model: 'gpt-4.1-2025-04-14',
-          max_completion_tokens: 16000
-        }
-      });
-
-      if (error) throw error;
-
-      const extendedContent = data.choices[0].message.content;
-      setContent(extendedContent);
-      
-      const newWordCount = extendedContent.split(/\s+/).filter(word => word.length > 0).length;
-      toast({
-        title: "Contenu étendu !",
-        description: `Contenu étendu de ${wordCount} à ${newWordCount} mots`,
-      });
-    } catch (error) {
-      console.error('Error extending content:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'étendre le contenu",
-        variant: "destructive",
-      });
-    } finally {
-      setExtending(false);
-    }
-  };
 
   const generateCoverImage = async () => {
     if (!coverPrompt.trim()) {
@@ -389,24 +326,6 @@ Fournis la version étendue et enrichie :`
                     </span>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={extendContent}
-                  disabled={extending || !content.trim()}
-                >
-                  {extending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      Extension...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-4 h-4 mr-1" />
-                      Étendre avec IA
-                    </>
-                  )}
-                </Button>
               </div>
             </div>
           </div>
