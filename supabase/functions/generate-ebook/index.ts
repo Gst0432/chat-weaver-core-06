@@ -27,6 +27,7 @@ serve(async (req) => {
       useAI = true,
       model = 'gpt-4.1-2025-04-14',
       chapters = [],
+      template = 'business',
       includeCover = true,
       includeAbout = true,
       includeToc = true,
