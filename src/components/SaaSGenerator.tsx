@@ -670,7 +670,6 @@ ${generatedApp.databaseSchema}
               <ChatInput 
                 onSendMessage={handleChatMessage} 
                 disabled={isGenerating}
-                sttProvider="openai"
               />
             </div>
           </TabsContent>

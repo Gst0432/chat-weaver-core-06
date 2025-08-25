@@ -184,12 +184,6 @@ const Landing = () => {
                 <ModelSelector 
                   selectedModel={selectedModel} 
                   onModelChange={setSelectedModel}
-                  sttProvider={sttProvider}
-                  onSttProviderChange={setSttProvider}
-                  ttsProvider={ttsProvider}
-                  onTtsProviderChange={setTtsProvider}
-                  ttsVoice={ttsVoice}
-                  onTtsVoiceChange={setTtsVoice}
                   personality={personality}
                   onPersonalityChange={setPersonality}
                   safeMode={safeMode}
@@ -197,9 +191,6 @@ const Landing = () => {
                 />
                 <ChatArea 
                   selectedModel={selectedModel} 
-                  sttProvider={sttProvider} 
-                  ttsProvider={ttsProvider} 
-                  ttsVoice={ttsVoice} 
                   systemPrompt={personalities[personality]} 
                   safeMode={safeMode} 
                   isLandingMode={true}

@@ -8,10 +8,11 @@ import { toast } from "@/hooks/use-toast";
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
-  sttProvider?: 'openai' | 'google';
+  isLoading?: boolean;
+  selectedModel?: string;
 }
 
-export const ChatInput = ({ onSendMessage, disabled, sttProvider = 'openai' }: ChatInputProps) => {
+export const ChatInput = ({ onSendMessage, disabled, isLoading, selectedModel }: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -92,25 +93,8 @@ export const ChatInput = ({ onSendMessage, disabled, sttProvider = 'openai' }: C
         // Ajouter l'audio au chat pour aperçu/téléchargement
         onSendMessage(`data:audio/webm;base64,${base64}`);
 
-        try {
-          const fn = sttProvider === 'google' ? 'google-stt' : 'voice-to-text';
-          const body = sttProvider === 'google'
-            ? { audio: base64, languageCode: 'fr-FR', sampleRateHertz: 48000 }
-            : { audio: base64 };
-          const { data, error } = await supabase.functions.invoke(fn, { body });
-          if (error) throw error;
-          const text = data?.text?.trim();
-          if (text) {
-            setMessage((prev) => (prev ? prev + "\n" : "") + text);
-            toast({ title: "Transcription prête", description: "Le texte a été inséré dans le champ." });
-          } else {
-            toast({ title: "Aucun texte détecté", description: "Réessayez en parlant plus clairement." });
-          }
-        } catch (err: any) {
-          toast({ title: "Erreur STT", description: err?.message || "Transcription échouée", variant: "destructive" });
-        } finally {
-          stream.getTracks().forEach((t) => t.stop());
-        }
+        // Voice recognition moved to TTS Studio
+        toast({ title: "Enregistrement terminé", description: "Fonctionnalité vocale disponible dans Studio TTS" });
       };
 
       mediaRecorder.start();

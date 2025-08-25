@@ -383,17 +383,13 @@ const models = [
 interface ModelSelectorProps {
   selectedModel: string;
   onModelChange: (modelId: string) => void;
-  sttProvider: 'openai' | 'google';
-  onSttProviderChange: (p: 'openai' | 'google') => void;
-  ttsProvider: 'openai' | 'google';
-  onTtsProviderChange: (p: 'openai' | 'google') => void;
   personality: string;
   onPersonalityChange: (key: string) => void;
   safeMode: boolean;
   onSafeModeChange: (v: boolean) => void;
 }
 
-export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onSttProviderChange, ttsProvider, onTtsProviderChange, ttsVoice, onTtsVoiceChange, personality, onPersonalityChange, safeMode, onSafeModeChange }: ModelSelectorProps & { ttsVoice: string; onTtsVoiceChange: (v: string) => void; }) => {
+export const ModelSelector = ({ selectedModel, onModelChange, personality, onPersonalityChange, safeMode, onSafeModeChange }: ModelSelectorProps) => {
   const currentModel = models.find(m => m.id === selectedModel) || models[0];
 
   return (
@@ -473,69 +469,12 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
                 <Settings2 className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-4" align="end">
+            <PopoverContent className="w-64 p-4" align="end">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <span className="text-sm font-medium">Audio & Personnalité</span>
+                  <span className="text-sm font-medium">Personnalité</span>
                   
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">STT</span>
-                      <Select value={sttProvider} onValueChange={(v) => onSttProviderChange(v as 'openai' | 'google')}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="openai">OpenAI</SelectItem>
-                          <SelectItem value="google">Google</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">TTS</span>
-                      <Select value={ttsProvider} onValueChange={(v) => onTtsProviderChange(v as 'openai' | 'google')}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="openai">OpenAI</SelectItem>
-                          <SelectItem value="google">Google</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Voix</span>
-                    <Select value={ttsVoice} onValueChange={onTtsVoiceChange}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ttsProvider === 'openai' ? (
-                          <>
-                            <SelectItem value="alloy">alloy</SelectItem>
-                            <SelectItem value="ash">ash</SelectItem>
-                            <SelectItem value="coral">coral</SelectItem>
-                            <SelectItem value="echo">echo</SelectItem>
-                            <SelectItem value="sage">sage</SelectItem>
-                            <SelectItem value="shimmer">shimmer</SelectItem>
-                          </>
-                        ) : (
-                          <>
-                            <SelectItem value="fr-FR-Standard-A">FR Standard A</SelectItem>
-                            <SelectItem value="fr-FR-Wavenet-D">FR Wavenet D</SelectItem>
-                            <SelectItem value="en-US-Standard-C">EN Standard C</SelectItem>
-                            <SelectItem value="en-US-Wavenet-D">EN Wavenet D</SelectItem>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Personnalité</span>
                     <Select value={personality} onValueChange={onPersonalityChange}>
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
@@ -556,60 +495,6 @@ export const ModelSelector = ({ selectedModel, onModelChange, sttProvider, onStt
 
         {/* Options desktop - cachées sur mobile */}
         <div className="hidden sm:flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">STT</span>
-            <Select value={sttProvider} onValueChange={(v) => onSttProviderChange(v as 'openai' | 'google')}>
-              <SelectTrigger className="w-[100px] lg:w-[120px] bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="google">Google</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">TTS</span>
-            <Select value={ttsProvider} onValueChange={(v) => onTtsProviderChange(v as 'openai' | 'google')}>
-              <SelectTrigger className="w-[100px] lg:w-[120px] bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="google">Google</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Voix</span>
-            <Select value={ttsVoice} onValueChange={onTtsVoiceChange}>
-              <SelectTrigger className="w-[120px] lg:w-[150px] bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ttsProvider === 'openai' ? (
-                  <>
-                    <SelectItem value="alloy">alloy</SelectItem>
-                    <SelectItem value="ash">ash</SelectItem>
-                    <SelectItem value="coral">coral</SelectItem>
-                    <SelectItem value="echo">echo</SelectItem>
-                    <SelectItem value="sage">sage</SelectItem>
-                    <SelectItem value="shimmer">shimmer</SelectItem>
-                  </>
-                ) : (
-                  <>
-                    <SelectItem value="fr-FR-Standard-A">FR Standard A</SelectItem>
-                    <SelectItem value="fr-FR-Wavenet-D">FR Wavenet D</SelectItem>
-                    <SelectItem value="en-US-Standard-C">EN Standard C</SelectItem>
-                    <SelectItem value="en-US-Wavenet-D">EN Wavenet D</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Personnalité</span>
             <Select value={personality} onValueChange={onPersonalityChange}>

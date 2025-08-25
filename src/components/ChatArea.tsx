@@ -168,9 +168,6 @@ const createPptxDataUrl = async (text: string) => {
 
 interface ChatAreaProps {
   selectedModel: string;
-  sttProvider: 'openai' | 'google';
-  ttsProvider: 'openai' | 'google';
-  ttsVoice: string;
   systemPrompt?: string;
   safeMode?: boolean;
   isLandingMode?: boolean;
@@ -178,7 +175,7 @@ interface ChatAreaProps {
   personality?: string;
 }
 
-export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, systemPrompt, safeMode, isLandingMode = false, onAuthRequired, personality = 'default' }: ChatAreaProps) => {
+export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode = false, onAuthRequired, personality = 'default' }: ChatAreaProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -203,7 +200,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
     }
   };
 
-  // TTS: synthétiser et lire la réponse via OpenAI ou Google avec fallback
+  // Charger la dernière conversation (30 jours)
   const synthesizeAndPlay = async (text: string) => {
     const tryInvoke = async (provider: 'openai' | 'google') => {
       const fn = provider === 'google' ? 'google-tts' : 'text-to-voice';
@@ -1220,7 +1217,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
       <ScrollArea className="flex-1 p-4 bg-background">
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} onSpeak={synthesizeAndPlay} onDownloadTts={synthesizeAndDownload} />
+            <ChatMessage key={message.id} message={message} />
           ))}
           {isLoading && (
             <>
@@ -1340,7 +1337,7 @@ export const ChatArea = ({ selectedModel, sttProvider, ttsProvider, ttsVoice, sy
         </div>
       )}
       
-      <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} sttProvider={sttProvider} />
+      <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} isLoading={isLoading} selectedModel={selectedModel} />
     </div>
   );
 };

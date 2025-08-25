@@ -17,9 +17,6 @@ import MobileOptimizations from "@/components/MobileOptimizations";
 const Index = () => {
   const [selectedModel, setSelectedModel] = useState("gpt-4-turbo");
   const [authReady, setAuthReady] = useState(false);
-  const [sttProvider, setSttProvider] = useState<'openai' | 'google'>("openai");
-  const [ttsProvider, setTtsProvider] = useState<'openai' | 'google'>("openai");
-  const [ttsVoice, setTtsVoice] = useState<string>("alloy");
   const [personality, setPersonality] = useState<string>(localStorage.getItem('personality') || 'default');
   const [safeMode, setSafeMode] = useState<boolean>((localStorage.getItem('safeMode') || 'true') === 'true');
   const [subscription, setSubscription] = useState<any>(null);
@@ -30,16 +27,6 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Charger préférences locales d'abord
-    try {
-      const sp = localStorage.getItem('sttProvider') as 'openai' | 'google' | null;
-      const tp = localStorage.getItem('ttsProvider') as 'openai' | 'google' | null;
-      const tv = localStorage.getItem('ttsVoice');
-      if (sp) setSttProvider(sp);
-      if (tp) setTtsProvider(tp);
-      if (tv) setTtsVoice(tv);
-    } catch {}
-
     const checkSubscription = async () => {
       try {
         const { data } = await supabase.functions.invoke('check-subscription');
@@ -72,21 +59,7 @@ const Index = () => {
       }
     });
 
-    // Écoute maj préférences depuis la page Paramètres
-    const onPrefs = () => {
-      try {
-        const sp = localStorage.getItem('sttProvider') as 'openai' | 'google' | null;
-        const tp = localStorage.getItem('ttsProvider') as 'openai' | 'google' | null;
-        const tv = localStorage.getItem('ttsVoice');
-        if (sp) setSttProvider(sp);
-        if (tp) setTtsProvider(tp);
-        if (tv) setTtsVoice(tv!);
-      } catch {}
-    };
-    window.addEventListener('chat:prefs-updated', onPrefs);
-
     return () => {
-      window.removeEventListener('chat:prefs-updated', onPrefs);
       subscription.unsubscribe();
     };
   }, [navigate]);
@@ -211,12 +184,6 @@ const Index = () => {
                 <ModelSelector 
                   selectedModel={selectedModel} 
                   onModelChange={(m) => { setSelectedModel(m); localStorage.setItem('model', m); }}
-                  sttProvider={sttProvider}
-                  onSttProviderChange={(v) => { setSttProvider(v); localStorage.setItem('sttProvider', v); }}
-                  ttsProvider={ttsProvider}
-                  onTtsProviderChange={(v) => { setTtsProvider(v); localStorage.setItem('ttsProvider', v); }}
-                  ttsVoice={ttsVoice}
-                  onTtsVoiceChange={(v) => { setTtsVoice(v); localStorage.setItem('ttsVoice', v); }}
                   personality={personality}
                   onPersonalityChange={(k) => { setPersonality(k); localStorage.setItem('personality', k); }}
                   safeMode={safeMode}
@@ -224,9 +191,6 @@ const Index = () => {
                 />
                 <ChatArea 
                   selectedModel={selectedModel} 
-                  sttProvider={sttProvider} 
-                  ttsProvider={ttsProvider} 
-                  ttsVoice={ttsVoice} 
                   systemPrompt={personalities[personality]} 
                   safeMode={safeMode} 
                 />
