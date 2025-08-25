@@ -13,11 +13,17 @@ const supabase = createClient(
 );
 
 serve(async (req) => {
+  console.log('🚀 Generate-ebook function called:', req.method);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('📝 Parsing request body...');
+    const body = await req.json();
+    console.log('📋 Request body parsed:', JSON.stringify(body, null, 2));
+    
     const { 
       prompt, 
       title, 
@@ -32,24 +38,57 @@ serve(async (req) => {
       includeAbout = true,
       includeToc = true,
       coverImagePrompt = null
-    } = await req.json();
+    } = body;
 
     console.log('📚 Generating ebook:', { title, language, format, useAI, chaptersCount: chapters.length, includeCover, includeAbout, includeToc });
 
     // Get authenticated user
-    const authHeader = req.headers.get('Authorization')!;
+    console.log('🔐 Checking authentication...');
+    const authHeader = req.headers.get('Authorization');
+    console.log('🔑 Auth header present:', !!authHeader);
+    
+    if (!authHeader) {
+      console.error('❌ No authorization header');
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
 
     if (authError || !user) {
+      console.error('❌ Authentication failed:', authError);
       return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
+        JSON.stringify({ error: 'Authentication required', details: authError?.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
+    
+    console.log('✅ User authenticated:', user.id);
 
     let content = '';
+
+    // Validate required fields
+    if (!title || !author || !prompt) {
+      console.error('❌ Missing required fields:', { title: !!title, author: !!author, prompt: !!prompt });
+      return new Response(
+        JSON.stringify({ error: 'Title, author, and prompt are required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Check if OpenAI API key is available
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      console.error('❌ OpenAI API key not configured');
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
 
     // Generate content with AI if requested
     if (useAI && prompt) {
