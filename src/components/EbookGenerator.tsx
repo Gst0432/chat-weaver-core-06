@@ -15,14 +15,14 @@ interface EbookGeneratorProps {
 }
 
 const templates = [
-  { value: 'business', label: 'Guide Business Complet', description: 'Guide détaillé avec stratégies, études de cas et plans d\'action (15-20 chapitres)' },
-  { value: 'tech', label: 'Manuel Technique Approfondi', description: 'Documentation complète avec tutoriels, exemples et bonnes pratiques (18-25 chapitres)' },
-  { value: 'education', label: 'Livre Éducatif Compréhensif', description: 'Contenu pédagogique avec exercices, cas pratiques et évaluations (16-22 chapitres)' },
-  { value: 'fiction', label: 'Roman Fiction Long Format', description: 'Histoire développée avec personnages complexes et intrigue détaillée (20-30 chapitres)' },
-  { value: 'howto', label: 'Guide Pratique Détaillé', description: 'Tutoriel complet avec méthodologie, outils et dépannage (15-20 étapes)' },
-  { value: 'self-help', label: 'Développement Personnel Intégral', description: 'Méthodes complètes avec exercices, réflexions et plan d\'action (18-25 modules)' },
-  { value: 'academic', label: 'Ouvrage Académique', description: 'Recherche approfondie avec références, analyses et conclusions (20-25 chapitres)' },
-  { value: 'cookbook', label: 'Livre de Cuisine Complet', description: 'Recettes détaillées avec techniques, variantes et conseils de chef (100+ recettes)' }
+  { value: 'business', label: 'Guide Business Complet', description: 'Guide détaillé avec stratégies, études de cas et plans d\'action (15-25 chapitres, 15 000-25 000 mots)' },
+  { value: 'tech', label: 'Manuel Technique Approfondi', description: 'Documentation complète avec tutoriels, exemples et bonnes pratiques (18-25 chapitres, 15 000-25 000 mots)' },
+  { value: 'education', label: 'Livre Éducatif Compréhensif', description: 'Contenu pédagogique avec exercices, cas pratiques et évaluations (16-22 chapitres, 15 000-25 000 mots)' },
+  { value: 'fiction', label: 'Roman Fiction Long Format', description: 'Histoire développée avec personnages complexes et intrigue détaillée (20-30 chapitres, 20 000-30 000 mots)' },
+  { value: 'howto', label: 'Guide Pratique Détaillé', description: 'Tutoriel complet avec méthodologie, outils et dépannage (15-20 étapes, 15 000-25 000 mots)' },
+  { value: 'self-help', label: 'Développement Personnel Intégral', description: 'Méthodes complètes avec exercices, réflexions et plan d\'action (18-25 modules, 15 000-25 000 mots)' },
+  { value: 'academic', label: 'Ouvrage Académique', description: 'Recherche approfondie avec références, analyses et conclusions (20-25 chapitres, 18 000-30 000 mots)' },
+  { value: 'cookbook', label: 'Livre de Cuisine Complet', description: 'Recettes détaillées avec techniques, variantes et conseils de chef (100+ recettes, 15 000-25 000 mots)' }
 ];
 
 const models = [
@@ -96,8 +96,9 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
             format: 'markdown'
           }
         }),
+        // Timeout étendu pour génération complète (10 minutes)
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout de génération (120s)')), 120000)
+          setTimeout(() => reject(new Error('Timeout de génération (10 minutes)')), 600000)
         )
       ]) as any;
 
@@ -280,10 +281,15 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
 
         {generating && (
           <div className="text-center text-sm text-muted-foreground space-y-2">
-            <p>⏳ Génération en cours (30-90 secondes)...</p>
-            <p>Création d'un ebook professionnel de 5 000-8 000 mots avec 8-12 chapitres.</p>
+            <p>⏳ Génération avancée en cours (3-8 minutes)...</p>
+            <div className="space-y-1">
+              <p>📋 Phase 1: Création de la table des matières complète</p>
+              <p>✍️ Phase 2: Génération chapitre par chapitre (15-25 chapitres)</p>
+              <p>🔧 Phase 3: Assemblage et optimisation finale</p>
+            </div>
+            <p className="font-medium">Ebook de 15 000-25 000 mots en préparation...</p>
             <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
+              <div className="bg-gradient-primary h-2 rounded-full animate-pulse w-2/3"></div>
             </div>
           </div>
         )}

@@ -12,6 +12,93 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+// Helper functions for AI calls
+function isOpenRouterModel(model: string): boolean {
+  return model.includes('/') || 
+         model.includes('llama') || 
+         model.includes('grok') || 
+         model.includes('deepseek') || 
+         model.includes('gemini') || 
+         model.includes('claude');
+}
+
+async function callAI(prompt: string, model: string, useOpenRouter: boolean): Promise<any> {
+  if (useOpenRouter) {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://chatelix.com',
+        'X-Title': 'Chatelix Ebook Generator'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 8000,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ OpenRouter API error:', errorText);
+      
+      if (response.status === 401) {
+        throw new Error('Clé API OpenRouter invalide');
+      } else if (response.status === 429) {
+        throw new Error('Limite de taux OpenRouter atteinte');
+      } else {
+        throw new Error(`Erreur OpenRouter (${response.status}): ${errorText}`);
+      }
+    }
+    
+    return await response.json();
+  } else {
+    const requestBody: any = {
+      model,
+      messages: [
+        { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
+        { role: 'user', content: prompt }
+      ]
+    };
+
+    // Handle API parameter differences for newer vs legacy models
+    if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4') || model.includes('gpt-4.1')) {
+      requestBody.max_completion_tokens = 8000;
+    } else {
+      requestBody.max_tokens = 8000;
+      requestBody.temperature = 0.7;
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ OpenAI API error:', errorText);
+      
+      if (response.status === 401) {
+        throw new Error('Clé API OpenAI invalide');
+      } else if (response.status === 429) {
+        throw new Error('Limite de taux OpenAI atteinte');
+      } else {
+        throw new Error(`Erreur OpenAI (${response.status}): ${errorText}`);
+      }
+    }
+    
+    return await response.json();
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,7 +116,7 @@ serve(async (req) => {
       chapters = []
     } = await req.json();
 
-    console.log('📚 Generating ebook:', { title, format, useAI, chaptersCount: chapters.length });
+    console.log('📚 Starting 3-phase ebook generation:', { title, format, useAI, model, template });
 
     // Get authenticated user
     const authHeader = req.headers.get('Authorization')!;
@@ -46,123 +133,145 @@ serve(async (req) => {
 
     let content = '';
 
-    // Generate content with AI if requested
+    // Generate content with AI using 3-phase architecture
     if (useAI && prompt) {
-      const aiPrompt = `Create a professional ebook with the following requirements:
+      console.log('🚀 Starting 3-phase ebook generation...');
+      
+      // PHASE 1: Generate complete table of contents
+      console.log('📋 Phase 1: Generating table of contents...');
+      const tocPrompt = `Create a detailed table of contents for a professional ebook:
+
 Title: ${title}
 Author: ${author}
 Topic: ${prompt}
+Template: ${template}
 
-CRITICAL REQUIREMENTS:
-- Target: 5,000-8,000 words total (optimal for readability)
-- Professional structure with complete book elements
-- Each chapter should be 400-600 words (focused and clear)
-- Professional tone suitable for publication
+REQUIREMENTS:
+- Target: 15,000-25,000 words total (comprehensive ebook)
+- 15-25 chapters (800-1200 words each)
+- Professional structure suitable for publication
 
-MANDATORY STRUCTURE (in this exact order):
-1. **Avant-propos** (300-400 mots) - Introduce the topic and objectives
-2. **Sommaire/Table des matières** - Auto-generated based on chapter titles
-3. **Introduction** (500-700 mots) - Comprehensive introduction to the topic
-4. **8-12 focused chapters** (400-600 mots each) - Core content with practical insights
-5. **Conclusion** (400-600 mots) - Summary, key takeaways, and next steps
+MANDATORY STRUCTURE:
+1. Avant-propos (400-600 mots)
+2. Table des matières (auto-generated)
+3. Introduction (800-1000 mots)
+4. 15-20 core chapters (800-1200 mots each)
+5. Conclusion (600-800 mots)
 
-FORMATTING REQUIREMENTS:
-- Use proper Markdown hierarchy (# ## ###)
+Return ONLY a JSON object with this exact structure:
+{
+  "title": "${title}",
+  "chapters": [
+    {"id": 1, "type": "foreword", "title": "Avant-propos", "summary": "Brief description", "target_words": 500},
+    {"id": 2, "type": "intro", "title": "Introduction", "summary": "Brief description", "target_words": 900},
+    {"id": 3, "type": "chapter", "title": "Chapter title", "summary": "What this chapter covers", "target_words": 1000},
+    ...
+    {"id": "last", "type": "conclusion", "title": "Conclusion", "summary": "Brief description", "target_words": 700}
+  ],
+  "total_estimated_words": estimated_total
+}
+
+Focus on ${template} style content. Be comprehensive and professional.`;
+
+      // Phase 1: Generate Table of Contents
+      const tocResponse = await callAI(tocPrompt, model, isOpenRouterModel(model));
+      let tableOfContents;
+      
+      try {
+        const tocContent = tocResponse.choices[0].message.content;
+        // Clean JSON response (remove markdown code blocks if present)
+        const cleanedToc = tocContent.replace(/```json\n?|\n?```/g, '').trim();
+        tableOfContents = JSON.parse(cleanedToc);
+        console.log(`📋 TOC generated: ${tableOfContents.chapters.length} chapters, estimated ${tableOfContents.total_estimated_words} words`);
+      } catch (error) {
+        console.error('❌ Failed to parse TOC JSON:', error);
+        throw new Error('Erreur lors de la génération de la table des matières');
+      }
+
+      // Phase 2: Generate each chapter
+      console.log('✍️ Phase 2: Generating chapters...');
+      const generatedChapters = [];
+      let fullContent = `# ${title}\n\n*Par ${author}*\n\n`;
+      
+      // Generate table of contents section
+      fullContent += '## Table des matières\n\n';
+      tableOfContents.chapters.forEach((chapter: any, index: number) => {
+        if (chapter.type !== 'toc') {
+          fullContent += `${index + 1}. ${chapter.title}\n`;
+        }
+      });
+      fullContent += '\n---\n\n';
+
+      // Generate each chapter content
+      for (let i = 0; i < tableOfContents.chapters.length; i++) {
+        const chapter = tableOfContents.chapters[i];
+        if (chapter.type === 'toc') continue; // Skip TOC entry
+        
+        console.log(`📝 Generating chapter ${i + 1}/${tableOfContents.chapters.length}: "${chapter.title}"`);
+        
+        // Create context-aware prompt for each chapter
+        const chapterPrompt = `Write the complete content for this chapter of the ebook "${title}" by ${author}.
+
+CHAPTER DETAILS:
+- Title: ${chapter.title}
+- Type: ${chapter.type}
+- Summary: ${chapter.summary}
+- Target words: ${chapter.target_words}
+- Template style: ${template}
+
+CONTEXT (Book overview):
+Topic: ${prompt}
+${i > 0 ? `Previous chapter: "${tableOfContents.chapters[i-1].title}"` : ''}
+${i < tableOfContents.chapters.length - 1 ? `Next chapter: "${tableOfContents.chapters[i+1].title}"` : ''}
+
+REQUIREMENTS:
+- Write exactly ${chapter.target_words} words (${chapter.target_words - 100} to ${chapter.target_words + 100} range acceptable)
+- Professional, engaging tone
+- Use proper Markdown formatting (## for chapter title, ### for sections)
 - Include practical examples and actionable insights
-- Ensure professional formatting throughout
-- Create clear section breaks between major parts
+- Ensure smooth flow and coherence with the overall book theme
+- ${chapter.type === 'foreword' ? 'Write as a compelling foreword that hooks the reader' : ''}
+- ${chapter.type === 'intro' ? 'Provide comprehensive introduction setting up the entire book' : ''}
+- ${chapter.type === 'conclusion' ? 'Summarize key points and provide clear next steps' : ''}
 
-Template style: ${template || 'business'}
+Write the COMPLETE chapter content in Markdown format:`;
 
-Generate the COMPLETE content in markdown format with ALL required sections. Be comprehensive but concise:`;
-
-      // Determine if model uses OpenRouter or OpenAI directly
-      const isOpenRouterModel = model.includes('/') || 
-                               model.includes('llama') || 
-                               model.includes('grok') || 
-                               model.includes('deepseek') || 
-                               model.includes('gemini') || 
-                               model.includes('claude');
-      
-      let aiResponse;
-      
-      if (isOpenRouterModel) {
-        // Use OpenRouter for Meta, xAI, DeepSeek, Google, Anthropic models
-        aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://chatelix.com',
-            'X-Title': 'Chatelix Ebook Generator'
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
-              { role: 'user', content: aiPrompt }
-            ],
-            max_tokens: 8000,
-          }),
-        });
-      } else {
-        // Use OpenAI directly for GPT-5, O3, O4, GPT-4.1 models
-        const requestBody: any = {
-          model,
-          messages: [
-            { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
-            { role: 'user', content: aiPrompt }
-          ]
-        };
-
-        // Handle API parameter differences for newer vs legacy models
-        if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4') || model.includes('gpt-4.1')) {
-          requestBody.max_completion_tokens = 8000;
-          // Don't include temperature for newer models
-        } else {
-          requestBody.max_tokens = 8000;
-          requestBody.temperature = 0.7;
-        }
-
-        aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-      }
-
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        content = aiData.choices[0].message.content;
-        
-        // Validate and log word count
-        const wordCount = content.split(/\s+/).length;
-        console.log(`📊 Generated content: ${wordCount} words`);
-        
-        // Accept content as-is (no extension to avoid timeouts)
-        if (wordCount < 3000) {
-          console.warn(`⚠️ Content shorter than expected: ${wordCount} words`);
-          // Add a simple conclusion if too short
-          content = content + '\n\n## Conclusion\n\nCe guide vous a fourni les bases essentielles du sujet traité. Les concepts présentés constituent un fondement solide pour votre développement dans ce domaine.';
-        }
-      } else {
-        const errorText = await aiResponse.text();
-        console.error('❌ AI generation failed:', errorText);
-        
-        // Check for specific errors
-        if (aiResponse.status === 401) {
-          throw new Error('Clé API invalide. Vérifiez votre configuration.');
-        } else if (aiResponse.status === 429) {
-          throw new Error('Limite de taux atteinte. Essayez dans quelques minutes.');
-        } else if (aiResponse.status >= 500) {
-          throw new Error('Erreur du service IA. Essayez avec un autre modèle.');
-        } else {
-          throw new Error(`Erreur IA (${aiResponse.status}): ${errorText}`);
+        try {
+          const chapterResponse = await callAI(chapterPrompt, model, isOpenRouterModel(model));
+          const chapterContent = chapterResponse.choices[0].message.content;
+          
+          generatedChapters.push({
+            ...chapter,
+            content: chapterContent,
+            actual_words: chapterContent.split(/\s+/).length
+          });
+          
+          fullContent += chapterContent + '\n\n';
+          
+          console.log(`✅ Chapter "${chapter.title}" generated: ${chapterContent.split(/\s+/).length} words`);
+          
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+        } catch (error) {
+          console.error(`❌ Failed to generate chapter "${chapter.title}":`, error);
+          // Add fallback content
+          const fallbackContent = `## ${chapter.title}\n\n*Contenu en cours de développement pour ce chapitre important du livre.*\n\n${chapter.summary}`;
+          generatedChapters.push({
+            ...chapter,
+            content: fallbackContent,
+            actual_words: fallbackContent.split(/\s+/).length
+          });
+          fullContent += fallbackContent + '\n\n';
         }
       }
+
+      // Phase 3: Final assembly and optimization
+      console.log('🔧 Phase 3: Final assembly...');
+      const totalWords = fullContent.split(/\s+/).length;
+      console.log(`📊 Final ebook: ${totalWords} words across ${generatedChapters.length} chapters`);
+      
+      content = fullContent;
     } else if (chapters.length > 0) {
       // Use provided chapters
       content = `# ${title}\n\nBy ${author}\n\n`;
@@ -183,8 +292,6 @@ Generate the COMPLETE content in markdown format with ALL required sections. Be 
       mimeType = 'text/html';
       fileExtension = 'html';
     } else if (format === 'epub') {
-      // For EPUB, we'll return the content and let the client handle the conversion
-      // since epub-gen requires browser environment
       generatedContent = content;
       mimeType = 'application/epub+zip';
       fileExtension = 'epub';

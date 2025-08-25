@@ -31,7 +31,7 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
   const { toast } = useToast();
 
   const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
-  const isMinimumLength = wordCount >= 8900;
+  const isMinimumLength = wordCount >= 15000;
 
   useEffect(() => {
     if (ebook) {
@@ -55,19 +55,19 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
       return;
     }
 
-    if (wordCount < 8900) {
+    if (wordCount < 15000) {
       toast({
         title: "Contenu insuffisant",
-        description: `Votre ebook contient ${wordCount} mots. Le minimum requis est de 8 900 mots.`,
+        description: `Votre ebook contient ${wordCount} mots. Le minimum requis est de 15 000 mots.`,
         variant: "destructive",
       });
       return;
     }
 
-    if (wordCount > 15000) {
+    if (wordCount > 25000) {
       toast({
         title: "Contenu trop long",
-        description: `Votre ebook contient ${wordCount} mots. Le maximum recommandé est de 15 000 mots.`,
+        description: `Votre ebook contient ${wordCount} mots. Le maximum recommandé est de 25 000 mots.`,
         variant: "destructive",
       });
       return;
@@ -185,18 +185,18 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
                 </Badge>
               </div>
               <div className="text-sm text-muted-foreground">
-                Fourchette: 8 900 - 15 000 mots
-                {wordCount < 8900 && (
+                Fourchette: 15 000 - 25 000 mots
+                {wordCount < 15000 && (
                   <span className="text-destructive ml-2">
-                    ({(8900 - wordCount).toLocaleString()} mots manquants)
+                    ({(15000 - wordCount).toLocaleString()} mots manquants)
                   </span>
                 )}
-                {wordCount > 15000 && (
+                {wordCount > 25000 && (
                   <span className="text-destructive ml-2">
-                    ({(wordCount - 15000).toLocaleString()} mots en trop)
+                    ({(wordCount - 25000).toLocaleString()} mots en trop)
                   </span>
                 )}
-                {wordCount >= 8900 && wordCount <= 15000 && (
+                {wordCount >= 15000 && wordCount <= 25000 && (
                   <span className="text-green-600 ml-2">✓ Optimal</span>
                 )}
               </div>
