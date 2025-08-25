@@ -51,6 +51,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [useAI, setUseAI] = useState(true);
   const [model, setModel] = useState('gpt-4.1-2025-04-14');
   const [generating, setGenerating] = useState(false);
+  const [generatingPhase, setGeneratingPhase] = useState<'content' | 'cover' | null>(null);
   const [includeCover, setIncludeCover] = useState(true);
   const [includeAbout, setIncludeAbout] = useState(true);
   const [includeToc, setIncludeToc] = useState(true);
@@ -68,8 +69,17 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
     }
 
     setGenerating(true);
+    let generatedEbook = null;
+
     try {
-      const { data, error } = await supabase.functions.invoke('generate-ebook', {
+      // Phase 1: Generate content
+      setGeneratingPhase('content');
+      toast({
+        title: "Phase 1/2",
+        description: "Génération du contenu en cours...",
+      });
+
+      const { data: contentData, error: contentError } = await supabase.functions.invoke('generate-ebook-content', {
         body: {
           title: title.trim(),
           author: author.trim(),
@@ -81,15 +91,53 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           format: 'markdown',
           includeCover,
           includeAbout,
-          includeToc,
-          coverImagePrompt: coverImagePrompt.trim() || null
+          includeToc
         }
       });
 
-      if (error) throw error;
+      if (contentError) throw contentError;
+      generatedEbook = contentData.ebook;
 
       toast({
-        title: "Succès",
+        title: "Phase 1 terminée ✅",
+        description: "Contenu généré avec succès !",
+      });
+
+      // Phase 2: Generate cover image (if requested)
+      if (coverImagePrompt.trim()) {
+        setGeneratingPhase('cover');
+        toast({
+          title: "Phase 2/2",
+          description: "Génération de l'image de couverture...",
+        });
+
+        const { data: coverData, error: coverError } = await supabase.functions.invoke('generate-ebook-cover', {
+          body: {
+            ebookId: generatedEbook.id,
+            coverImagePrompt: coverImagePrompt.trim(),
+            title: title.trim(),
+            author: author.trim()
+          }
+        });
+
+        if (coverError) {
+          console.warn('Cover generation failed:', coverError);
+          toast({
+            title: "Attention",
+            description: "Ebook créé mais génération d'image échouée",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Phase 2 terminée ✅",
+            description: "Image de couverture générée !",
+          });
+        }
+      }
+
+      // Final success
+      toast({
+        title: "Succès complet 🎉",
         description: "Ebook généré avec succès !",
       });
 
@@ -104,11 +152,12 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
       console.error('Error generating ebook:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de générer l'ebook. Vérifiez votre connexion.",
+        description: `Impossible de générer l'ebook: ${error.message}`,
         variant: "destructive",
       });
     } finally {
       setGenerating(false);
+      setGeneratingPhase(null);
     }
   };
 
@@ -309,12 +358,35 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
         </div>
 
         {generating && (
-          <div className="text-center text-sm text-muted-foreground space-y-2">
-            <p>⏳ La génération peut prendre 60-120 secondes...</p>
-            <p>Un ebook complet de 15 000+ mots avec 15-20 chapitres détaillés est en cours de création.</p>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
-            </div>
+          <div className="text-center text-sm text-muted-foreground space-y-3">
+            {generatingPhase === 'content' && (
+              <>
+                <p className="font-medium text-primary">📚 Phase 1/2 : Génération du contenu</p>
+                <p>⏳ La génération peut prendre 60-120 secondes...</p>
+                <p>Un ebook complet de 15 000+ mots avec 15-20 chapitres détaillés est en cours de création.</p>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full animate-pulse w-1/2"></div>
+                </div>
+              </>
+            )}
+            {generatingPhase === 'cover' && (
+              <>
+                <p className="font-medium text-primary">🎨 Phase 2/2 : Génération de l'image de couverture</p>
+                <p>✅ Contenu terminé ! Génération de l'image en cours...</p>
+                <p>⏳ Cette étape prend environ 10-20 secondes.</p>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
+                </div>
+              </>
+            )}
+            {!generatingPhase && (
+              <>
+                <p className="font-medium text-primary">🎉 Finalisation en cours...</p>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full w-full"></div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </CardContent>
