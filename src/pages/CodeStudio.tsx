@@ -601,7 +601,6 @@ ${jsContent}
             className="fixed bottom-4 right-4 h-10 px-4 bg-gradient-primary shadow-elegant"
             onClick={() => setIsChatVisible(true)}
           >
-          >
             <ChevronUp className="w-4 h-4 mr-2" />
             Assistant IA
           </Button>
