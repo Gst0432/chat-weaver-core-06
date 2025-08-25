@@ -15,7 +15,7 @@ import { useMobileNative } from "@/hooks/use-mobile-native";
 import MobileOptimizations from "@/components/MobileOptimizations";
 
 const Index = () => {
-  const [selectedModel, setSelectedModel] = useState("gpt-4-turbo");
+  const [selectedModel, setSelectedModel] = useState("openai/gpt-5-mini-2025-08-07");
   const [authReady, setAuthReady] = useState(false);
   const [personality, setPersonality] = useState<string>(localStorage.getItem('personality') || 'default');
   const [safeMode, setSafeMode] = useState<boolean>((localStorage.getItem('safeMode') || 'true') === 'true');

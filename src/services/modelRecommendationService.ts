@@ -251,6 +251,6 @@ export class ModelRecommendationService {
 
   static getBestModelForTask(analysis: TaskAnalysis): string {
     const recommendations = this.getRecommendations(analysis, 1);
-    return recommendations[0]?.model.id || 'openai/gpt-5-mini-2025-08-07'; // Nouveau défaut GPT-5 Mini
+    return recommendations[0]?.model.id || 'openai/gpt-5-mini-2025-08-07'; // Défaut GPT-5 Mini
   }
 }

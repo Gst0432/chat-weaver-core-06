@@ -77,21 +77,63 @@ Template style: ${template || 'business'}
 
 Generate the COMPLETE FULL-LENGTH content in markdown format with ALL required sections. Do not summarize or abbreviate - provide the complete detailed professional content:`;
 
-      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Determine if model uses OpenRouter or OpenAI directly
+      const isOpenRouterModel = model.includes('/') || 
+                               model.includes('llama') || 
+                               model.includes('grok') || 
+                               model.includes('deepseek') || 
+                               model.includes('gemini') || 
+                               model.includes('claude');
+      
+      let aiResponse;
+      
+      if (isOpenRouterModel) {
+        // Use OpenRouter for Meta, xAI, DeepSeek, Google, Anthropic models
+        aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://chatelix.com',
+            'X-Title': 'Chatelix Ebook Generator'
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
+              { role: 'user', content: aiPrompt }
+            ],
+            max_tokens: 16000,
+          }),
+        });
+      } else {
+        // Use OpenAI directly for GPT-5, O3, O4, GPT-4.1 models
+        const requestBody: any = {
           model,
           messages: [
             { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
             { role: 'user', content: aiPrompt }
-          ],
-          max_completion_tokens: 16000,
-        }),
-      });
+          ]
+        };
+
+        // Handle API parameter differences for newer vs legacy models
+        if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4') || model.includes('gpt-4.1')) {
+          requestBody.max_completion_tokens = 16000;
+          // Don't include temperature for newer models
+        } else {
+          requestBody.max_tokens = 16000;
+          requestBody.temperature = 0.7;
+        }
+
+        aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+      }
 
       if (aiResponse.ok) {
         const aiData = await aiResponse.json();
@@ -110,21 +152,52 @@ ${content}
 
 Please provide the expanded version with much more detailed content:`;
 
-          const extendResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+          // Use same routing logic for extension
+          let extendResponse;
+          
+          if (isOpenRouterModel) {
+            extendResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('OPENROUTER_API_KEY')}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://chatelix.com',
+                'X-Title': 'Chatelix Ebook Generator'
+              },
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: 'system', content: 'You are a professional ebook writer who creates comprehensive, detailed content.' },
+                  { role: 'user', content: extendPrompt }
+                ],
+                max_tokens: 16000,
+              }),
+            });
+          } else {
+            const extendRequestBody: any = {
               model,
               messages: [
                 { role: 'system', content: 'You are a professional ebook writer who creates comprehensive, detailed content.' },
                 { role: 'user', content: extendPrompt }
-              ],
-              max_completion_tokens: 16000,
-            }),
-          });
+              ]
+            };
+
+            if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4') || model.includes('gpt-4.1')) {
+              extendRequestBody.max_completion_tokens = 16000;
+            } else {
+              extendRequestBody.max_tokens = 16000;
+              extendRequestBody.temperature = 0.7;
+            }
+
+            extendResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(extendRequestBody),
+            });
+          }
 
           if (extendResponse.ok) {
             const extendData = await extendResponse.json();

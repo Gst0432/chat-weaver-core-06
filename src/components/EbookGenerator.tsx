@@ -26,9 +26,38 @@ const templates = [
 ];
 
 const models = [
-  { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1 (Recommandé)', description: 'Créatif et détaillé' },
-  { value: 'gpt-5-2025-08-07', label: 'GPT-5', description: 'Plus avancé et nuancé' },
-  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', description: 'Excellent pour la rédaction' }
+  // GPT-5 Series (OpenAI direct)
+  { value: 'gpt-5-2025-08-07', label: 'GPT-5 (Flagship)', description: 'Le plus avancé, créatif et nuancé', category: 'OpenAI Premium' },
+  { value: 'gpt-5-mini-2025-08-07', label: 'GPT-5 Mini (Recommandé)', description: 'Rapide, efficace et économique', category: 'OpenAI Premium' },
+  { value: 'gpt-5-nano-2025-08-07', label: 'GPT-5 Nano (Ultra-rapide)', description: 'Le plus rapide et économique', category: 'OpenAI Premium' },
+  
+  // Reasoning Models (OpenAI direct)
+  { value: 'o3-2025-04-16', label: 'O3 (Raisonnement)', description: 'Analyse complexe et logique avancée', category: 'OpenAI Reasoning' },
+  { value: 'o4-mini-2025-04-16', label: 'O4 Mini (Raisonnement rapide)', description: 'Raisonnement optimisé et efficace', category: 'OpenAI Reasoning' },
+  
+  // Legacy OpenAI
+  { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1', description: 'Fiable et éprouvé', category: 'OpenAI Legacy' },
+  
+  // Meta Llama (OpenRouter)
+  { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B', description: 'Open source puissant et polyvalent', category: 'Meta Open Source' },
+  { value: 'meta-llama/llama-3.2-90b-vision-instruct', label: 'Llama 3.2 90B Vision', description: 'Vision et multimodal avancé', category: 'Meta Open Source' },
+  
+  // xAI Grok (OpenRouter)
+  { value: 'x-ai/grok-beta', label: 'Grok Beta', description: 'IA conversationnelle d\'Elon Musk', category: 'xAI' },
+  { value: 'x-ai/grok-vision-beta', label: 'Grok Vision', description: 'Grok avec capacités visuelles', category: 'xAI' },
+  
+  // DeepSeek (OpenRouter)
+  { value: 'deepseek/deepseek-r1', label: 'DeepSeek R1', description: 'Modèle de raisonnement avancé', category: 'DeepSeek' },
+  { value: 'deepseek/deepseek-v3', label: 'DeepSeek V3', description: 'Dernière génération polyvalente', category: 'DeepSeek' },
+  { value: 'deepseek/deepseek-v3.1', label: 'DeepSeek V3.1', description: 'Version améliorée et optimisée', category: 'DeepSeek' },
+  
+  // Google Gemini (OpenRouter)
+  { value: 'google/gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash', description: 'Google DeepMind dernière génération', category: 'Google' },
+  { value: 'google/gemini-exp-1206', label: 'Gemini Experimental', description: 'Modèle expérimental avancé', category: 'Google' },
+  
+  // Claude (OpenRouter)
+  { value: 'anthropic/claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', description: 'Excellent pour la rédaction', category: 'Anthropic' },
+  { value: 'anthropic/claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', description: 'Rapide et efficace', category: 'Anthropic' }
 ];
 
 export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
@@ -37,7 +66,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [prompt, setPrompt] = useState('');
   const [template, setTemplate] = useState('business');
   const [useAI, setUseAI] = useState(true);
-  const [model, setModel] = useState('gpt-4.1-2025-04-14');
+  const [model, setModel] = useState('gpt-5-mini-2025-08-07');
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
 
@@ -180,14 +209,28 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {models.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      <div className="flex flex-col">
-                        <span>{m.label}</span>
-                        <span className="text-xs text-muted-foreground">{m.description}</span>
+                <SelectContent className="max-h-80">
+                  {Object.entries(
+                    models.reduce((acc, m) => {
+                      const category = m.category || 'Autres';
+                      if (!acc[category]) acc[category] = [];
+                      acc[category].push(m);
+                      return acc;
+                    }, {} as Record<string, typeof models>)
+                  ).map(([category, categoryModels]) => (
+                    <div key={category}>
+                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-muted/50">
+                        {category}
                       </div>
-                    </SelectItem>
+                      {categoryModels.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          <div className="flex flex-col">
+                            <span>{m.label}</span>
+                            <span className="text-xs text-muted-foreground">{m.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </div>
                   ))}
                 </SelectContent>
               </Select>
