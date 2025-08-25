@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Upload, Mic, MicOff, Download, FileText, History, Volume2, Trash2, Loader } from 'lucide-react';
+import { ArrowLeft, Upload, Download, FileText, History, Volume2, Trash2, Loader, Languages, AudioLines, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AudioRecordingControls } from '@/components/AudioRecordingControls';
+import { AudioRecorderService, RecordingState } from '@/services/audioRecorderService';
+import { useRecordingStorage } from '@/hooks/useRecordingStorage';
 import { useToast } from '@/hooks/use-toast';
 
 const SUPPORTED_LANGUAGES = {
@@ -25,6 +27,29 @@ const SUPPORTED_LANGUAGES = {
   'ko': 'Coréen',
   'zh': 'Chinois',
   'ar': 'Arabe'
+};
+
+const TARGET_LANGUAGES = {
+  'fr': 'Français',
+  'en': 'Anglais',
+  'es': 'Espagnol',
+  'de': 'Allemand',
+  'it': 'Italien',
+  'pt': 'Portugais',
+  'ru': 'Russe',
+  'ja': 'Japonais',
+  'ko': 'Coréen',
+  'zh': 'Chinois',
+  'ar': 'Arabe'
+};
+
+const TTS_VOICES = {
+  'alloy': 'Alloy (Neutre)',
+  'echo': 'Echo (Masculin)',
+  'fable': 'Fable (Britannique)',
+  'onyx': 'Onyx (Masculin profond)',
+  'nova': 'Nova (Féminin)',
+  'shimmer': 'Shimmer (Féminin doux)'
 };
 
 interface AudioRecording {
@@ -44,39 +69,73 @@ interface Transcription {
   recording_id: string;
 }
 
+interface Translation {
+  id: string;
+  transcription_id: string;
+  source_language: string;
+  target_language: string;
+  translated_text: string;
+  voiceover_url?: string;
+  created_at: string;
+}
+
 export default function SpeechToText() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { recordings, saveRecording, deleteRecording, saveTranscription } = useRecordingStorage();
+  
+  // Audio recording
+  const [audioRecorder] = useState(() => new AudioRecorderService());
+  const [recordingState, setRecordingState] = useState<RecordingState>({
+    isRecording: false,
+    isPaused: false,
+    duration: 0,
+    size: 0,
+    currentRecording: null
+  });
   
   // State management
   const [sourceLanguage, setSourceLanguage] = useState('auto');
   const [transcription, setTranscription] = useState('');
+  const [translation, setTranslation] = useState('');
+  const [targetLanguage, setTargetLanguage] = useState('en');
+  const [selectedVoice, setSelectedVoice] = useState('alloy');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [processingStep, setProcessingStep] = useState('');
   const [progress, setProgress] = useState(0);
-  const [recordings, setRecordings] = useState<AudioRecording[]>([]);
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
+  const [translations, setTranslations] = useState<Translation[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(null);
 
   // Load history on component mount
   useEffect(() => {
-    loadRecordings();
     loadTranscriptions();
-  }, []);
+    loadTranslations();
+    
+    // Setup audio recorder callback
+    audioRecorder.setStateChangeCallback(setRecordingState);
+    
+    return () => {
+      audioRecorder.setStateChangeCallback(() => {});
+    };
+  }, [audioRecorder]);
 
-  const loadRecordings = async () => {
+  const loadTranslations = async () => {
     try {
       const { data, error } = await supabase
-        .from('audio_recordings')
+        .from('translation_sessions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
 
       if (error) throw error;
-      setRecordings(data || []);
+      setTranslations(data || []);
     } catch (error) {
-      console.error('Failed to load recordings:', error);
+      console.error('Failed to load translations:', error);
     }
   };
 
@@ -110,11 +169,11 @@ export default function SpeechToText() {
       return;
     }
 
-    // Check file size (max 25MB)
-    if (file.size > 25 * 1024 * 1024) {
+    // Check file size (max 1GB)
+    if (file.size > 1024 * 1024 * 1024) {
       toast({
         title: "Fichier trop volumineux",
-        description: "La taille du fichier ne doit pas dépasser 25MB.",
+        description: "La taille du fichier ne doit pas dépasser 1GB.",
         variant: "destructive",
       });
       return;
@@ -164,6 +223,9 @@ export default function SpeechToText() {
       // Save transcription to database
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const recordingId = crypto.randomUUID();
+        setCurrentRecordingId(recordingId);
+        
         const { error: saveError } = await supabase
           .from('transcriptions')
           .insert({
@@ -171,7 +233,7 @@ export default function SpeechToText() {
             original_text: data.text,
             language: sourceLanguage,
             confidence: 0.9,
-            recording_id: crypto.randomUUID()
+            recording_id: recordingId
           });
 
         if (saveError) {
@@ -201,6 +263,134 @@ export default function SpeechToText() {
     }
   };
 
+  // Recording controls
+  const handleStartRecording = async () => {
+    try {
+      await audioRecorder.startRecording();
+    } catch (error) {
+      toast({
+        title: "Erreur d'enregistrement",
+        description: error instanceof Error ? error.message : "Impossible de démarrer l'enregistrement",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      const recording = await audioRecorder.stopRecording();
+      
+      // Transcribe immediately
+      setIsProcessing(true);
+      setProcessingStep('Transcription en cours...');
+      
+      const transcribedText = await AudioRecorderService.transcribeRecording(recording, sourceLanguage === 'auto' ? undefined : sourceLanguage);
+      setTranscription(transcribedText);
+      
+      // Save to database if needed
+      const recordingId = await saveRecording({
+        blob: recording.blob,
+        duration: recording.duration,
+        size: recording.size
+      }, `Recording-${new Date().toISOString()}`);
+      
+      if (recordingId && transcribedText) {
+        await saveTranscription(recordingId, transcribedText, sourceLanguage);
+        setCurrentRecordingId(recordingId);
+      }
+      
+      loadTranscriptions();
+      
+      toast({
+        title: "Enregistrement terminé",
+        description: "Audio transcrit avec succès"
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de l'enregistrement",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+      setProcessingStep('');
+    }
+  };
+
+  // Translation
+  const handleTranslate = async () => {
+    if (!transcription.trim()) return;
+    
+    setIsTranslating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('translate-text', {
+        body: {
+          text: transcription,
+          sourceLang: sourceLanguage === 'auto' ? 'fr' : sourceLanguage,
+          targetLang: targetLanguage
+        }
+      });
+
+      if (error) throw error;
+      setTranslation(data.translatedText);
+      
+      toast({
+        title: "Traduction terminée",
+        description: "Texte traduit avec succès"
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur de traduction",
+        description: "Impossible de traduire le texte",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // Audio export
+  const handleExportAudio = async (text: string, filename: string) => {
+    if (!text.trim()) return;
+    
+    setIsGeneratingAudio(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('text-to-voice', {
+        body: {
+          text,
+          voice: selectedVoice,
+          format: 'mp3'
+        }
+      });
+
+      if (error) throw error;
+      
+      // Convert base64 to blob and download
+      const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(audioBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Audio exporté",
+        description: "Fichier téléchargé avec succès"
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur d'export",
+        description: "Impossible de générer l'audio",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
   // Export transcription as text file
   const exportTranscription = () => {
     if (!transcription.trim()) return;
@@ -210,6 +400,21 @@ export default function SpeechToText() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `transcription-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export translation as text file
+  const exportTranslation = () => {
+    if (!translation.trim()) return;
+
+    const blob = new Blob([translation], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `translation-${targetLanguage}-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -263,7 +468,7 @@ export default function SpeechToText() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto grid gap-6 lg:grid-cols-3">
+      <div className="max-w-7xl mx-auto grid gap-6 lg:grid-cols-4">
         {/* Upload Section */}
         <Card className="border-2 border-muted shadow-lg">
           <CardHeader>
@@ -302,7 +507,7 @@ export default function SpeechToText() {
                   Cliquez ou glissez votre fichier ici
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  MP3, WAV, MP4, MOV (max 25MB)
+                  MP3, WAV, MP4, MOV (max 1GB)
                 </p>
               </div>
               <Input
@@ -318,9 +523,15 @@ export default function SpeechToText() {
             <div className="space-y-2">
               <Label>Enregistrement Direct</Label>
               <div className="p-3 border border-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  Fonctionnalité d'enregistrement bientôt disponible
-                </p>
+                <AudioRecordingControls
+                  recordingState={recordingState}
+                  onStartRecording={handleStartRecording}
+                  onPauseRecording={() => audioRecorder.pauseRecording()}
+                  onResumeRecording={() => audioRecorder.resumeRecording()}
+                  onStopRecording={handleStopRecording}
+                  isTranscribing={isProcessing}
+                  compact={true}
+                />
               </div>
             </div>
 
@@ -355,9 +566,17 @@ export default function SpeechToText() {
                   placeholder="La transcription apparaîtra ici..."
                 />
                 <div className="flex gap-2">
-                  <Button onClick={exportTranscription} className="flex-1">
+                  <Button onClick={exportTranscription} size="sm">
                     <Download className="mr-2 h-4 w-4" />
-                    Exporter TXT
+                    TXT
+                  </Button>
+                  <Button 
+                    onClick={() => handleExportAudio(transcription, 'transcription')}
+                    disabled={isGeneratingAudio}
+                    size="sm"
+                  >
+                    <AudioLines className="mr-2 h-4 w-4" />
+                    {isGeneratingAudio ? 'Génération...' : 'Audio'}
                   </Button>
                 </div>
               </div>
@@ -371,6 +590,103 @@ export default function SpeechToText() {
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Importez un fichier audio pour commencer
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Translation Section */}
+        <Card className="border-2 border-muted shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Languages className="h-5 w-5" />
+              Traduction
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {transcription ? (
+              <div className="space-y-4">
+                {/* Language and Voice Selection */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label>Langue cible</Label>
+                    <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(TARGET_LANGUAGES).map(([code, name]) => (
+                          <SelectItem key={code} value={code}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Voix TTS</Label>
+                    <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(TTS_VOICES).map(([code, name]) => (
+                          <SelectItem key={code} value={code}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Translate Button */}
+                <Button 
+                  onClick={handleTranslate} 
+                  disabled={isTranslating}
+                  className="w-full"
+                >
+                  <Languages className="mr-2 h-4 w-4" />
+                  {isTranslating ? 'Traduction...' : 'Traduire'}
+                </Button>
+
+                {/* Translation Result */}
+                {translation && (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={translation}
+                      onChange={(e) => setTranslation(e.target.value)}
+                      className="min-h-[150px] resize-none"
+                      placeholder="La traduction apparaîtra ici..."
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={exportTranslation} size="sm" variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        TXT
+                      </Button>
+                      <Button 
+                        onClick={() => handleExportAudio(translation, `translation-${targetLanguage}`)}
+                        disabled={isGeneratingAudio}
+                        size="sm"
+                      >
+                        <AudioLines className="mr-2 h-4 w-4" />
+                        {isGeneratingAudio ? 'Génération...' : 'Audio'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
+                  <Languages className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground">
+                  Aucune transcription à traduire
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Transcrivez d'abord un audio
                 </p>
               </div>
             )}
