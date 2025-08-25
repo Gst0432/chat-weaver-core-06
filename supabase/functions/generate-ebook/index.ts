@@ -79,7 +79,7 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
               { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
               { role: 'user', content: prompt }
             ],
-            max_tokens: 4000, // Réduit pour vitesse
+            max_tokens: 2000, // Ultra-réduit pour vitesse maximale
           }),
         });
         
@@ -111,12 +111,12 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
         };
 
         // Handle API parameter differences for newer vs legacy models
-        // Réduire max_tokens pour vitesse (8000 -> 4000)
+        // Ultra-réduit pour vitesse maximale (4000 -> 2000)
         if (modelToUse.includes('gpt-5') || modelToUse.includes('o3') || modelToUse.includes('o4') || modelToUse.includes('gpt-4.1')) {
-          requestBody.max_completion_tokens = 4000;
+          requestBody.max_completion_tokens = 2000;
         } else {
-          requestBody.max_tokens = 4000;
-          requestBody.temperature = 0.7;
+          requestBody.max_tokens = 2000;
+          requestBody.temperature = 0.8; // Légèrement plus créatif mais rapide
         }
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -196,11 +196,11 @@ serve(async (req) => {
       author, 
       format = 'markdown',
       useAI = true,
-      model = 'gpt-5-nano-2025-08-07', // Ultra-rapide par défaut
+      model = 'gpt-4o-mini', // Modèle ultra-rapide optimisé
       template = 'business',
       chapters = [],
       resume_generation_id = null, // For resuming partial generations
-      fast_mode = true // Mode rapide par défaut pour 3mn
+      fast_mode = true // Mode rapide par défaut pour 2mn max
     } = await req.json();
 
     console.log('📚 Starting 3-phase ebook generation:', { title, format, useAI, model, template });
@@ -281,15 +281,15 @@ serve(async (req) => {
 
     console.log('🎯 Generation record created:', generation.id);
 
-    // Background task with 3-minute timeout
+    // Background task with 5-minute timeout pour mode ultra-rapide
     const backgroundGeneration = async () => {
       const startTime = Date.now();
-      const TIMEOUT_MS = 180000; // 3 minutes
+      const TIMEOUT_MS = 300000; // 5 minutes pour sécurité
       
       const checkTimeout = () => {
         const elapsed = Date.now() - startTime;
         if (elapsed > TIMEOUT_MS) {
-          throw new Error('Generation timeout (3 minutes exceeded)');
+          throw new Error('Generation timeout (5 minutes exceeded)');
         }
         return elapsed;
       };
@@ -308,44 +308,31 @@ serve(async (req) => {
           }).eq('id', generation.id);
 
           console.log('📋 Phase 1: Generating table of contents...');
-          // Mode rapide ou complet selon le paramètre
-          const targetWords = fast_mode ? '6,000-10,000' : '15,000-25,000';
-          const chapterCount = fast_mode ? '8-12' : '15-25';
-          const chapterWords = fast_mode ? '400-600' : '800-1200';
+          // Mode ultra-rapide optimisé pour 2 minutes max
+          const targetWords = fast_mode ? '5,000-8,000' : '15,000-25,000';
+          const chapterCount = fast_mode ? '4-6' : '15-25'; // Drastiquement réduit
+          const chapterWords = fast_mode ? '800-1200' : '800-1200';
 
-          const tocPrompt = `Create a detailed table of contents for a professional ebook:
+          const tocPrompt = `Create ${template} ebook structure for "${title}" on ${prompt}.
 
-Title: ${title}
-Author: ${author}
-Topic: ${prompt}
-Template: ${template}
+ULTRA-FAST MODE (2min max):
+- ${chapterCount} chapters total
+- ${targetWords} words
+- Structure: Intro + ${fast_mode ? '3-4' : '15-20'} core + Conclusion
 
-REQUIREMENTS FOR ${fast_mode ? 'FAST MODE (3-minute generation)' : 'FULL MODE'}:
-- Target: ${targetWords} words total
-- ${chapterCount} chapters (${chapterWords} words each)
-- Professional structure suitable for publication
-
-MANDATORY STRUCTURE FOR ${fast_mode ? 'FAST MODE' : 'FULL MODE'}:
-1. Avant-propos (${fast_mode ? '300-400' : '400-600'} mots)
-2. Table des matières (auto-generated)
-3. Introduction (${fast_mode ? '400-600' : '800-1000'} mots)
-4. ${fast_mode ? '6-8' : '15-20'} core chapters (${chapterWords} mots each) 
-5. Conclusion (${fast_mode ? '300-500' : '600-800'} mots)
-
-Return ONLY a JSON object with this exact structure:
+JSON only:
 {
   "title": "${title}",
   "chapters": [
-    {"id": 1, "type": "foreword", "title": "Avant-propos", "summary": "Brief description", "target_words": 500},
-    {"id": 2, "type": "intro", "title": "Introduction", "summary": "Brief description", "target_words": 900},
-    {"id": 3, "type": "chapter", "title": "Chapter title", "summary": "What this chapter covers", "target_words": 1000},
-    ...
-    {"id": "last", "type": "conclusion", "title": "Conclusion", "summary": "Brief description", "target_words": 700}
+    {"id": 1, "type": "intro", "title": "Introduction", "summary": "Core overview", "target_words": ${fast_mode ? '1000' : '900'}},
+    {"id": 2, "type": "chapter", "title": "Core Chapter 1", "summary": "Key concept", "target_words": ${fast_mode ? '1200' : '1000'}},
+    {"id": 3, "type": "chapter", "title": "Core Chapter 2", "summary": "Key concept", "target_words": ${fast_mode ? '1200' : '1000'}},
+    ${fast_mode ? '{"id": 4, "type": "chapter", "title": "Core Chapter 3", "summary": "Key concept", "target_words": 1200},' : ''}
+    ${fast_mode ? '{"id": 5, "type": "chapter", "title": "Core Chapter 4", "summary": "Key concept", "target_words": 1200},' : ''}
+    {"id": ${fast_mode ? '6' : 'last'}, "type": "conclusion", "title": "Conclusion", "summary": "Next steps", "target_words": ${fast_mode ? '800' : '700'}}
   ],
-  "total_estimated_words": estimated_total
-}
-
-Focus on ${template} style content. Be comprehensive and professional.`;
+  "total_estimated_words": ${fast_mode ? '6400' : '15000'}
+}`;
 
           // Phase 1: Generate Table of Contents
           const tocResponse = await callAI(tocPrompt, model, isOpenRouterModel(model));
@@ -388,94 +375,106 @@ Focus on ${template} style content. Be comprehensive and professional.`;
           });
           fullContent += '\n---\n\n';
 
-          // Generate each chapter content
-          for (let i = 0; i < tableOfContents.chapters.length; i++) {
-            const chapter = tableOfContents.chapters[i];
-            if (chapter.type === 'toc') continue; // Skip TOC entry
+          // 🚀 GÉNÉRATION PARALLÈLE ULTRA-RAPIDE (2-3 chapitres à la fois)
+          const batchSize = fast_mode ? 3 : 2; // Plus agressif en mode rapide
+          const validChapters = tableOfContents.chapters.filter(ch => ch.type !== 'toc');
+          
+          for (let batchStart = 0; batchStart < validChapters.length; batchStart += batchSize) {
+            const batch = validChapters.slice(batchStart, batchStart + batchSize);
+            checkTimeout(); // Check before each batch
             
-            // Vérifier timeout avant chaque chapitre
-            checkTimeout();
+            console.log(`🚀 Génération parallèle batch ${Math.floor(batchStart/batchSize) + 1}: ${batch.length} chapitres`);
             
-            console.log(`📝 Generating chapter ${i + 1}/${tableOfContents.chapters.length}: "${chapter.title}"`);
+            // Generate chapters in parallel
+            const batchPromises = batch.map(async (chapter, batchIndex) => {
+              const globalIndex = batchStart + batchIndex;
+              
+              console.log(`📝 Generating chapter ${globalIndex + 1}/${validChapters.length}: "${chapter.title}"`);
+              
+              // Prompt ultra-optimisé pour vitesse
+              const chapterPrompt = `Write ${chapter.target_words} words for "${chapter.title}" in ${template} style.
+
+Topic: ${prompt}
+Type: ${chapter.type}
+Summary: ${chapter.summary}
+
+Requirements:
+- ${chapter.target_words} words exactly
+- Markdown format (## title, ### sections)
+- Professional ${template} tone
+- ${chapter.type === 'intro' ? 'Hook readers, set expectations' : ''}
+- ${chapter.type === 'conclusion' ? 'Summarize, provide next steps' : ''}
+- Practical, actionable content
+
+Write complete chapter:`;
+
+              try {
+                const response = await callAI(chapterPrompt, model, isOpenRouterModel(model));
+                const content = response.choices[0].message.content;
+                const wordCount = content.split(/\s+/).length;
+                
+                // Save immediately for recovery
+                await supabase.from('ebook_chapters').insert({
+                  generation_id: generation.id,
+                  chapter_number: globalIndex + 1,
+                  chapter_title: chapter.title,
+                  chapter_content: content,
+                  chapter_type: chapter.type,
+                  word_count: wordCount
+                });
+                
+                console.log(`✅ Chapter "${chapter.title}" generated: ${wordCount} words (saved checkpoint)`);
+                
+                return {
+                  ...chapter,
+                  content: content,
+                  actual_words: wordCount,
+                  order: globalIndex
+                };
+              } catch (error) {
+                console.error(`❌ Error generating chapter "${chapter.title}":`, error);
+                
+                // Fallback avec contenu minimal mais valide
+                const fallbackContent = `## ${chapter.title}
+
+Ce chapitre traite de ${chapter.summary}.
+
+*[Contenu en cours de génération - Fallback mode activé]*
+
+Les points clés à retenir :
+- Point important 1
+- Point important 2  
+- Point important 3
+
+---`;
+                
+                return {
+                  ...chapter,
+                  content: fallbackContent,
+                  actual_words: fallbackContent.split(/\s+/).length,
+                  order: globalIndex,
+                  fallback: true
+                };
+              }
+            });
+            
+            // Wait for batch completion
+            const batchResults = await Promise.all(batchPromises);
+            generatedChapters.push(...batchResults);
             
             // Update progress
-            const progressPercent = Math.round(20 + (i / tableOfContents.chapters.length) * 70);
+            const completedChapters = batchStart + batch.length;
+            const progressPercent = Math.round(20 + (completedChapters / validChapters.length) * 70);
             await supabase.from('ebook_generations').update({
-              current_chapter: i + 1,
+              current_chapter: completedChapters,
               progress: progressPercent
             }).eq('id', generation.id);
-            
-            // Create context-aware prompt for each chapter
-            const chapterPrompt = `Write the complete content for this chapter of the ebook "${title}" by ${author}.
-
-CHAPTER DETAILS:
-- Title: ${chapter.title}
-- Type: ${chapter.type}
-- Summary: ${chapter.summary}
-- Target words: ${chapter.target_words}
-- Template style: ${template}
-
-CONTEXT (Book overview):
-Topic: ${prompt}
-${i > 0 ? `Previous chapter: "${tableOfContents.chapters[i-1].title}"` : ''}
-${i < tableOfContents.chapters.length - 1 ? `Next chapter: "${tableOfContents.chapters[i+1].title}"` : ''}
-
-REQUIREMENTS:
-- Write exactly ${chapter.target_words} words (${chapter.target_words - 100} to ${chapter.target_words + 100} range acceptable)
-- Professional, engaging tone
-- Use proper Markdown formatting (## for chapter title, ### for sections)
-- Include practical examples and actionable insights
-- Ensure smooth flow and coherence with the overall book theme
-- ${chapter.type === 'foreword' ? 'Write as a compelling foreword that hooks the reader' : ''}
-- ${chapter.type === 'intro' ? 'Provide comprehensive introduction setting up the entire book' : ''}
-- ${chapter.type === 'conclusion' ? 'Summarize key points and provide clear next steps' : ''}
-
-Write the COMPLETE chapter content in Markdown format:`;
-
-            try {
-              const chapterResponse = await callAI(chapterPrompt, model, isOpenRouterModel(model));
-              const chapterContent = chapterResponse.choices[0].message.content;
-              const wordCount = chapterContent.split(/\s+/).length;
-              
-              // 🎯 CHECKPOINT: Save each chapter immediately for recovery
-              await supabase.from('ebook_chapters').insert({
-                generation_id: generation.id,
-                chapter_number: i + 1,
-                chapter_title: chapter.title,
-                chapter_content: chapterContent,
-                chapter_type: chapter.type,
-                word_count: wordCount
-              });
-              
-              generatedChapters.push({
-                ...chapter,
-                content: chapterContent,
-                actual_words: wordCount
-              });
-              
-              fullContent += chapterContent + '\n\n';
-              
-              console.log(`✅ Chapter "${chapter.title}" generated: ${wordCount} words (saved checkpoint)`);
-              
-              // Update generated chapters count
-              await supabase.from('ebook_generations').update({
-                generated_chapters: i + 1
-              }).eq('id', generation.id);
-              
-              // Small delay to avoid rate limiting (réduit pour vitesse)
-              await new Promise(resolve => setTimeout(resolve, 200));
-              
-            } catch (error) {
-              console.error(`❌ Failed to generate chapter "${chapter.title}":`, error);
-              // Add fallback content
-              const fallbackContent = `## ${chapter.title}\n\n*Contenu en cours de développement pour ce chapitre important du livre.*\n\n${chapter.summary}`;
-              generatedChapters.push({
-                ...chapter,
-                content: fallbackContent,
-                actual_words: fallbackContent.split(/\s+/).length
-              });
-              fullContent += fallbackContent + '\n\n';
-            }
+          }
+          
+          // Sort chapters by order and build content
+          generatedChapters.sort((a, b) => a.order - b.order);
+          for (const chapter of generatedChapters) {
+            fullContent += chapter.content + '\n\n';
           }
 
           // Phase 3: Final assembly and optimization
