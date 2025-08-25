@@ -112,6 +112,74 @@ export type Database = {
           },
         ]
       }
+      ebook_generations: {
+        Row: {
+          author: string
+          completed_at: string | null
+          created_at: string
+          current_chapter: number | null
+          ebook_id: string | null
+          error_message: string | null
+          generated_chapters: number | null
+          id: string
+          model: string
+          progress: number
+          prompt: string
+          status: string
+          template: string
+          title: string
+          total_chapters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author: string
+          completed_at?: string | null
+          created_at?: string
+          current_chapter?: number | null
+          ebook_id?: string | null
+          error_message?: string | null
+          generated_chapters?: number | null
+          id?: string
+          model: string
+          progress?: number
+          prompt: string
+          status?: string
+          template: string
+          title: string
+          total_chapters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author?: string
+          completed_at?: string | null
+          created_at?: string
+          current_chapter?: number | null
+          ebook_id?: string | null
+          error_message?: string | null
+          generated_chapters?: number | null
+          id?: string
+          model?: string
+          progress?: number
+          prompt?: string
+          status?: string
+          template?: string
+          title?: string
+          total_chapters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebook_generations_ebook_id_fkey"
+            columns: ["ebook_id"]
+            isOneToOne: false
+            referencedRelation: "ebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ebooks: {
         Row: {
           author: string

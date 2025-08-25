@@ -131,15 +131,48 @@ serve(async (req) => {
       );
     }
 
-    let content = '';
+    // Create generation record
+    const { data: generation, error: generationError } = await supabase
+      .from('ebook_generations')
+      .insert({
+        user_id: user.id,
+        title,
+        author,
+        prompt,
+        model,
+        template,
+        status: 'pending'
+      })
+      .select()
+      .single();
 
-    // Generate content with AI using 3-phase architecture
-    if (useAI && prompt) {
-      console.log('🚀 Starting 3-phase ebook generation...');
-      
-      // PHASE 1: Generate complete table of contents
-      console.log('📋 Phase 1: Generating table of contents...');
-      const tocPrompt = `Create a detailed table of contents for a professional ebook:
+    if (generationError) {
+      console.error('❌ Generation record creation error:', generationError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create generation record' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    console.log('🎯 Generation record created:', generation.id);
+
+    // Background task for long ebook generation
+    const backgroundGeneration = async () => {
+      try {
+        let content = '';
+
+        // Generate content with AI using 3-phase architecture
+        if (useAI && prompt) {
+          console.log('🚀 Starting 3-phase ebook generation...');
+          
+          // PHASE 1: Generate complete table of contents
+          await supabase.from('ebook_generations').update({
+            status: 'generating_toc',
+            progress: 10
+          }).eq('id', generation.id);
+
+          console.log('📋 Phase 1: Generating table of contents...');
+          const tocPrompt = `Create a detailed table of contents for a professional ebook:
 
 Title: ${title}
 Author: ${author}
@@ -155,7 +188,7 @@ MANDATORY STRUCTURE:
 1. Avant-propos (400-600 mots)
 2. Table des matières (auto-generated)
 3. Introduction (800-1000 mots)
-4. 15-20 core chapters (800-1200 mots each)
+4. 15-20 core chapters (800-1200 mots each) 
 5. Conclusion (600-800 mots)
 
 Return ONLY a JSON object with this exact structure:
@@ -173,44 +206,63 @@ Return ONLY a JSON object with this exact structure:
 
 Focus on ${template} style content. Be comprehensive and professional.`;
 
-      // Phase 1: Generate Table of Contents
-      const tocResponse = await callAI(tocPrompt, model, isOpenRouterModel(model));
-      let tableOfContents;
-      
-      try {
-        const tocContent = tocResponse.choices[0].message.content;
-        // Clean JSON response (remove markdown code blocks if present)
-        const cleanedToc = tocContent.replace(/```json\n?|\n?```/g, '').trim();
-        tableOfContents = JSON.parse(cleanedToc);
-        console.log(`📋 TOC generated: ${tableOfContents.chapters.length} chapters, estimated ${tableOfContents.total_estimated_words} words`);
-      } catch (error) {
-        console.error('❌ Failed to parse TOC JSON:', error);
-        throw new Error('Erreur lors de la génération de la table des matières');
-      }
+          // Phase 1: Generate Table of Contents
+          const tocResponse = await callAI(tocPrompt, model, isOpenRouterModel(model));
+          let tableOfContents;
+          
+          try {
+            const tocContent = tocResponse.choices[0].message.content;
+            // Clean JSON response (remove markdown code blocks if present)
+            const cleanedToc = tocContent.replace(/```json\n?|\n?```/g, '').trim();
+            tableOfContents = JSON.parse(cleanedToc);
+            console.log(`📋 TOC generated: ${tableOfContents.chapters.length} chapters, estimated ${tableOfContents.total_estimated_words} words`);
+            
+            // Update generation status
+            await supabase.from('ebook_generations').update({
+              status: 'generating_chapters',
+              progress: 20,
+              total_chapters: tableOfContents.chapters.length
+            }).eq('id', generation.id);
+            
+          } catch (error) {
+            console.error('❌ Failed to parse TOC JSON:', error);
+            await supabase.from('ebook_generations').update({
+              status: 'failed',
+              error_message: 'Erreur lors de la génération de la table des matières'
+            }).eq('id', generation.id);
+            throw new Error('Erreur lors de la génération de la table des matières');
+          }
 
-      // Phase 2: Generate each chapter
-      console.log('✍️ Phase 2: Generating chapters...');
-      const generatedChapters = [];
-      let fullContent = `# ${title}\n\n*Par ${author}*\n\n`;
-      
-      // Generate table of contents section
-      fullContent += '## Table des matières\n\n';
-      tableOfContents.chapters.forEach((chapter: any, index: number) => {
-        if (chapter.type !== 'toc') {
-          fullContent += `${index + 1}. ${chapter.title}\n`;
-        }
-      });
-      fullContent += '\n---\n\n';
+          // Phase 2: Generate each chapter
+          console.log('✍️ Phase 2: Generating chapters...');
+          const generatedChapters = [];
+          let fullContent = `# ${title}\n\n*Par ${author}*\n\n`;
+          
+          // Generate table of contents section
+          fullContent += '## Table des matières\n\n';
+          tableOfContents.chapters.forEach((chapter: any, index: number) => {
+            if (chapter.type !== 'toc') {
+              fullContent += `${index + 1}. ${chapter.title}\n`;
+            }
+          });
+          fullContent += '\n---\n\n';
 
-      // Generate each chapter content
-      for (let i = 0; i < tableOfContents.chapters.length; i++) {
-        const chapter = tableOfContents.chapters[i];
-        if (chapter.type === 'toc') continue; // Skip TOC entry
-        
-        console.log(`📝 Generating chapter ${i + 1}/${tableOfContents.chapters.length}: "${chapter.title}"`);
-        
-        // Create context-aware prompt for each chapter
-        const chapterPrompt = `Write the complete content for this chapter of the ebook "${title}" by ${author}.
+          // Generate each chapter content
+          for (let i = 0; i < tableOfContents.chapters.length; i++) {
+            const chapter = tableOfContents.chapters[i];
+            if (chapter.type === 'toc') continue; // Skip TOC entry
+            
+            console.log(`📝 Generating chapter ${i + 1}/${tableOfContents.chapters.length}: "${chapter.title}"`);
+            
+            // Update progress
+            const progressPercent = Math.round(20 + (i / tableOfContents.chapters.length) * 70);
+            await supabase.from('ebook_generations').update({
+              current_chapter: i + 1,
+              progress: progressPercent
+            }).eq('id', generation.id);
+            
+            // Create context-aware prompt for each chapter
+            const chapterPrompt = `Write the complete content for this chapter of the ebook "${title}" by ${author}.
 
 CHAPTER DETAILS:
 - Title: ${chapter.title}
@@ -236,94 +288,111 @@ REQUIREMENTS:
 
 Write the COMPLETE chapter content in Markdown format:`;
 
-        try {
-          const chapterResponse = await callAI(chapterPrompt, model, isOpenRouterModel(model));
-          const chapterContent = chapterResponse.choices[0].message.content;
+            try {
+              const chapterResponse = await callAI(chapterPrompt, model, isOpenRouterModel(model));
+              const chapterContent = chapterResponse.choices[0].message.content;
+              
+              generatedChapters.push({
+                ...chapter,
+                content: chapterContent,
+                actual_words: chapterContent.split(/\s+/).length
+              });
+              
+              fullContent += chapterContent + '\n\n';
+              
+              console.log(`✅ Chapter "${chapter.title}" generated: ${chapterContent.split(/\s+/).length} words`);
+              
+              // Update generated chapters count
+              await supabase.from('ebook_generations').update({
+                generated_chapters: i + 1
+              }).eq('id', generation.id);
+              
+              // Small delay to avoid rate limiting
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+            } catch (error) {
+              console.error(`❌ Failed to generate chapter "${chapter.title}":`, error);
+              // Add fallback content
+              const fallbackContent = `## ${chapter.title}\n\n*Contenu en cours de développement pour ce chapitre important du livre.*\n\n${chapter.summary}`;
+              generatedChapters.push({
+                ...chapter,
+                content: fallbackContent,
+                actual_words: fallbackContent.split(/\s+/).length
+              });
+              fullContent += fallbackContent + '\n\n';
+            }
+          }
+
+          // Phase 3: Final assembly and optimization
+          console.log('🔧 Phase 3: Final assembly...');
+          await supabase.from('ebook_generations').update({
+            status: 'assembling',
+            progress: 95
+          }).eq('id', generation.id);
           
-          generatedChapters.push({
-            ...chapter,
-            content: chapterContent,
-            actual_words: chapterContent.split(/\s+/).length
+          const totalWords = fullContent.split(/\s+/).length;
+          console.log(`📊 Final ebook: ${totalWords} words across ${generatedChapters.length} chapters`);
+          
+          content = fullContent;
+        } else if (chapters.length > 0) {
+          // Use provided chapters
+          content = `# ${title}\n\nBy ${author}\n\n`;
+          chapters.forEach((chapter: any, index: number) => {
+            content += `## Chapter ${index + 1}: ${chapter.title}\n\n${chapter.content}\n\n`;
           });
-          
-          fullContent += chapterContent + '\n\n';
-          
-          console.log(`✅ Chapter "${chapter.title}" generated: ${chapterContent.split(/\s+/).length} words`);
-          
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-        } catch (error) {
-          console.error(`❌ Failed to generate chapter "${chapter.title}":`, error);
-          // Add fallback content
-          const fallbackContent = `## ${chapter.title}\n\n*Contenu en cours de développement pour ce chapitre important du livre.*\n\n${chapter.summary}`;
-          generatedChapters.push({
-            ...chapter,
-            content: fallbackContent,
-            actual_words: fallbackContent.split(/\s+/).length
-          });
-          fullContent += fallbackContent + '\n\n';
+        } else {
+          content = `# ${title}\n\nBy ${author}\n\n## Introduction\n\n${prompt || 'Content to be developed...'}`;
         }
+
+        // Save to database
+        const { data: ebook, error: dbError } = await supabase
+          .from('ebooks')
+          .insert({
+            user_id: user.id,
+            title,
+            author,
+            content_markdown: content
+          })
+          .select()
+          .single();
+
+        if (dbError) {
+          console.error('❌ Database error:', dbError);
+          await supabase.from('ebook_generations').update({
+            status: 'failed',
+            error_message: 'Failed to save ebook'
+          }).eq('id', generation.id);
+          return;
+        }
+
+        // Mark generation as completed
+        await supabase.from('ebook_generations').update({
+          status: 'completed',
+          progress: 100,
+          ebook_id: ebook.id,
+          completed_at: new Date().toISOString()
+        }).eq('id', generation.id);
+
+        console.log('✅ Ebook generation completed successfully!');
+
+      } catch (error) {
+        console.error('❌ Background generation error:', error);
+        await supabase.from('ebook_generations').update({
+          status: 'failed',
+          error_message: error.message
+        }).eq('id', generation.id);
       }
+    };
 
-      // Phase 3: Final assembly and optimization
-      console.log('🔧 Phase 3: Final assembly...');
-      const totalWords = fullContent.split(/\s+/).length;
-      console.log(`📊 Final ebook: ${totalWords} words across ${generatedChapters.length} chapters`);
-      
-      content = fullContent;
-    } else if (chapters.length > 0) {
-      // Use provided chapters
-      content = `# ${title}\n\nBy ${author}\n\n`;
-      chapters.forEach((chapter: any, index: number) => {
-        content += `## Chapter ${index + 1}: ${chapter.title}\n\n${chapter.content}\n\n`;
-      });
-    } else {
-      content = `# ${title}\n\nBy ${author}\n\n## Introduction\n\n${prompt || 'Content to be developed...'}`;
-    }
+    // Start background task
+    EdgeRuntime.waitUntil(backgroundGeneration());
 
-    // Generate different formats
-    let generatedContent = content;
-    let mimeType = 'text/markdown';
-    let fileExtension = 'md';
-
-    if (format === 'html') {
-      generatedContent = convertMarkdownToHTML(content, title, author);
-      mimeType = 'text/html';
-      fileExtension = 'html';
-    } else if (format === 'epub') {
-      generatedContent = content;
-      mimeType = 'application/epub+zip';
-      fileExtension = 'epub';
-    }
-
-    // Save to database
-    const { data: ebook, error: dbError } = await supabase
-      .from('ebooks')
-      .insert({
-        user_id: user.id,
-        title,
-        author,
-        content_markdown: content
-      })
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('Database error:', dbError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to save ebook' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-
+    // Return immediate response with generation ID
     return new Response(
       JSON.stringify({
-        ebook,
-        content: generatedContent,
-        format,
-        mimeType,
-        fileExtension
+        generation_id: generation.id,
+        status: 'started',
+        message: 'Ebook generation started in background'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

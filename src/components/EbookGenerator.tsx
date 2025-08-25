@@ -6,9 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Wand2, BookOpen, Sparkles } from 'lucide-react';
+import { Wand2, BookOpen, Sparkles, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useEbookGeneration } from '@/hooks/useEbookGeneration';
+import { Progress } from '@/components/ui/progress';
 
 interface EbookGeneratorProps {
   onEbookGenerated: () => void;
@@ -68,12 +70,16 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [useAI, setUseAI] = useState(true);
   const [model, setModel] = useState('gpt-5-mini-2025-08-07');
   const [generating, setGenerating] = useState(false);
+  const [generationId, setGenerationId] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  const { generation, getStatusMessage, getEstimatedTimeRemaining, isCompleted, isFailed } = 
+    useEbookGeneration(generationId || undefined);
 
   const handleGenerate = async () => {
     if (!title.trim() || !author.trim() || !prompt.trim()) {
       toast({
-        title: "Erreur",
+        title: "Erreur", 
         description: "Veuillez remplir tous les champs requis",
         variant: "destructive",
       });
@@ -81,48 +87,39 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
     }
 
     setGenerating(true);
+    setGenerationId(null);
+    
     try {
       console.log('🚀 Starting ebook generation...', { model, template });
       
-      const { data, error } = await Promise.race([
-        supabase.functions.invoke('generate-ebook', {
-          body: {
-            title: title.trim(),
-            author: author.trim(),
-            prompt: prompt.trim(),
-            useAI,
-            model,
-            template,
-            format: 'markdown'
-          }
-        }),
-        // Timeout étendu pour génération complète (10 minutes)
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout de génération (10 minutes)')), 600000)
-        )
-      ]) as any;
+      const { data, error } = await supabase.functions.invoke('generate-ebook', {
+        body: {
+          title: title.trim(),
+          author: author.trim(),
+          prompt: prompt.trim(),
+          useAI,
+          model,
+          template,
+          format: 'markdown'
+        }
+      });
 
       if (error) throw error;
 
-      toast({
-        title: "Succès",
-        description: "Ebook généré avec succès !",
-      });
+      if (data?.generation_id) {
+        setGenerationId(data.generation_id);
+        toast({
+          title: "Génération démarrée",
+          description: "Votre ebook est en cours de génération en arrière-plan.",
+        });
+      }
 
-      // Reset form
-      setTitle('');
-      setAuthor('');
-      setPrompt('');
-      
-      onEbookGenerated();
     } catch (error: any) {
-      console.error('❌ Error generating ebook:', error);
+      console.error('❌ Error starting ebook generation:', error);
       
-      let errorMessage = "Impossible de générer l'ebook.";
+      let errorMessage = "Impossible de démarrer la génération de l'ebook.";
       
-      if (error.message?.includes('Timeout')) {
-        errorMessage = "Génération trop longue. Essayez avec un prompt plus court ou un modèle plus rapide.";
-      } else if (error.message?.includes('Clé API invalide')) {
+      if (error.message?.includes('Clé API invalide')) {
         errorMessage = "Clé API invalide. Contactez l'administrateur.";
       } else if (error.message?.includes('Limite')) {
         errorMessage = "Limite atteinte. Essayez dans quelques minutes.";
@@ -135,10 +132,39 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
         description: errorMessage,
         variant: "destructive",
       });
-    } finally {
+      
       setGenerating(false);
     }
   };
+
+  // Handle completion and failure
+  if (isCompleted && generating) {
+    setGenerating(false);
+    setGenerationId(null);
+    
+    toast({
+      title: "Succès",
+      description: "Ebook généré avec succès !",
+    });
+
+    // Reset form
+    setTitle('');
+    setAuthor('');
+    setPrompt('');
+    
+    onEbookGenerated();
+  }
+
+  if (isFailed && generating) {
+    setGenerating(false);
+    setGenerationId(null);
+    
+    toast({
+      title: "Erreur",
+      description: generation?.error_message || "La génération a échoué",
+      variant: "destructive",
+    });
+  }
 
   const selectedTemplate = templates.find(t => t.value === template);
 
@@ -279,17 +305,40 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           </Button>
         </div>
 
-        {generating && (
-          <div className="text-center text-sm text-muted-foreground space-y-2">
-            <p>⏳ Génération avancée en cours (3-8 minutes)...</p>
-            <div className="space-y-1">
-              <p>📋 Phase 1: Création de la table des matières complète</p>
-              <p>✍️ Phase 2: Génération chapitre par chapitre (15-25 chapitres)</p>
-              <p>🔧 Phase 3: Assemblage et optimisation finale</p>
+        {(generating || generation) && (
+          <div className="text-center text-sm space-y-4 p-4 border rounded-lg bg-muted/20">
+            <div className="flex items-center justify-center gap-2">
+              {generation?.status === 'completed' ? (
+                <CheckCircle className="w-5 h-5 text-green-500" />
+              ) : generation?.status === 'failed' ? (
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              ) : (
+                <Clock className="w-5 h-5 text-primary animate-pulse" />
+              )}
+              <span className="font-medium">{getStatusMessage()}</span>
             </div>
-            <p className="font-medium">Ebook de 15 000-25 000 mots en préparation...</p>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-gradient-primary h-2 rounded-full animate-pulse w-2/3"></div>
+            
+            {generation && generation.status !== 'completed' && generation.status !== 'failed' && (
+              <>
+                <div className="space-y-2">
+                  <Progress value={generation.progress} className="w-full" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{generation.progress}% complété</span>
+                    <span>ETA: {getEstimatedTimeRemaining()}</span>
+                  </div>
+                </div>
+                
+                {generation.total_chapters > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    Chapitre {generation.current_chapter || 0} sur {generation.total_chapters}
+                  </div>
+                )}
+              </>
+            )}
+            
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>📚 Génération d'un ebook professionnel de 15 000-25 000 mots</p>
+              <p>🔄 La génération continue en arrière-plan, vous pouvez fermer cette page</p>
             </div>
           </div>
         )}
