@@ -220,23 +220,19 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
-              {!isOnChatPage && (
-                <>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => handleNavigation('/dalle-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
-                      <Image className="w-4 h-4" />
-                      {!isCollapsed && <span className="ml-2">Studio DALL-E</span>}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  
-                  <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => handleNavigation('/tts-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
-                      <Volume2 className="w-4 h-4" />
-                      {!isCollapsed && <span className="ml-2">Studio TTS</span>}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </>
-              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/dalle-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Image className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Studio DALL-E</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/tts-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Volume2 className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Studio TTS</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={toggleVideoGenerator} className="w-full justify-start text-muted-foreground hover:text-foreground">
