@@ -49,7 +49,8 @@ export default function CodeStudio() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('html');
   const [viewMode, setViewMode] = useState<ViewMode>('desktop');
-  const [showChat, setShowChat] = useState(true);
+  const [isChatVisible, setIsChatVisible] = useState(false);
+  const [framework, setFramework] = useState<'react' | 'vanilla'>('react');
   
   // Code content state
   const [htmlContent, setHtmlContent] = useState('<!DOCTYPE html>\n<html lang="fr">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Nouveau Projet</title>\n</head>\n<body>\n    <h1>Bienvenue dans Code Studio</h1>\n    <p>Commencez à créer votre application web ici.</p>\n</body>\n</html>');
@@ -395,7 +396,7 @@ ${jsContent}
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="vertical" className="h-full">
           {/* Code Editor Area */}
-          <ResizablePanel defaultSize={showChat ? 70 : 100} minSize={50}>
+          <ResizablePanel defaultSize={isChatVisible ? 70 : 100} minSize={50}>
             <ResizablePanelGroup direction="horizontal" className="h-full">
               {/* Left Panel - Saved Codes */}
               <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
@@ -561,7 +562,7 @@ ${jsContent}
           </ResizablePanel>
 
           {/* Chat Panel */}
-          {showChat && (
+          {isChatVisible && (
             <>
               <ResizableHandle />
               <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
@@ -570,7 +571,7 @@ ${jsContent}
                     variant="ghost"
                     size="sm"
                     className="absolute top-2 right-2 z-10 h-6 w-6 p-0"
-                    onClick={() => setShowChat(false)}
+                    onClick={() => setIsChatVisible(false)}
                   >
                     <ChevronDown className="w-4 h-4" />
                   </Button>
@@ -583,6 +584,8 @@ ${jsContent}
                     activeTab={activeTab}
                     onInsertCode={handleInsertCode}
                     selectedModel="gpt-4.1-2025-04-14"
+                    framework={framework}
+                    onFrameworkChange={setFramework}
                   />
                 </div>
               </ResizablePanel>
@@ -591,12 +594,13 @@ ${jsContent}
         </ResizablePanelGroup>
         
         {/* Chat Toggle Button */}
-        {!showChat && (
+        {!isChatVisible && (
           <Button
             variant="default"
             size="sm"
             className="fixed bottom-4 right-4 h-10 px-4 bg-gradient-primary shadow-elegant"
-            onClick={() => setShowChat(true)}
+            onClick={() => setIsChatVisible(true)}
+          >
           >
             <ChevronUp className="w-4 h-4 mr-2" />
             Assistant IA

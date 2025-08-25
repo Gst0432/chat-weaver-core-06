@@ -28,6 +28,11 @@ export interface GeneratedApp {
   html: string;
   css: string;
   javascript: string;
+  // React files
+  packageJson?: string;
+  appJsx?: string;
+  mainJsx?: string;
+  indexHtml?: string;
   databaseSchema?: string;
   images: Array<{
     url: string;
@@ -36,6 +41,7 @@ export interface GeneratedApp {
   }>;
   features: string[];
   deploymentInstructions: string;
+  framework: 'react' | 'vanilla';
 }
 
 /**
@@ -57,8 +63,8 @@ export class AppGeneratorService {
       // 1. Générer les images contextuelles
       const images = await this.generateContextualImages(finalOptions);
 
-      // 2. Générer le code de l'application
-      const appCode = await this.generateAppCode(prompt, finalOptions, images);
+      // 2. Générer le code de l'application (React par défaut)
+      const appCode = await this.generateReactAppCode(prompt, finalOptions, images);
 
       // 3. Générer le schéma de base de données si nécessaire
       const databaseSchema = finalOptions.includeDatabase ? 
@@ -69,7 +75,8 @@ export class AppGeneratorService {
         images,
         databaseSchema,
         features: this.extractFeatures(finalOptions),
-        deploymentInstructions: this.generateDeploymentInstructions(finalOptions)
+        deploymentInstructions: this.generateDeploymentInstructions(finalOptions),
+        framework: 'react' as const
       };
 
     } catch (error) {
@@ -186,17 +193,17 @@ export class AppGeneratorService {
   }
 
   /**
-   * Génère le code de l'application avec IA
+   * Génère le code React de l'application avec IA
    */
-  private static async generateAppCode(prompt: string, options: AppGenerationOptions, images: GeneratedApp['images']): Promise<Pick<GeneratedApp, 'html' | 'css' | 'javascript'>> {
-    const enhancedPrompt = this.buildEnhancedPrompt(prompt, options, images);
+  private static async generateReactAppCode(prompt: string, options: AppGenerationOptions, images: GeneratedApp['images']): Promise<Pick<GeneratedApp, 'html' | 'css' | 'javascript' | 'packageJson' | 'appJsx' | 'mainJsx' | 'indexHtml'>> {
+    const enhancedPrompt = this.buildReactEnhancedPrompt(prompt, options, images);
 
     const { data, error } = await supabase.functions.invoke('openai-chat', {
       body: {
         messages: [
           {
             role: 'system',
-            content: this.getSystemPrompt()
+            content: this.getReactSystemPrompt()
           },
           {
             role: 'user',
@@ -209,21 +216,21 @@ export class AppGeneratorService {
     });
 
     if (error) {
-      throw new Error(`Erreur génération code: ${error.message}`);
+      throw new Error(`Erreur génération code React: ${error.message}`);
     }
 
     if (!data?.generatedText) {
       throw new Error('Aucun contenu généré par l\'IA');
     }
 
-    // Parser la réponse pour extraire HTML, CSS, JS
-    return this.parseGeneratedCode(data.generatedText);
+    // Parser la réponse pour extraire les fichiers React
+    return this.parseReactGeneratedCode(data.generatedText);
   }
 
   /**
-   * Construit un prompt amélioré pour la génération d'app
+   * Construit un prompt amélioré pour la génération d'app React
    */
-  private static buildEnhancedPrompt(prompt: string, options: AppGenerationOptions, images: GeneratedApp['images']): string {
+  private static buildReactEnhancedPrompt(prompt: string, options: AppGenerationOptions, images: GeneratedApp['images']): string {
     const imageUrls = images.map((img, i) => `${img.usage}: ${img.url}`).join('\n');
     
     const technicalFeatures = [];
@@ -240,7 +247,7 @@ export class AppGeneratorService {
     if (options.pwaEnabled) technicalFeatures.push('- Progressive Web App (PWA)');
 
     return `
-Génère une application web complète et moderne pour: ${prompt}
+Génère une application React complète et moderne pour: ${prompt}
 
 SPÉCIFICATIONS BUSINESS:
 - Type: ${options.type}
@@ -253,9 +260,10 @@ IMAGES DISPONIBLES:
 ${imageUrls}
 
 EXIGENCES TECHNIQUES:
-- HTML5 sémantique et accessible (WCAG AA)
-- CSS moderne avec CSS Grid/Flexbox
-- JavaScript vanilla ES6+ avec modules
+- React 18+ avec hooks et composants fonctionnels
+- Vite comme bundler et dev server
+- Tailwind CSS pour le styling
+- TypeScript/JSX moderne
 - Design mobile-first responsive
 - Performance optimisée (Core Web Vitals)
 - Cross-browser compatibility
@@ -283,66 +291,110 @@ UTILISE les images fournies aux endroits appropriés et optimise pour ${options.
 
 Réponds avec le format exact:
 
-\`\`\`html
-[Code HTML complet avec structure sémantique]
+\`\`\`package.json
+[package.json avec toutes les dépendances React, Vite, Tailwind]
+\`\`\`
+
+\`\`\`index.html
+[index.html minimal pour Vite avec React]
+\`\`\`
+
+\`\`\`main.jsx
+[Point d'entrée React avec ReactDOM.createRoot]
+\`\`\`
+
+\`\`\`app.jsx
+[Composant App principal avec tous les composants]
 \`\`\`
 
 \`\`\`css
-[Code CSS moderne avec design system complet]
-\`\`\`
-
-\`\`\`javascript
-[Code JavaScript fonctionnel avec interactivité]
+[Styles Tailwind et CSS personnalisés si nécessaire]
 \`\`\`
     `;
   }
 
   /**
-   * Prompt système pour la génération d'applications
+   * Prompt système pour la génération d'applications React
    */
-  private static getSystemPrompt(): string {
+  private static getReactSystemPrompt(): string {
     return `
-Tu es un expert en développement web full-stack spécialisé dans la création d'applications modernes.
+Tu es un expert en développement React moderne spécialisé dans la création d'applications web performantes.
 
 EXPERTISE:
-- HTML5 sémantique et accessible
-- CSS moderne (Flexbox, Grid, animations)
-- JavaScript ES6+ vanilla
+- React 18+ avec hooks et functional components
+- Vite pour le développement et build
+- Tailwind CSS pour le styling moderne
+- TypeScript/JSX avec meilleures pratiques
 - Design responsive mobile-first
 - UX/UI optimisée pour la conversion
 - SEO et performance web
+- Architecture composants modulaire
 
 PRINCIPES DE CONCEPTION:
-- Design épuré et professionnel
-- Palette de couleurs cohérente
-- Typographie moderne et lisible
-- Espacement harmonieux
-- Interactions subtiles et fluides
-- Compatibilité cross-browser
+- Composants réutilisables et maintenables
+- State management avec hooks natifs
+- Props drilling évité avec context si nécessaire
+- Performance optimisée (lazy loading, memo)
+- Accessibilité (ARIA, semantic HTML)
+- Design system cohérent
+- Animations fluides et subtiles
 
 GÉNÉRATION DE CODE:
-- Code propre et bien structuré
-- Commentaires explicatifs
-- Performance optimisée
-- Standards web modernes
-- Progressive enhancement
+- Code production-ready avec TypeScript
+- Composants bien structurés et documentés
+- Gestion d'état moderne avec hooks
+- CSS-in-JS avec Tailwind
+- Bundling optimisé avec Vite
+- Standards React modernes
 
-Génère TOUJOURS du code production-ready avec les meilleures pratiques.
+Génère TOUJOURS du code React moderne, performant et maintenable.
     `;
   }
 
   /**
-   * Parse le code généré par l'IA
+   * Parse le code React généré par l'IA
    */
-  private static parseGeneratedCode(content: string): Pick<GeneratedApp, 'html' | 'css' | 'javascript'> {
-    const htmlMatch = content.match(/```html\n([\s\S]*?)\n```/);
+  private static parseReactGeneratedCode(content: string): Pick<GeneratedApp, 'html' | 'css' | 'javascript' | 'packageJson' | 'appJsx' | 'mainJsx' | 'indexHtml'> {
+    const packageJsonMatch = content.match(/```(?:package\.json|json)\n([\s\S]*?)\n```/);
+    const indexHtmlMatch = content.match(/```(?:index\.html|html)\n([\s\S]*?)\n```/);
+    const mainJsxMatch = content.match(/```(?:main\.jsx|jsx)\n([\s\S]*?)\n```/);
+    const appJsxMatch = content.match(/```(?:app\.jsx|jsx|react)\n([\s\S]*?)\n```/);
     const cssMatch = content.match(/```css\n([\s\S]*?)\n```/);
-    const jsMatch = content.match(/```javascript\n([\s\S]*?)\n```/);
+
+    // Pour compatibilité avec WebPreview, on combine les fichiers React
+    const combinedHtml = indexHtmlMatch?.[1]?.trim() || `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React App</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.0/dist/tailwind.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>`;
+
+    const combinedJs = `
+// React App Component
+${appJsxMatch?.[1]?.trim() || 'const App = () => <div>React App</div>;'}
+
+// Mount React App
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+    `;
 
     return {
-      html: htmlMatch?.[1]?.trim() || '<h1>Erreur génération HTML</h1>',
-      css: cssMatch?.[1]?.trim() || '/* Erreur génération CSS */',
-      javascript: jsMatch?.[1]?.trim() || '// Erreur génération JavaScript'
+      html: combinedHtml,
+      css: cssMatch?.[1]?.trim() || '/* Tailwind CSS sera chargé via CDN */',
+      javascript: combinedJs,
+      packageJson: packageJsonMatch?.[1]?.trim(),
+      indexHtml: indexHtmlMatch?.[1]?.trim(),
+      mainJsx: mainJsxMatch?.[1]?.trim(),
+      appJsx: appJsxMatch?.[1]?.trim()
     };
   }
 
@@ -392,9 +444,10 @@ Réponds uniquement avec du SQL valide PostgreSQL.`;
    */
   private static extractFeatures(options: AppGenerationOptions): string[] {
     const baseFeatures = [
+      'Application React moderne',
       'Design responsive mobile-first',
-      'Interface utilisateur moderne',
-      'Navigation intuitive',
+      'Interface utilisateur intuitive',
+      'Navigation fluide',
       'Optimisé pour le SEO',
       'Performance optimisée'
     ];
@@ -425,20 +478,26 @@ Réponds uniquement avec du SQL valide PostgreSQL.`;
    */
   private static generateDeploymentInstructions(options: AppGenerationOptions): string {
     return `
-INSTRUCTIONS DE DÉPLOIEMENT
+INSTRUCTIONS DE DÉPLOIEMENT REACT + VITE
 
 1. PRÉPARATION:
-   - Téléchargez les fichiers générés
-   - Créez un repository Git
-   - Ajoutez les fichiers au repository
+   - Téléchargez tous les fichiers générés
+   - Créez un nouveau projet avec: npm create vite@latest mon-app -- --template react
+   - Remplacez les fichiers générés dans le projet
+   - Installez les dépendances: npm install
 
-2. NETLIFY DEPLOYMENT:
+2. DÉVELOPPEMENT LOCAL:
+   - npm run dev (démarre le serveur de développement Vite)
+   - npm run build (génère la version de production)
+   - npm run preview (aperçu de la version de production)
+
+3. NETLIFY DEPLOYMENT:
    - Connectez votre repository à Netlify
-   - Build command: (aucune pour HTML statique)
-   - Publish directory: /
+   - Build command: npm run build
+   - Publish directory: dist
    - Variables d'environnement: voir section Supabase
 
-3. SUPABASE CONFIGURATION:
+4. SUPABASE CONFIGURATION:
    ${options.includeDatabase ? `
    - Créez un projet Supabase
    - Exécutez le schéma SQL fourni
@@ -448,17 +507,18 @@ INSTRUCTIONS DE DÉPLOIEMENT
      * VITE_SUPABASE_ANON_KEY=votre_cle
    ` : '- Aucune configuration base de données requise'}
 
-4. DOMAINE PERSONNALISÉ:
+5. DOMAINE PERSONNALISÉ:
    - Configurez votre domaine dans Netlify
    - Certificat SSL automatique
 
-5. OPTIMISATIONS POST-DÉPLOIEMENT:
+6. OPTIMISATIONS POST-DÉPLOIEMENT:
    - Google Analytics
    - Monitoring des performances
    - SEO final check
    - Tests sur différents appareils
+   - Lazy loading des composants si nécessaire
 
-Votre application sera accessible à: https://votre-app.netlify.app
+Votre application React sera accessible à: https://votre-app.netlify.app
     `;
   }
 

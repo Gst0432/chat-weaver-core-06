@@ -25,17 +25,24 @@ interface CodeStudioChatProps {
   activeTab: 'html' | 'css' | 'javascript';
   onInsertCode: (code: string, tab: 'html' | 'css' | 'javascript') => void;
   selectedModel: string;
+  framework: 'react' | 'vanilla';
+  onFrameworkChange: (framework: 'react' | 'vanilla') => void;
 }
 
-export const CodeStudioChat = ({ currentCode, activeTab, onInsertCode, selectedModel }: CodeStudioChatProps) => {
+export const CodeStudioChat = ({ currentCode, activeTab, onInsertCode, selectedModel, framework, onFrameworkChange }: CodeStudioChatProps) => {
   const [messages, setMessages] = useState<CodeStudioChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const quickCommands = [
-    { icon: Code2, label: "Générer composant", command: "/generate " },
+  const quickCommands = framework === 'react' ? [
+    { icon: Code2, label: "Composant", command: "/component " },
+    { icon: Wand2, label: "Hook", command: "/hook " },
+    { icon: Bug, label: "Améliorer", command: "/improve " },
+    { icon: Sparkles, label: "Page", command: "/generate Page React " },
+  ] : [
+    { icon: Code2, label: "Générer", command: "/generate " },
     { icon: Wand2, label: "Améliorer", command: "/improve " },
     { icon: Bug, label: "Débugger", command: "/fix " },
     { icon: Sparkles, label: "Responsive", command: "/responsive " },
@@ -58,16 +65,37 @@ export const CodeStudioChat = ({ currentCode, activeTab, onInsertCode, selectedM
 
     try {
       // Créer un prompt spécialisé pour le code
-      const codeContext = `
-Contexte du code actuel:
-HTML: ${currentCode.html.slice(0, 1000)}${currentCode.html.length > 1000 ? '...' : ''}
-CSS: ${currentCode.css.slice(0, 1000)}${currentCode.css.length > 1000 ? '...' : ''}
-JavaScript: ${currentCode.javascript.slice(0, 1000)}${currentCode.javascript.length > 1000 ? '...' : ''}
-
-Onglet actif: ${activeTab.toUpperCase()}
+      const codeContext = framework === 'react' ? `
+Contexte du projet React actuel:
+- Framework: React + Vite + Tailwind CSS
+- Onglet actif: ${activeTab === 'html' ? 'JSX Component' : activeTab === 'javascript' ? 'React Hooks/Logic' : activeTab}
+- Code HTML/JSX: ${currentCode.html ? 'présent' : 'vide'}
+- Code CSS: ${currentCode.css ? 'présent' : 'vide'}  
+- Code JavaScript/React: ${currentCode.javascript ? 'présent' : 'vide'}
+` : `
+Contexte du code vanilla actuel:
+- Framework: HTML/CSS/JavaScript vanilla
+- Onglet actif: ${activeTab.toUpperCase()}
+- Code HTML: ${currentCode.html.slice(0, 1000)}${currentCode.html.length > 1000 ? '...' : ''}
+- Code CSS: ${currentCode.css.slice(0, 1000)}${currentCode.css.length > 1000 ? '...' : ''}
+- Code JavaScript: ${currentCode.javascript.slice(0, 1000)}${currentCode.javascript.length > 1000 ? '...' : ''}
 `;
 
-      const specializedPrompt = `Tu es un assistant spécialisé dans le développement web. 
+      const specializedPrompt = framework === 'react' ? `Tu es un assistant spécialisé dans le développement React moderne. 
+${codeContext}
+
+Instructions React:
+- Génère des composants fonctionnels avec hooks
+- Utilise Tailwind CSS pour le styling
+- Crée du code JSX moderne et réutilisable
+- Si /component: génère un composant React complet
+- Si /hook: crée un hook personnalisé
+- Si /generate: crée une page/section React complète
+- Si /improve: optimise le code React existant
+- Toujours retourner du code React production-ready
+- Sépare clairement JSX, CSS et la logique React
+
+Demande utilisateur: ${message}` : `Tu es un assistant spécialisé dans le développement web. 
 ${codeContext}
 
 Instructions:
@@ -114,15 +142,29 @@ Demande utilisateur: ${message}`;
   };
 
   const extractCode = (content: string, language: 'html' | 'css' | 'javascript' | 'js') => {
-    const patterns = {
-      html: /```html\n([\s\S]*?)\n```/g,
-      css: /```css\n([\s\S]*?)\n```/g,
-      javascript: /```(?:javascript|js)\n([\s\S]*?)\n```/g,
-      js: /```(?:javascript|js)\n([\s\S]*?)\n```/g
-    };
-    
-    const matches = [...content.matchAll(patterns[language])];
-    return matches.map(match => match[1]).join('\n');
+    if (framework === 'react') {
+      // Pour React, chercher JSX, composants React, et CSS
+      const patterns = {
+        html: /```(?:jsx|react|js|javascript)\n([\s\S]*?)\n```/g,
+        css: /```css\n([\s\S]*?)\n```/g,
+        javascript: /```(?:jsx|react|js|javascript)\n([\s\S]*?)\n```/g,
+        js: /```(?:jsx|react|js|javascript)\n([\s\S]*?)\n```/g
+      };
+      
+      const matches = [...content.matchAll(patterns[language])];
+      return matches.map(match => match[1]).join('\n');
+    } else {
+      // Pour vanilla, utiliser la logique existante
+      const patterns = {
+        html: /```html\n([\s\S]*?)\n```/g,
+        css: /```css\n([\s\S]*?)\n```/g,
+        javascript: /```(?:javascript|js)\n([\s\S]*?)\n```/g,
+        js: /```(?:javascript|js)\n([\s\S]*?)\n```/g
+      };
+      
+      const matches = [...content.matchAll(patterns[language])];
+      return matches.map(match => match[1]).join('\n');
+    }
   };
 
   const handleInsertCode = (content: string, targetTab?: 'html' | 'css' | 'javascript') => {
@@ -195,13 +237,36 @@ Demande utilisateur: ${message}`;
       {/* Header */}
       <div className="p-3 border-b border-border bg-muted/30">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium text-foreground flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-primary" />
-            Assistant Code IA
-          </h3>
-          <Badge variant="outline" className="text-xs">
-            {selectedModel}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-foreground flex items-center gap-2">
+              <Code2 className="w-4 h-4 text-primary" />
+              Assistant Code IA
+            </h3>
+            <Badge variant="outline" className="text-xs">
+              {framework === 'react' ? 'React' : 'Vanilla'}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={framework === 'react' ? 'default' : 'outline'}
+              onClick={() => onFrameworkChange('react')}
+              className="h-6 px-2 text-xs"
+            >
+              React
+            </Button>
+            <Button
+              size="sm"
+              variant={framework === 'vanilla' ? 'default' : 'outline'}
+              onClick={() => onFrameworkChange('vanilla')}
+              className="h-6 px-2 text-xs"
+            >
+              Vanilla
+            </Button>
+            <Badge variant="outline" className="text-xs">
+              {selectedModel}
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -324,7 +389,10 @@ Demande utilisateur: ${message}`;
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Décrivez le code à générer ou utilisez /generate, /improve, /fix..."
+            placeholder={framework === 'react' 
+              ? "Décrivez le composant React à créer ou utilisez /component, /hook, /generate..." 
+              : "Décrivez le code à générer ou utilisez /generate, /improve, /fix..."
+            }
             className="min-h-[40px] max-h-[120px] resize-none text-sm"
             rows={2}
             disabled={isLoading}
