@@ -197,7 +197,8 @@ serve(async (req) => {
       useAI = true,
       model = 'gpt-4.1-2025-04-14',
       template = 'business',
-      chapters = []
+      chapters = [],
+      resume_generation_id = null // For resuming partial generations
     } = await req.json();
 
     console.log('📚 Starting 3-phase ebook generation:', { title, format, useAI, model, template });
@@ -215,20 +216,66 @@ serve(async (req) => {
       );
     }
 
-    // Create generation record
-    const { data: generation, error: generationError } = await supabase
-      .from('ebook_generations')
-      .insert({
-        user_id: user.id,
-        title,
-        author,
-        prompt,
-        model,
-        template,
-        status: 'pending'
-      })
-      .select()
-      .single();
+    // Check generation limits for scalability
+    const { data: limits, error: limitsError } = await supabase
+      .rpc('check_generation_limits', { user_id_param: user.id });
+    
+    if (limitsError) {
+      console.error('❌ Error checking limits:', limitsError);
+    } else if (!limits.can_start && !resume_generation_id) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Generation limit reached', 
+          details: limits.reason,
+          limits: limits 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+      );
+    }
+
+    let generation;
+    
+    // Resume existing generation or create new one
+    if (resume_generation_id) {
+      const { data: existingGeneration } = await supabase
+        .from('ebook_generations')
+        .select('*')
+        .eq('id', resume_generation_id)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (existingGeneration) {
+        generation = existingGeneration;
+        console.log('🔄 Resuming generation:', generation.id);
+      }
+    }
+    
+    if (!generation) {
+      // Create new generation record
+      const { data: newGeneration, error: generationError } = await supabase
+        .from('ebook_generations')
+        .insert({
+          user_id: user.id,
+          title,
+          author,
+          prompt,
+          model,
+          template,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (generationError) {
+        console.error('❌ Generation record creation error:', generationError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create generation record' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+      
+      generation = newGeneration;
+    }
 
     if (generationError) {
       console.error('❌ Generation record creation error:', generationError);
@@ -375,16 +422,27 @@ Write the COMPLETE chapter content in Markdown format:`;
             try {
               const chapterResponse = await callAI(chapterPrompt, model, isOpenRouterModel(model));
               const chapterContent = chapterResponse.choices[0].message.content;
+              const wordCount = chapterContent.split(/\s+/).length;
+              
+              // 🎯 CHECKPOINT: Save each chapter immediately for recovery
+              await supabase.from('ebook_chapters').insert({
+                generation_id: generation.id,
+                chapter_number: i + 1,
+                chapter_title: chapter.title,
+                chapter_content: chapterContent,
+                chapter_type: chapter.type,
+                word_count: wordCount
+              });
               
               generatedChapters.push({
                 ...chapter,
                 content: chapterContent,
-                actual_words: chapterContent.split(/\s+/).length
+                actual_words: wordCount
               });
               
               fullContent += chapterContent + '\n\n';
               
-              console.log(`✅ Chapter "${chapter.title}" generated: ${chapterContent.split(/\s+/).length} words`);
+              console.log(`✅ Chapter "${chapter.title}" generated: ${wordCount} words (saved checkpoint)`);
               
               // Update generated chapters count
               await supabase.from('ebook_generations').update({

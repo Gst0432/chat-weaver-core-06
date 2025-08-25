@@ -112,6 +112,50 @@ export type Database = {
           },
         ]
       }
+      ebook_chapters: {
+        Row: {
+          chapter_content: string
+          chapter_number: number
+          chapter_title: string
+          chapter_type: string
+          created_at: string
+          generation_id: string
+          id: string
+          updated_at: string
+          word_count: number
+        }
+        Insert: {
+          chapter_content: string
+          chapter_number: number
+          chapter_title: string
+          chapter_type?: string
+          created_at?: string
+          generation_id: string
+          id?: string
+          updated_at?: string
+          word_count?: number
+        }
+        Update: {
+          chapter_content?: string
+          chapter_number?: number
+          chapter_title?: string
+          chapter_type?: string
+          created_at?: string
+          generation_id?: string
+          id?: string
+          updated_at?: string
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebook_chapters_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "ebook_generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ebook_generations: {
         Row: {
           author: string
@@ -750,38 +794,53 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          active_ebook_generations: number | null
           created_at: string
+          daily_generation_limit: number | null
           default_technical_features: Json | null
           favorite_colors: string[] | null
           favorite_industries: string[] | null
           favorite_styles: string[] | null
           generation_history: Json | null
           id: string
+          last_generation_start: string | null
+          max_concurrent_generations: number | null
           template_preferences: Json | null
+          total_generations_today: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          active_ebook_generations?: number | null
           created_at?: string
+          daily_generation_limit?: number | null
           default_technical_features?: Json | null
           favorite_colors?: string[] | null
           favorite_industries?: string[] | null
           favorite_styles?: string[] | null
           generation_history?: Json | null
           id?: string
+          last_generation_start?: string | null
+          max_concurrent_generations?: number | null
           template_preferences?: Json | null
+          total_generations_today?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          active_ebook_generations?: number | null
           created_at?: string
+          daily_generation_limit?: number | null
           default_technical_features?: Json | null
           favorite_colors?: string[] | null
           favorite_industries?: string[] | null
           favorite_styles?: string[] | null
           generation_history?: Json | null
           id?: string
+          last_generation_start?: string | null
+          max_concurrent_generations?: number | null
           template_preferences?: Json | null
+          total_generations_today?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -950,6 +1009,14 @@ export type Database = {
       check_free_generation_quota: {
         Args: { user_email: string }
         Returns: Json
+      }
+      check_generation_limits: {
+        Args: { user_id_param: string }
+        Returns: Json
+      }
+      get_partial_ebook_content: {
+        Args: { generation_id_param: string }
+        Returns: string
       }
       halfvec_avg: {
         Args: { "": number[] }

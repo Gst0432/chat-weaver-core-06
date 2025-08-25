@@ -125,30 +125,7 @@ export function useEbookGeneration(generationId?: string) {
     }
   };
 
-  // Poll for updates when generation is in progress
-  useEffect(() => {
-    if (!generationId || !generation) return;
-
-    // Don't poll if generation is completed or failed
-    if (generation.status === 'completed' || generation.status === 'failed') {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      fetchGeneration(generationId);
-    }, 2000); // Poll every 2 seconds
-
-    return () => clearInterval(interval);
-  }, [generationId, generation?.status]);
-
-  // Initial fetch
-  useEffect(() => {
-    if (generationId) {
-      fetchGeneration(generationId);
-    }
-  }, [generationId]);
-
-  // Real-time updates
+  // Real-time updates - replaced polling for better scalability
   useEffect(() => {
     if (!generationId) return;
 
@@ -163,8 +140,22 @@ export function useEbookGeneration(generationId?: string) {
           filter: `id=eq.${generationId}`
         },
         (payload) => {
-          console.log('Generation update received:', payload);
+          console.log('🔄 Generation update received:', payload);
           setGeneration(payload.new as EbookGeneration);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ebook_chapters',
+          filter: `generation_id=eq.${generationId}`
+        },
+        (payload) => {
+          console.log('📝 New chapter saved:', payload);
+          // Trigger a refresh to get updated counts
+          fetchGeneration(generationId);
         }
       )
       .subscribe();
@@ -173,6 +164,67 @@ export function useEbookGeneration(generationId?: string) {
       supabase.removeChannel(channel);
     };
   }, [generationId]);
+
+  // Initial fetch
+  useEffect(() => {
+    if (generationId) {
+      fetchGeneration(generationId);
+    }
+  }, [generationId]);
+
+  // Get partial content for failed/stalled generations
+  const getPartialContent = async () => {
+    if (!generation) return null;
+    
+    try {
+      const { data } = await supabase.functions.invoke('resume-ebook-generation', {
+        body: {
+          generation_id: generation.id,
+          action: 'get_partial_content'
+        }
+      });
+      return data;
+    } catch (error) {
+      console.error('Error getting partial content:', error);
+      return null;
+    }
+  };
+
+  // Save partial content as ebook
+  const savePartialContent = async () => {
+    if (!generation) return false;
+    
+    try {
+      const { data } = await supabase.functions.invoke('resume-ebook-generation', {
+        body: {
+          generation_id: generation.id,
+          action: 'save_partial_ebook'
+        }
+      });
+      return data;
+    } catch (error) {
+      console.error('Error saving partial content:', error);
+      return false;
+    }
+  };
+
+  // Resume generation from where it left off
+  const resumeFromCheckpoint = async () => {
+    if (!generation) return;
+    
+    try {
+      setError(null);
+      await supabase.functions.invoke('resume-ebook-generation', {
+        body: {
+          generation_id: generation.id,
+          action: 'resume'
+        }
+      });
+    } catch (err: any) {
+      console.error('Error resuming generation:', err);
+      setError(err.message);
+    }
+  };
 
   const getStatusMessage = () => {
     if (!generation) return '';
@@ -226,6 +278,9 @@ export function useEbookGeneration(generationId?: string) {
     checkForStalledGeneration,
     getStatusMessage,
     getEstimatedTimeRemaining,
+    getPartialContent,
+    savePartialContent,
+    resumeFromCheckpoint,
     isCompleted: generation?.status === 'completed',
     isFailed: generation?.status === 'failed',
     isInProgress: generation && ['pending', 'generating_toc', 'generating_chapters', 'assembling'].includes(generation.status),

@@ -75,7 +75,8 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const { toast } = useToast();
   
   const { generation, getStatusMessage, getEstimatedTimeRemaining, isCompleted, isFailed, isStalled, 
-          retryGeneration, cancelGeneration, checkForStalledGeneration } = 
+          retryGeneration, cancelGeneration, checkForStalledGeneration, getPartialContent, 
+          savePartialContent, resumeFromCheckpoint } = 
     useEbookGeneration(generationId || undefined);
 
   const handleGenerate = async () => {
@@ -309,13 +310,96 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
 
         {(generating || generation) && (
           <div className="text-center text-sm space-y-4 p-4 border rounded-lg bg-muted/20">
-            {/* Stalled generation alert */}
+            {/* Stalled generation alert with recovery options */}
             {isStalled && (
               <Alert className="border-orange-200 bg-orange-50">
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-orange-800">
-                  La génération semble bloquée depuis plus de 15 minutes. 
-                  Cela peut être dû à des problèmes temporaires d'API.
+                <AlertDescription className="text-orange-800 space-y-3">
+                  <p>La génération semble bloquée depuis plus de 15 minutes. 
+                  Cela peut être dû à des problèmes temporaires d'API.</p>
+                  
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await resumeFromCheckpoint();
+                          toast({
+                            title: "Génération reprise",
+                            description: "La génération reprend à partir du dernier chapitre sauvegardé.",
+                          });
+                        } catch (error: any) {
+                          toast({
+                            title: "Erreur",
+                            description: "Impossible de reprendre: " + error.message,
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      <RotateCcw className="w-4 h-4 mr-1" />
+                      Reprendre
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const result = await savePartialContent();
+                          if (result) {
+                            toast({
+                              title: "Succès",
+                              description: "Contenu partiel sauvegardé comme ebook.",
+                            });
+                            onEbookGenerated();
+                          }
+                        } catch (error: any) {
+                          toast({
+                            title: "Erreur",
+                            description: "Impossible de sauvegarder: " + error.message,
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="text-green-600 border-green-300 hover:bg-green-50"
+                    >
+                      💾 Sauvegarder partiel
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const partial = await getPartialContent();
+                        if (partial?.has_content) {
+                          const blob = new Blob([partial.content], { type: 'text/markdown' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${generation?.title || 'ebook'}-partiel.md`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                          
+                          toast({
+                            title: "Téléchargement démarré",
+                            description: "Le contenu partiel a été téléchargé.",
+                          });
+                        } else {
+                          toast({
+                            title: "Aucun contenu",
+                            description: "Aucun contenu partiel à télécharger.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                    >
+                      📥 Télécharger
+                    </Button>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
@@ -370,7 +454,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
               </>
             )}
             
-            {/* Retry button for failed generation */}
+            {/* Failed generation with recovery options */}
             {generation?.status === 'failed' && (
               <div className="space-y-2">
                 <Alert className="border-red-200 bg-red-50">
@@ -380,7 +464,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
                   </AlertDescription>
                 </Alert>
                 
-                <div className="flex justify-center gap-2">
+                <div className="flex justify-center gap-2 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -403,7 +487,58 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
                     className="text-blue-600 border-blue-300 hover:bg-blue-50"
                   >
                     <RotateCcw className="w-4 h-4 mr-2" />
-                    Relancer la génération
+                    Relancer
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await resumeFromCheckpoint();
+                        setGenerating(true);
+                        toast({
+                          title: "Génération reprise",
+                          description: "La génération reprend à partir du dernier checkpoint.",
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: "Impossible de reprendre: " + error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="text-green-600 border-green-300 hover:bg-green-50"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reprendre
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const result = await savePartialContent();
+                        if (result) {
+                          toast({
+                            title: "Succès",
+                            description: "Contenu partiel sauvegardé comme ebook.",
+                          });
+                          onEbookGenerated();
+                        }
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: "Impossible de sauvegarder: " + error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                  >
+                    💾 Sauvegarder partiel
                   </Button>
                   
                   <Button
