@@ -16,6 +16,7 @@ import ResetPassword from "./pages/ResetPassword";
 import UpdatePassword from "./pages/UpdatePassword";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import VideoTranslator from "./pages/VideoTranslator";
+import Ebooks from "./pages/Ebooks";
 
 const App = () => (
   <TooltipProvider>
@@ -33,6 +34,7 @@ const App = () => (
         <Route path="/team" element={<Team />} />
         <Route path="/team/accept-invitation" element={<AcceptInvitation />} />
         <Route path="/video-translator" element={<VideoTranslator />} />
+        <Route path="/ebooks" element={<Ebooks />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/super-admin" element={<SuperAdminDashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

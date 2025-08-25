@@ -220,6 +220,13 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
               </SidebarMenuItem>
               
               <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/ebooks')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Wand2 className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Ebooks</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
                 <SidebarMenuButton onClick={toggleVideoGenerator} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Video className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Générateur Vidéo</span>}
