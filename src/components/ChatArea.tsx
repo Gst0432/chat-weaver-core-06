@@ -201,66 +201,6 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
   };
 
   // Charger la dernière conversation (30 jours)
-  const synthesizeAndPlay = async (text: string) => {
-    const tryInvoke = async (provider: 'openai' | 'google') => {
-      const fn = provider === 'google' ? 'google-tts' : 'text-to-voice';
-      const lang = (ttsVoice && ttsVoice.includes('-')) ? ttsVoice.split('-').slice(0,2).join('-') : 'fr-FR';
-      const body = provider === 'google'
-        ? { text, languageCode: lang, voiceName: ttsVoice || undefined, ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
-        : { text, voice: ttsVoice || 'alloy', format: 'mp3' };
-      return await supabase.functions.invoke(fn, { body });
-    };
-    try {
-      if (!text || /^data:/.test(text)) return; // éviter les images/documents
-      let { data, error } = await tryInvoke(ttsProvider);
-      if (error) {
-        const fallbackProvider = ttsProvider === 'google' ? 'openai' : 'google';
-        ({ data, error } = await tryInvoke(fallbackProvider));
-        if (error) throw error;
-      }
-      const mime = data?.mime || 'audio/mpeg';
-      const base64 = data?.audio as string;
-      if (!base64) return;
-      const audio = new Audio(`data:${mime};base64,${base64}`);
-      await audio.play().catch(() => console.warn('Lecture auto bloquée par le navigateur'));
-    } catch (err) {
-      console.error('TTS playback error', err);
-    }
-  };
-
-  // TTS: synthétiser et télécharger sans l’ajouter dans le flux
-  const synthesizeAndDownload = async (text: string) => {
-    const tryInvoke = async (provider: 'openai' | 'google') => {
-      const fn = provider === 'google' ? 'google-tts' : 'text-to-voice';
-      const lang = (ttsVoice && ttsVoice.includes('-')) ? ttsVoice.split('-').slice(0,2).join('-') : 'fr-FR';
-      const body = provider === 'google'
-        ? { text, languageCode: lang, voiceName: ttsVoice || undefined, ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
-        : { text, voice: ttsVoice || 'alloy', format: 'mp3' };
-      return await supabase.functions.invoke(fn, { body });
-    };
-    try {
-      if (!text || /^data:/.test(text)) return;
-      let { data, error } = await tryInvoke(ttsProvider);
-      if (error) {
-        const fallbackProvider = ttsProvider === 'google' ? 'openai' : 'google';
-        ({ data, error } = await tryInvoke(fallbackProvider));
-        if (error) throw error;
-      }
-      const mime = data?.mime || 'audio/mpeg';
-      const base64 = data?.audio as string;
-      if (!base64) return;
-      const a = document.createElement('a');
-      a.href = `data:${mime};base64,${base64}`;
-      a.download = `tts-${Date.now()}.${mime.includes('wav') ? 'wav' : 'mp3'}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (err) {
-      console.error('TTS download error', err);
-    }
-  };
-
-  // Charger la dernière conversation (30 jours)
   useEffect(() => {
     const handleSelectConversation = (e: any) => {
       const id = e?.detail?.id as string;
@@ -405,14 +345,14 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
         return;
       }
 
-  // Déclenchement prioritaire: génération d'image si le message le demande
-  // Utilise automatiquement le meilleur provider disponible (Runware si configuré, sinon DALL-E)
-  const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
-  const wantsImage = !isUpload && ImageService.isImageRequest(content);
-  const wantsVideo = !isUpload && isVideoRequest(content);
-  const wantsApp = !isUpload && AppGeneratorService.isAppGenerationRequest(content);
+      // Déclenchement prioritaire: génération d'image si le message le demande
+      // Utilise automatiquement le meilleur provider disponible (Runware si configuré, sinon DALL-E)
+      const isUpload = typeof content === 'string' && (content.startsWith('data:') || content.startsWith('http'));
+      const wantsImage = !isUpload && ImageService.isImageRequest(content);
+      const wantsVideo = !isUpload && isVideoRequest(content);
+      const wantsApp = !isUpload && AppGeneratorService.isAppGenerationRequest(content);
       
-          // Génération d'application complète
+      // Génération d'application complète
       if (wantsApp) {
         try {
           console.log("🏗️ Début génération application complète");
@@ -479,215 +419,61 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
             content: errorMessage.content,
             model: "app-generator"
           });
+          
+          return;
+        } finally {
+          setIsLoading(false);
         }
       }
 
-      // Génération vidéo avec Runware
-      if (wantsVideo) {
+      // Génération d'image si le message la demande
+      if (wantsImage) {
+        console.log("🎨 Génération d'image détectée");
         try {
-          console.log("🎬 Début génération vidéo Runware");
-          
-          // Afficher un message temporaire de génération
-          const tempMessage: Message = {
-            id: `temp-${Date.now()}`,
-            content: "🎬 Génération de la vidéo en cours avec Runware...",
+          const imageUrl = await ImageService.generateImage({ prompt: content, size: "1024x1024" });
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: imageUrl,
             role: "assistant",
             timestamp: new Date(),
-            model: "runware"
+            model: "image-generator"
           };
-          setMessages(prev => [...prev, tempMessage]);
-
-          // Récupérer la clé API Runware
-          const { data: keyData, error: keyError } = await supabase.functions.invoke('get-runware-key');
-          if (keyError || !keyData?.key) {
-            throw new Error('Clé API Runware non configurée');
-          }
-
-          // Créer le service et générer la vidéo
-          const runwareService = new RunwareService(keyData.key);
-          const result = await runwareService.generateVideo({
-            positivePrompt: content,
-            duration: 5,
-            fps: 24,
-            motionScale: 1.8
+          setMessages(prev => [...prev, assistantMessage]);
+          await supabase.from('messages').insert({
+            conversation_id: convoId,
+            role: 'assistant',
+            content: imageUrl,
+            model: "image-generator"
           });
-
-          // Supprimer le message temporaire
-          setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
-
-          if (result?.videoURL) {
-            console.log("✅ Vidéo Runware générée:", result.videoURL);
-            
-            const videoMessage: Message = {
-              id: (Date.now() + 1).toString(),
-              content: result.videoURL,
-              role: "assistant",
-              timestamp: new Date(),
-              model: "runware"
-            };
-            
-            setMessages(prev => [...prev, videoMessage]);
-            
-            // Sauvegarder dans la base
-            await supabase.from('messages').insert({
-              conversation_id: convoId,
-              role: 'assistant',
-              content: result.videoURL,
-              model: "runware"
-            });
-            
-            toast({
-              title: "Vidéo générée !",
-              description: "Votre vidéo Runware est prête.",
-            });
-          } else {
-            throw new Error('Aucune URL vidéo reçue de Runware');
-          }
           return;
-        } catch (e: any) {
-          console.error("❌ Erreur génération vidéo Runware:", e);
-          
-          // Supprimer le message temporaire s'il existe encore
-          setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
-          
+        } catch (error) {
+          console.error("❌ Erreur génération image:", error);
           const errorMessage: Message = {
-            id: (Date.now() + 2).toString(),
-            content: `Erreur génération vidéo: ${e?.message || "Impossible de générer la vidéo"}`,
+            id: (Date.now() + 1).toString(),
+            content: `Erreur génération image: ${error instanceof Error ? error.message : "Échec de la génération"}`,
             role: "assistant",
             timestamp: new Date(),
-            model: "runware"
+            model: selectedModel
           };
           setMessages(prev => [...prev, errorMessage]);
-          
-          // Sauvegarder l'erreur
           await supabase.from('messages').insert({
             conversation_id: convoId,
             role: 'assistant',
             content: errorMessage.content,
-            model: "runware"
+            model: selectedModel
           });
+          return;
         } finally {
           setIsLoading(false);
         }
-        return;
       }
 
-      if (wantsImage) {
-        // Initialiser Runware si pas déjà fait
-        await ImageService.initRunware();
-        
-        try {
-          const imageUrl = await ImageService.generateImage({
-            prompt: content,
-            size: '1024x1024',
-            quality: 'hd',
-            preserveOriginalPrompt: false, // Valeur par défaut pour le chat
-            promptFidelity: 0.3, // Légères améliorations
-            autoTranslate: true // Traduction française activée
-            // Le service choisira automatiquement le meilleur provider
-          });
-          
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: imageUrl,
-            role: 'assistant',
-            timestamp: new Date(),
-            model: 'ai-image' // Nom générique pour les images IA
-          };
-          
-          setMessages(prev => [...prev, assistantMessage]);
-          await supabase.from('messages').insert({
-            conversation_id: convoId,
-            role: 'assistant',
-            content: assistantMessage.content,
-            model: 'ai-image'
-          });
-          return;
-        } catch (error) {
-          console.error('Erreur génération d\'image:', error);
-          const errorMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: `Échec de génération d'image: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
-            role: 'assistant',
-            timestamp: new Date(),
-            model: 'ai-image'
-          };
-          setMessages(prev => [...prev, errorMessage]);
-          return;
-        }
-      }
-
-      // Si un fichier a été ajouté récemment, utiliser le prompt textuel pour l'analyser maintenant
-      const attachment = [...messages].reverse().find(m => typeof m.content === 'string' && (m.content as string).startsWith('data:'));
-      if (attachment && typeof content === 'string' && !content.startsWith('data:')) {
-        const att = attachment.content as string;
-        const mimeAtt = att.slice(5, att.indexOf(';'));
-        if (mimeAtt.startsWith('image/')) {
-          const { data, error } = await supabase.functions.invoke('vision-analyze', {
-            body: { image: att, prompt: content }
-          });
-          if (error) throw error;
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: data?.generatedText || 'Analyse indisponible.',
-            role: 'assistant',
-            timestamp: new Date(),
-            model: selectedModel
-          };
-          setMessages(prev => [...prev, assistantMessage]);
-          await supabase.from('messages').insert({
-            conversation_id: convoId,
-            role: 'assistant',
-            content: assistantMessage.content,
-            model: selectedModel
-          });
-          return;
-        } else if (mimeAtt === 'application/pdf' || mimeAtt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-          const base64 = att.split(',')[1] || '';
-          const { data, error } = await supabase.functions.invoke('file-analyze', {
-            body: {
-              fileBase64: base64,
-              fileName: mimeAtt === 'application/pdf' ? 'document.pdf' : 'document.docx',
-              mime: mimeAtt,
-              prompt: content
-            }
-          });
-          if (error) throw error;
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: data?.generatedText || 'Analyse indisponible.',
-            role: 'assistant',
-            timestamp: new Date(),
-            model: selectedModel
-          };
-          setMessages(prev => [...prev, assistantMessage]);
-          await supabase.from('messages').insert({
-            conversation_id: convoId,
-            role: 'assistant',
-            content: assistantMessage.content,
-            model: selectedModel
-          });
-          return;
-        }
-      }
-      // Commandes TTS: /tts <texte>
-      const ttsMatch = content.trim().match(/^\/tts\s+([\s\S]+)/i);
-      if (ttsMatch) {
-        const textToSpeak = ttsMatch[1].trim();
-        const fn = ttsProvider === 'google' ? 'google-tts' : 'text-to-voice';
-        const lang = (ttsVoice && ttsVoice.includes('-')) ? ttsVoice.split('-').slice(0,2).join('-') : 'fr-FR';
-        const body = ttsProvider === 'google'
-          ? { text: textToSpeak, languageCode: lang, voiceName: ttsVoice || undefined, ssmlGender: 'NEUTRAL', audioEncoding: 'MP3' }
-          : { text: textToSpeak, voice: ttsVoice || 'alloy', format: 'mp3' };
-        const { data, error } = await supabase.functions.invoke(fn, { body });
-        if (error) throw error;
-        const mime = data?.mime || 'audio/mpeg';
-        const base64 = data?.audio as string;
-        const dataUrl = `data:${mime};base64,${base64}`;
+      // Génération de vidéo si demandée
+      if (wantsVideo) {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: dataUrl,
-          role: 'assistant',
+          content: "🎬 Pour générer des vidéos, utilisez le Générateur Vidéo accessible via le bouton dans le menu latéral. Il propose des modèles VEO2 et VEO3 avec des prompts optimisés pour la génération vidéo.",
+          role: "assistant",
           timestamp: new Date(),
           model: selectedModel
         };
@@ -701,515 +487,118 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
         return;
       }
 
-      // Commandes de génération de documents: /pdf, /docx, /pptx, /slide
-      const cmdMatch = content.trim().match(/^\/(pdf|docx|pptx|slide)\s*(.*)$/i);
-      if (cmdMatch) {
-        const cmd = cmdMatch[1].toLowerCase();
-        let bodyText = cmdMatch[2]?.trim();
-        if (!bodyText) {
-          const fallback = [...messages].reverse().find(m => typeof m.content === 'string' && !m.content.startsWith('data:') && !m.content.startsWith('http'));
-          bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
-        }
+      // Commandes spéciales désormais gérées par pages dédiées
+      if (content.startsWith('/tts')) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: "Les commandes TTS sont maintenant disponibles dans Studio TTS. Accédez-y via le menu latéral.",
+          role: "assistant",
+          timestamp: new Date(),
+          model: selectedModel
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        await supabase.from('messages').insert({
+          conversation_id: convoId,
+          role: 'assistant',
+          content: assistantMessage.content,
+          model: selectedModel
+        });
+        return;
+      }
 
+      // Commandes de documents
+      const docMatch = content.trim().match(/^\/doc\s+(pdf|docx|pptx)\s+([\s\S]+)/i);
+      if (docMatch) {
+        const [, format, text] = docMatch;
         let dataUrl = '';
-        if (cmd === 'pdf') dataUrl = await createPdfDataUrl(bodyText);
-        else if (cmd === 'docx') dataUrl = await createDocxDataUrl(bodyText);
-        else dataUrl = await createPptxDataUrl(bodyText);
-
+        if (format === 'pdf') {
+          dataUrl = await createPdfDataUrl(text);
+        } else if (format === 'docx') {
+          dataUrl = await createDocxDataUrl(text);
+        } else if (format === 'pptx') {
+          dataUrl = await createPptxDataUrl(text);
+        }
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: dataUrl,
-          role: 'assistant',
+          role: "assistant",
           timestamp: new Date(),
           model: selectedModel
         };
         setMessages(prev => [...prev, assistantMessage]);
-
         await supabase.from('messages').insert({
           conversation_id: convoId,
           role: 'assistant',
-          content: assistantMessage.content,
+          content: dataUrl,
           model: selectedModel
         });
         return;
       }
 
-      // Historique de messages pour le provider
-      const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
+      // Appel IA normal
+      let actualModel = selectedModel;
 
-      // RAG: récupérer du contexte pertinent via embeddings
-      let retrieved = '';
-      try {
-        const { data: qemb } = await supabase.functions.invoke('openai-embed', { body: { input: [content] } });
-        const qvec = qemb?.embeddings?.[0];
-        if (Array.isArray(qvec)) {
-          const { data: hits } = await (supabase as any).rpc('match_embeddings', {
-            query_embedding: qvec,
-            conv_id: convoId,
-            match_count: 5,
-          });
-          if (Array.isArray(hits) && hits.length) {
-            retrieved = hits.map((h: any) => h.content).join('\n---\n');
-          }
-        }
-      } catch (e) { console.warn('RAG retrieval failed', e); }
-
-      const baseSystemCore = systemPrompt || 'You are Chatelix, a helpful multilingual assistant.';
-      const baseSystem = retrieved ? `${baseSystemCore}\n\nContexte pertinent:\n${retrieved}` : baseSystemCore;
-      const safeAddendum = ' Réponds avec prudence, vérifie les faits, cite tes limites et si tu n\'es pas sûr, dis que tu ne sais pas.';
-      const sys = safeMode ? (baseSystem + safeAddendum) : baseSystem;
-      const chatMessages = [
-        { role: 'system', content: sys },
-        ...history,
-        { role: 'user', content }
-      ];
-
-      // Déterminer le modèle et la fonction à utiliser
-      let functionName: 'openai-chat' | 'perplexity-chat' | 'deepseek-chat' | 'gemini-chat' | 'codestral-chat' | 'claude-chat' = 'openai-chat';
-      let model = 'gpt-4o'; // modèle par défaut réel
-
-      // Auto-router intelligent amélioré
-      if (selectedModel === 'auto-router') {
-        try {
-          console.log('🎯 Utilisation auto-router intelligent');
-          
-          const result = await aiService.generateIntelligent(
-            content, 
-            'auto-router', 
-            personality, 
-            messages.slice(-3).map(m => m.content)
-          );
-          
-          console.log('✅ Auto-router résultat:', result);
-          
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: result.text,
-            role: "assistant",
-            timestamp: new Date(),
-            model: `${result.model} (auto-router)`
-          };
-          
-          setMessages(prev => [...prev, assistantMessage]);
-          
-          await supabase.from('messages').insert({
-            conversation_id: convoId,
-            role: 'assistant',
-            content: result.text,
-            model: result.model
-          });
-          
-          // TTS si activé (à implémenter)
-          // if (currentUser?.tts_enabled) {
-          //   await synthesizeAndPlay(result.text);
-          // }
-          
-          setIsLoading(false);
-          return;
-        } catch (error) {
-          console.error("❌ Erreur auto-router:", error);
-          // Continuer avec l'ancien système en fallback
-        }
+      if (actualModel === 'auto-router') {
+        console.log("🤖 Routage automatique activé");
+        const length = content.length < 100 ? 'short' as const : content.length > 500 ? 'long' as const : 'medium' as const;
+        const taskAnalysis = { type: 'general' as const, complexity: 'medium' as const, content, length };
+        const bestModel = await ModelRouterService.selectBestModel(taskAnalysis);
+        actualModel = bestModel;
+        setAutoRouterChoice(bestModel);
+        console.log(`🎯 Modèle sélectionné automatiquement: ${bestModel}`);
       }
 
-      // Utiliser OpenRouter pour certains modèles
-      if (selectedModel.includes('/')) {
-        try {
-          console.log('🔄 Utilisation OpenRouter pour:', selectedModel);
-          
-          const result = await OpenRouterService.generateWithModel(
-            chatMessages.map(m => ({ role: m.role, content: m.content })),
-            selectedModel,
-            {
-              temperature: safeMode ? 0.3 : 0.7,
-              max_tokens: 1500
-            }
-          );
-          
-          console.log('✅ OpenRouter réponse reçue:', { 
-            model: result.model,
-            textLength: result.text.length 
-          });
-          
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: result.text,
-            role: "assistant",
-            timestamp: new Date(),
-            model: result.model
-          };
-          
-          setMessages(prev => [...prev, assistantMessage]);
-          
-          await supabase.from('messages').insert({
-            conversation_id: convoId,
-            role: 'assistant',
-            content: result.text,
-            model: result.model
-          });
-          
-          setIsLoading(false);
-          return;
-        } catch (error) {
-          console.error("❌ Erreur OpenRouter:", error);
-          // Continuer avec l'ancien système en fallback
-        }
-      }
-
-      // Ancien auto-router en fallback
-      if (selectedModel === 'auto-router') {
-        const text = content.toLowerCase();
-        const len = content.length;
-        // Détection recherche web améliorée
-        const wantsWeb = /\b(actualité|actualités|news|web|recherche|internet|http|www|google|source|récent|update|temps réel|aujourd'hui|maintenant|2024|2025|prix|cours|bourse|météo|info|événement|que se passe|qu'est-ce qui|dernières nouvelles|breaking news|live|direct|current|latest)\b/.test(text);
-        const needsReasoning = /(analyse|raisonn|logique|complex|problème|déduire|démonstration|preuve|math|calcul|équation|algorithmique|optimiser)/i.test(text);
-        
-        // Détection code/programmation
-        const isCode = /(code|programm|debug|fonction|script|python|javascript|sql|html|css|react|api|database|git|github)/i.test(text);
-        
-        // Détection français/francophone
-        const isFrench = /(français|francais|france|québec|belgique|suisse|français|en français|traduire|traduction)/i.test(text) || 
-                         /\b(le|la|les|un|une|des|ce|cette|ces|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|dans|avec|sans|pour|par|sur|sous|entre|chez|depuis|pendant|avant|après|mais|ou|et|donc|car|ni|quand|que|qui|dont|où|si|comme|bien|très|plus|moins|assez|trop|beaucoup|peu|jamais|toujours|souvent|parfois|hier|aujourd'hui|demain|maintenant|ici|là|là-bas|partout|nulle|part|quelque|chose|rien|tout|tous|toute|toutes|chaque|plusieurs|certains|autres|même|autre|encore|déjà|enfin|alors|ainsi|donc|cependant|pourtant|néanmoins|toutefois|malgré|grâce|selon|d'après|vers|jusqu'à|au-dessus|au-dessous|à|côté|en|face|autour|loin|près|devant|derrière|entre|parmi|contre|malgré|sauf|excepté|hormis|outre|suivant|durant|moyennant|nonobstant|concernant|touchant|quant|eu|égard|vis-à-vis|plutôt|sinon|autrement|c'est-à-dire|soit|c'est|ce|qu|il|elle|on|nous|vous|ils|elles|je|tu|me|te|se|nous|vous|moi|toi|lui|elle|eux|elles|ça|cela|ceci|celui|celle|ceux|celles|lequel|laquelle|lesquels|lesquelles|duquel|de|laquelle|desquels|desquelles|auquel|à|laquelle|auxquels|auxquelles)\b/.test(text);
-        
-        // Détection vision/image
-        const needsVision = /(image|photo|vision|voir|analyser une image|screenshot|diagramme|graphique)/i.test(text);
-        
-        // Détection tâches créatives/multimodales
-        const needsCreativity = /(créer|créatif|imagination|histoire|poème|art|design|brainstorm|idée|concept)/i.test(text);
-        
-        if (wantsWeb) {
-          functionName = 'perplexity-chat';
-          model = 'llama-3.1-sonar-small-128k-online';
-          setAutoRouterChoice('perplexity');
-        } else if (isCode && isFrench) {
-          // Privilégier Codestral pour code + français
-          functionName = 'codestral-chat';
-          model = 'codestral-latest';
-          setAutoRouterChoice('codestral-french');
-        } else if (needsReasoning && len > 200) {
-          // Utiliser Gemini 2.5 Pro pour raisonnement complexe avec "thinking"
-          functionName = 'gemini-chat';
-          model = 'gemini-2.5-pro';
-          setAutoRouterChoice('gemini25-thinking');
-        } else if (isCode) {
-          functionName = 'deepseek-chat';
-          model = 'deepseek-chat';
-          setAutoRouterChoice('deepseek-code');
-        } else if (isFrench) {
-          // Privilégier Mistral pour français général
-          functionName = 'codestral-chat';
-          model = 'mistral-large-latest';
-          setAutoRouterChoice('mistral-french');
-        } else if (needsVision) {
-          // Utiliser Gemini 2.5 Flash pour vision multimodale avancée
-          functionName = 'gemini-chat';
-          model = 'gemini-2.5-flash';
-          setAutoRouterChoice('gemini25-vision');
-        } else if (needsCreativity || len > 1000) {
-          // Utiliser Gemini 2.5 Flash pour créativité et longues conversations
-          functionName = 'gemini-chat';
-          model = 'gemini-2.5-flash';
-          setAutoRouterChoice('gemini25-creative');
-        } else {
-          // Par défaut: GPT-5 pour usage général
-          functionName = 'openai-chat';
-          model = 'gpt-5-2025-08-07';
-          setAutoRouterChoice('gpt5-general');
-        }
-      } else if (selectedModel.includes('gemini')) {
-        functionName = 'gemini-chat';
-        model = selectedModel; // Support complet des modèles Gemini 1.5 et 2.5
-      } else if (selectedModel.includes('deepseek')) {
-        functionName = 'deepseek-chat';
-        model = 'deepseek-chat';
-      } else if (selectedModel.includes('claude')) {
-        functionName = 'claude-chat';
-        model = selectedModel;
-      } else if (selectedModel.includes('mistral') || selectedModel.includes('codestral')) {
-        functionName = 'codestral-chat';
-        model = selectedModel;
-      } else if (selectedModel.startsWith('gpt-') || selectedModel.startsWith('o')) {
-        functionName = 'openai-chat';
-        model = selectedModel;
-      } else {
-        // Fallback amélioré - utiliser GPT-5 par défaut
-        functionName = 'openai-chat';
-        model = 'gpt-5-2025-08-07';
-      }
-
-      // Debug: Afficher le modèle et la fonction utilisés
-      const isAutoRouter = selectedModel === 'auto-router';
-      console.log("🔧 MODEL ROUTING:", { selectedModel, functionName, model, isAutoRouter });
-
-      // Paramètres optimisés selon le modèle
-      const isO1Model = model.startsWith('o1-') || model.startsWith('o3-') || model.startsWith('o4-');
-      const isNewModel = model.includes('gpt-5') || model.includes('gpt-4.1') || model.startsWith('o3-') || model.startsWith('o4-');
-      const maxTokensParam = isNewModel ? 'max_completion_tokens' : 'max_tokens';
-      const temperature = safeMode ? 0.3 : 0.7;
-      const maxTokens = 1500;
-      // OPTIMISATION MAJEURE: Streaming universel avec cache intelligent
-      console.log('🚀 OPTIMISED: Starting instant streaming for:', selectedModel);
+      const systemMessage = systemPrompt || "Tu es un assistant utile et concis.";
+      const result = await aiService.generateIntelligent(content, actualModel, personality);
       
-      // Précharger contexte utilisateur en arrière-plan
-      if (user?.id) {
-        const { PerformanceCache } = await import('@/services/performanceCache');
-        PerformanceCache.preloadUserData(user.id);
-      }
-
-      // Streaming universel optimisé (supporte TOUS les modèles y compris GPT-5/O3/O4)
-      const { useInstantStreaming } = await import('@/hooks/useInstantStreaming');
-      
-      let streamingId = `stream-${Date.now()}`;
-      setMessages(prev => [...prev, { id: streamingId, content: '', role: 'assistant', timestamp: new Date(), model: selectedModel }]);
-      setIsLoading(false); // Immédiatement non-loading pour réactivité
-
-      // Import du service de streaming optimisé
-      const { StreamingService } = await import('@/services/streamingService');
-      
-      let accumulatedText = '';
-      const startTime = Date.now();
-
-      try {
-        await StreamingService.streamWithFallback({
-          messages: chatMessages.map(m => ({ role: m.role, content: m.content })),
-          model: selectedModel,
-          temperature: safeMode ? 0.3 : 0.7,
-          maxTokens: 2000,
-          onChunk: (chunk: string) => {
-            accumulatedText += chunk;
-            setMessages(prev => prev.map(m => 
-              m.id === streamingId ? { ...m, content: accumulatedText } : m
-            ));
-          },
-          onComplete: async (fullText: string) => {
-            const endTime = Date.now();
-            console.log(`✅ OPTIMISED: Stream completed in ${endTime - startTime}ms`);
-            
-            const finalMessage: Message = {
-              id: (Date.now() + 1).toString(),
-              content: fullText,
-              role: 'assistant',
-              timestamp: new Date(),
-              model: selectedModel,
-            };
-            
-            setMessages(prev => prev.map(m => m.id === streamingId ? finalMessage : m));
-            
-            // Sauvegarder en arrière-plan
-            (async () => {
-              try {
-                await supabase.from('messages').insert({
-                  conversation_id: convoId,
-                  role: 'assistant',
-                  content: fullText,
-                  model: selectedModel
-                });
-              } catch (e) {
-                console.warn('Save message failed:', e);
-              }
-            })();
-            
-            // TTS manuel uniquement (pas de lecture automatique)
-            // if (fullText && !fullText.startsWith('data:')) {
-            //   (async () => {
-            //     try {
-            //       await synthesizeAndPlay(fullText);
-            //     } catch (e) {
-            //       console.warn('TTS failed:', e);
-            //     }
-            //   })();
-            // }
-          },
-          onError: (error: Error) => {
-            console.error('❌ OPTIMISED: Streaming failed:', error);
-            
-            // Fallback gracieux
-            const errorMessage: Message = {
-              id: (Date.now() + 2).toString(),
-              content: `Erreur de génération: ${error.message}`,
-              role: 'assistant',
-              timestamp: new Date(),
-              model: selectedModel,
-            };
-            
-            setMessages(prev => prev.map(m => m.id === streamingId ? errorMessage : m));
-          }
-        });
-        
-      } catch (error) {
-        console.error('❌ OPTIMISED: Critical streaming error:', error);
-        
-        const fallbackMessage: Message = {
-          id: (Date.now() + 3).toString(),
-          content: 'Désolé, une erreur est survenue lors de la génération.',
-          role: 'assistant',
-          timestamp: new Date(),
-          model: selectedModel,
-        };
-        
-        setMessages(prev => prev.map(m => m.id === streamingId ? fallbackMessage : m));
-      }
-      
-      return; // Exit early avec optimisation
-
-      // Construction du requestBody avec paramètres spécifiques selon le provider
-      const requestBody: any = {
-        messages: chatMessages,
-        model,
-        temperature,
-      };
-
-      // Paramètres spécifiques selon le provider
-      requestBody[maxTokensParam] = maxTokens;
-
-      // Pour les modèles O1 et nouveaux modèles, ne pas envoyer temperature
-      if (functionName === ('openai-chat' as string) && (isO1Model || isNewModel)) {
-        delete requestBody.temperature;
-      }
-
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: requestBody
-      });
-
-      if (error) {
-        console.error("❌ Erreur Edge Function:", { functionName, model, error });
-        throw error;
+      if (!result.text) {
+        throw new Error("Aucune réponse reçue");
       }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data?.generatedText || data?.text || data?.content || 'Réponse vide reçue.',
+        content: result.text,
         role: "assistant",
         timestamp: new Date(),
-        model
+        model: actualModel
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
+      // Sauvegarder la réponse dans la base
       await supabase.from('messages').insert({
         conversation_id: convoId,
         role: 'assistant',
-        content: assistantMessage.content,
-        model
+        content: result.text,
+        model: actualModel
       });
-    } catch (e: any) {
-      const assistantMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        content: `Erreur: ${e?.message || "Impossible d'obtenir une réponse"}`,
+
+      // TTS functionality moved to dedicated TTS Studio page
+
+    } catch (error) {
+      console.error('Erreur envoi message:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: `Erreur: ${error instanceof Error ? error.message : 'Une erreur est survenue'}`,
         role: "assistant",
         timestamp: new Date(),
         model: selectedModel
       };
-      setMessages(prev => [...prev, assistantMessage]);
-
-      // Sauvegarde aussi l'erreur comme message assistant
-      if (currentConversationId) {
-        await supabase.from('messages').insert({
-          conversation_id: currentConversationId,
-          role: 'assistant',
-          content: assistantMessage.content,
-          model: selectedModel
-        });
-      }
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Gestionnaire pour les images générées via ImageControls
-  const handleImageGenerated = async (imageUrl: string, type: 'generation' | 'edit' | 'variation') => {
-    const typeLabels = {
-      generation: 'Génération DALL-E 3',
-      edit: 'Édition DALL-E 2',
-      variation: 'Variation DALL-E 2'
-    };
-
+  const handleImageGenerated = (imageUrl: string) => {
     const assistantMessage: Message = {
-      id: Date.now().toString(),
+      id: (Date.now() + 1).toString(),
       content: imageUrl,
-      role: 'assistant',
+      role: "assistant",
       timestamp: new Date(),
-      model: type === 'generation' ? 'dall-e-3' : 'dall-e-2'
+      model: "dalle-3"
     };
-
     setMessages(prev => [...prev, assistantMessage]);
-
-    // Sauvegarder dans la base si on a une conversation active
-    if (currentConversationId) {
-      await supabase.from('messages').insert({
-        conversation_id: currentConversationId,
-        role: 'assistant',
-        content: imageUrl,
-        model: assistantMessage.model
-      });
-    }
-
-    toast({
-      title: typeLabels[type],
-      description: "Image créée avec succès"
-    });
-  };
-  
-  const exportDocument = async (type: 'pdf' | 'docx' | 'pptx') => {
-    try {
-      let bodyText = '';
-      const fallback = [...messages].reverse().find(m => typeof m.content === 'string' && !m.content.startsWith('data:') && !m.content.startsWith('http'));
-      bodyText = (fallback?.content as string) || 'Document généré depuis le chat.';
-
-      let dataUrl = '';
-      if (type === 'pdf') dataUrl = await createPdfDataUrl(bodyText);
-      else if (type === 'docx') dataUrl = await createDocxDataUrl(bodyText);
-      else dataUrl = await createPptxDataUrl(bodyText);
-
-      // Téléchargement automatique
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      const timestamp = new Date().toISOString().slice(0, 16).replace(/[:-]/g, '');
-      const extensions = { pdf: 'pdf', docx: 'docx', pptx: 'pptx' };
-      link.download = `document-${timestamp}.${extensions[type]}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Optionnel : ajouter aussi le document dans le chat
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: dataUrl,
-        role: 'assistant',
-        timestamp: new Date(),
-        model: selectedModel
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-
-      let convoId = currentConversationId;
-      if (!convoId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Non authentifié');
-        const { data: conv, error: convError } = await supabase
-          .from('conversations')
-          .insert({ title: 'Documents générés', user_id: user.id })
-          .select('id')
-          .maybeSingle();
-        if (convError) throw convError;
-        convoId = conv?.id as string;
-        setCurrentConversationId(convoId);
-      }
-
-      await supabase.from('messages').insert({
-        conversation_id: convoId,
-        role: 'assistant',
-        content: assistantMessage.content,
-        model: selectedModel
-      });
-    } catch (e: any) {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 2).toString(),
-        content: `Erreur export: ${e?.message || 'échec'}`,
-        role: 'assistant',
-        timestamp: new Date(),
-        model: selectedModel
-      }]);
-    }
   };
 
   return (
@@ -1227,106 +616,43 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
                 autoRouterChoice={autoRouterChoice}
               />
               <ChatMessage 
+                key="loading"
                 message={{
                   id: "loading",
-                  content: "En train de réfléchir...",
+                  content: "Génération en cours...",
                   role: "assistant",
                   timestamp: new Date(),
                   model: selectedModel
                 }}
-                isLoading={true}
               />
             </>
           )}
-        </div>
-      </ScrollArea>
-      
-      {/* Barre d'actions avec boutons optimisés mobile */}
-      <div className="border-t border-border bg-background">
-        <div className="max-w-4xl mx-auto px-3 py-3">
-          {/* Ligne principale : Boutons d'actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-2">
-            {/* Première ligne mobile : Nouveau chat + Studio DALL-E */}
-            <div className="flex items-center gap-3 flex-1">
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={createNewConversation}
-                className="flex-1 sm:flex-none bg-gradient-primary hover:shadow-glow transition-all"
-              >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Nouveau chat</span>
-                <span className="sm:hidden">Nouveau</span>
-              </Button>
-              
-              <Button 
-                onClick={() => setShowImageControls(!showImageControls)}
-                variant={showImageControls ? "default" : "outline"}
-                size="sm"
-                className="flex-1 sm:flex-none font-medium transition-all duration-200 bg-secondary/50 hover:bg-secondary border-border text-secondary-foreground hover:shadow-md"
-              >
-                <span className="hidden sm:inline">
-                  {showImageControls ? '✕ Fermer Studio' : '🎨 Studio DALL-E'}
-                </span>
-                <span className="sm:hidden font-bold">
-                  {showImageControls ? '✕' : '🎨 DALL-E'}
-                </span>
-              </Button>
-            </div>
-            
-            
-            {/* Section Export - Deuxième ligne sur mobile */}
-            <div className="flex items-center gap-2 justify-center sm:justify-end">
-              <span className="text-xs text-muted-foreground hidden md:inline whitespace-nowrap">
-                Exporter le dernier contenu:
-              </span>
-              <span className="text-xs text-muted-foreground md:hidden">
-                Export:
-              </span>
-              
-              <div className="flex gap-1">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => exportDocument('pdf')}
-                  className="text-xs px-2 py-1 h-7 hover:bg-destructive/10 hover:border-destructive/20 hover:text-destructive transition-colors"
-                >
-                  PDF
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => exportDocument('docx')}
-                  className="text-xs px-2 py-1 h-7 hover:bg-primary/10 hover:border-primary/20 hover:text-primary transition-colors"
-                >
-                  DOCX
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => exportDocument('pptx')}
-                  className="text-xs px-2 py-1 h-7 hover:bg-accent/10 hover:border-accent/20 hover:text-accent transition-colors"
-                >
-                  PPTX
-                </Button>
+
+          {messages.length === 0 && !isLoading && (
+            <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+              <MessageSquare className="w-16 h-16 text-muted-foreground/50" />
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Commencez une nouvelle conversation
+                </h3>
+                <p className="text-muted-foreground max-w-md">
+                  Posez une question, demandez de l'aide, ou explorez les possibilités avec l'IA.
+                </p>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>💡 Essayez: "Explique-moi comment..."</p>
+                  <p>🎨 Ou: "Génère une image de..."</p>
+                  <p>💻 Ou: "Crée une application..."</p>
+                </div>
               </div>
-            </div>
-          </div>
-          
-          {/* Indicateur du nombre de messages */}
-          {messages.length > 0 && (
-            <div className="text-xs text-muted-foreground text-center">
-              {messages.length} message{messages.length > 1 ? 's' : ''} dans cette conversation
             </div>
           )}
         </div>
-      </div>
-      
-      {/* Studio d'Images DALL-E - Repositionné avant ChatInput pour mobile */}
+      </ScrollArea>
+
       {showImageControls && (
-        <div className="border-t border-border bg-gradient-to-br from-secondary/30 to-accent/10 p-4 mx-auto max-w-4xl">
-          <div className="mb-2 text-center">
-            <h3 className="text-sm font-medium text-primary flex items-center justify-center gap-2">
+        <div className="border-t border-border bg-card/50 p-4">
+          <div className="max-w-4xl mx-auto">
+            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
               🎨 Studio DALL-E - Génération d'Images IA
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
