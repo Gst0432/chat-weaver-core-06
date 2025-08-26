@@ -68,13 +68,13 @@ export const ModernHeader = ({
         </Button>
         
         <Button
-          variant="outline"
+          variant="default"
           size="sm"
           onClick={onNewProject}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
         >
           <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Nouveau</span>
+          <span className="hidden sm:inline">✨ Auto-Génération</span>
         </Button>
         
         <Button

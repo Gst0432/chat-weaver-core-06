@@ -7,6 +7,7 @@ import { ProjectManager } from "./ProjectManager";
 import { ReactFileExplorer } from "./ReactFileExplorer";
 import { TemplateLibrary } from "./TemplateLibrary";
 import { CommandPalette } from "./CommandPalette";
+import { AutoProjectGenerator } from "./AutoProjectGenerator";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ export default function ModernCodeStudio() {
   const [isLoading, setIsLoading] = useState(true);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showAutoGenerator, setShowAutoGenerator] = useState(false);
   
   // Editor state - React/TypeScript focused
   const [tsxContent, setTsxContent] = useState('');
@@ -253,7 +255,7 @@ export default function ModernCodeStudio() {
     <div className="h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <ModernHeader 
         activeProject={activeProject}
-        onNewProject={() => setShowTemplates(true)}
+        onNewProject={() => setShowAutoGenerator(true)}
         onSaveProject={saveProject}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
       />
@@ -331,6 +333,18 @@ export default function ModernCodeStudio() {
         isOpen={showTemplates}
         onClose={() => setShowTemplates(false)}
         onSelectTemplate={createProject}
+      />
+
+      <AutoProjectGenerator
+        isOpen={showAutoGenerator}
+        onClose={() => setShowAutoGenerator(false)}
+        onProjectGenerated={(project) => {
+          setActiveProject(project);
+          setTsxContent(project.tsx);
+          setCssContent(project.css);
+          setTsContent(project.typescript);
+          setProjects(prev => [project, ...prev]);
+        }}
       />
     </div>
   );

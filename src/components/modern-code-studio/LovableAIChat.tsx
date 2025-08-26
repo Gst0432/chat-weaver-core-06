@@ -41,12 +41,12 @@ interface LovableAIChatProps {
 }
 
 const lovablePrompts = [
-  { icon: Component, label: "Composant React", prompt: "/create-component " },
-  { icon: Palette, label: "Design moderne", prompt: "/improve-ui " },
-  { icon: Bug, label: "Corriger bugs", prompt: "/fix-react-errors " },
-  { icon: Zap, label: "Optimiser perf", prompt: "/optimize-performance " },
-  { icon: Lightbulb, label: "Refactoring", prompt: "/refactor-code " },
-  { icon: RefreshCw, label: "État React", prompt: "/manage-state " },
+  { icon: Component, label: "Todo App", prompt: "Crée une application todo complète avec React, TypeScript, Tailwind CSS et persistance locale" },
+  { icon: Palette, label: "Dashboard Admin", prompt: "Génère un dashboard administrateur moderne avec sidebar, graphiques et gestion d'utilisateurs" },
+  { icon: Bug, label: "E-commerce", prompt: "Crée un site e-commerce avec catalogue produits, panier et checkout" },
+  { icon: Zap, label: "Blog App", prompt: "Développe une application de blog avec éditeur markdown et système de commentaires" },
+  { icon: Lightbulb, label: "Landing Page", prompt: "Génère une landing page moderne avec sections hero, features, pricing et contact" },
+  { icon: RefreshCw, label: "Améliorer", prompt: "Améliore l'interface utilisateur de ce composant avec des animations et un design moderne" },
 ];
 
 export const LovableAIChat = ({ currentCode, activeTab, onInsertCode }: LovableAIChatProps) => {
@@ -60,7 +60,7 @@ export const LovableAIChat = ({ currentCode, activeTab, onInsertCode }: LovableA
     // Message de bienvenue style Lovable
     const welcomeMessage: Message = {
       id: 'welcome',
-      content: "Salut! Je suis votre assistant IA intégré, comme sur Lovable.dev 🚀\n\nJe peux vous aider à créer des composants React modernes, améliorer votre design avec Tailwind, gérer l'état avec TypeScript, et bien plus!\n\nQue voulez-vous construire ensemble?",
+      content: "Bonjour ! Je suis votre assistant IA Lovable pour le développement React moderne.\n\n✨ **Génération automatique de projet :** Décrivez simplement votre idée (ex: \"une todo app\", \"un dashboard admin\", \"un site e-commerce\") et je vais automatiquement :\n\n• Créer la structure complète React + Vite + Tailwind\n• Générer les composants nécessaires\n• Configurer les fonctionnalités de base\n• Ajouter les types TypeScript\n\nCommencez par me dire ce que vous voulez créer !",
       role: "assistant",
       timestamp: new Date(),
       type: 'suggestion'
@@ -109,7 +109,98 @@ export const LovableAIChat = ({ currentCode, activeTab, onInsertCode }: LovableA
     setIsLoading(true);
 
     try {
-      const reactContext = `
+      // Détecter si c'est une demande de création de projet complet
+      const isProjectCreation = isProjectCreationRequest(input);
+      
+      if (isProjectCreation) {
+        // Génération automatique de projet complet
+        const projectPrompt = `Tu es Lovable AI, assistant expert en développement React moderne.
+
+MISSION: Génère un projet React COMPLET et fonctionnel basé sur cette demande: "${input}"
+
+STRUCTURE AUTOMATIQUE À GÉNÉRER:
+1. Composant principal (App.tsx) avec structure complète
+2. Styles Tailwind CSS avec design moderne 
+3. Types TypeScript appropriés
+4. Configuration automatique
+
+TECHNOLOGIES:
+- React 18 + TypeScript
+- Tailwind CSS pour le styling
+- Hooks modernes (useState, useEffect, etc.)
+- Architecture component-based
+
+REQUIREMENTS:
+- Code PRODUCTION-READY immédiatement utilisable
+- Design moderne et responsive
+- Interface utilisateur intuitive
+- Fonctionnalités de base implémentées
+- Structure de projet scalable
+
+EXEMPLE DE STRUCTURE ATTENDUE:
+\`\`\`tsx
+// Composant principal avec toutes les fonctionnalités
+import React, { useState, useEffect } from 'react';
+
+interface [Types appropriés] {
+  // Types nécessaires
+}
+
+export default function App() {
+  // État et logique
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Interface utilisateur complète */}
+    </div>
+  );
+}
+\`\`\`
+
+\`\`\`css
+/* Styles Tailwind + customs */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles personnalisés si nécessaire */
+\`\`\`
+
+\`\`\`typescript
+// Types et utilitaires TypeScript
+export interface [Interfaces]
+export const [Utils]
+\`\`\`
+
+GÉNÈRE MAINTENANT LE PROJET COMPLET:`;
+
+        const { data, error } = await supabase.functions.invoke('openai-chat', {
+          body: {
+            message: projectPrompt,
+            model: "gpt-4o"
+          }
+        });
+
+        if (error) throw error;
+
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data.response,
+          role: "assistant",
+          timestamp: new Date(),
+          type: 'code'
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+
+        // Auto-insérer le code généré
+        setTimeout(() => {
+          extractReactCode(data.response);
+        }, 1000);
+
+      } else {
+        // Génération normale pour améliorations
+        const reactContext = `
 Contexte du projet React actuel:
 - Onglet actif: ${activeTab.toUpperCase()}
 - Composant React/TSX: ${currentCode.tsx.slice(0, 800)}${currentCode.tsx.length > 800 ? '...' : ''}
@@ -117,19 +208,11 @@ Contexte du projet React actuel:
 - TypeScript utils: ${currentCode.typescript.slice(0, 400)}${currentCode.typescript.length > 400 ? '...' : ''}
 `;
 
-      const lovablePrompt = `Tu es l'assistant IA de Lovable.dev, expert en React, TypeScript et Tailwind CSS.
+        const lovablePrompt = `Tu es l'assistant IA de Lovable.dev, expert en React, TypeScript et Tailwind CSS.
 
 ${reactContext}
 
 Instructions spécialisées Lovable:
-- Pour "/create-component": génère un composant React moderne avec TypeScript et Tailwind
-- Pour "/improve-ui": améliore le design avec Tailwind CSS et animations
-- Pour "/fix-react-errors": corrige les erreurs React/TypeScript
-- Pour "/optimize-performance": optimise avec useMemo, useCallback, lazy loading
-- Pour "/refactor-code": refactorise avec les bonnes pratiques React
-- Pour "/manage-state": améliore la gestion d'état (useState, useContext, etc.)
-
-Style de réponse Lovable:
 - Code prêt à utiliser avec des commentaires explicatifs
 - Utilise Tailwind CSS pour tous les styles (classes modernes)
 - TypeScript strict avec interfaces appropriées
@@ -140,37 +223,32 @@ Style de réponse Lovable:
 
 Demande utilisateur: ${input}`;
 
-      // Utiliser votre API via Supabase Functions
-      const { data, error } = await supabase.functions.invoke('openai-chat', {
-        body: {
-          messages: [
-            { role: 'system', content: 'Tu es l\'assistant IA de Lovable.dev, expert en React, TypeScript et Tailwind CSS.' },
-            { role: 'user', content: lovablePrompt }
-          ],
-          model: 'gpt-4o-mini', // Modèle rapide et efficace
-          max_tokens: 2000,
-          temperature: 0.7
-        }
-      });
+        const { data, error } = await supabase.functions.invoke('openai-chat', {
+          body: {
+            message: lovablePrompt,
+            model: "gpt-4o"
+          }
+        });
 
-      if (error) throw error;
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: data.generatedText || "Désolé, impossible de générer une réponse.",
-        role: "assistant",
-        timestamp: new Date(),
-        type: data.generatedText?.includes('```') ? 'code' : 'text'
-      };
+        if (error) throw error;
+        
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data.response || "Désolé, impossible de générer une réponse.",
+          role: "assistant",
+          timestamp: new Date(),
+          type: data.response?.includes('```') ? 'code' : 'text'
+        };
 
-      setMessages(prev => [...prev, assistantMessage]);
+        setMessages(prev => [...prev, assistantMessage]);
+      }
+
     } catch (error: any) {
       console.error('Lovable AI Error:', error);
       
-      // Message d'erreur plus détaillé pour debug
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: `Erreur technique : ${error.message || 'API indisponible'}.\n\nEssayez une commande simple comme "/create-component" ou reformulez votre demande.`,
+        content: `Erreur technique : ${error.message || 'API indisponible'}.\n\nEssayez une demande simple ou reformulez votre demande.`,
         role: "assistant",
         timestamp: new Date(),
         type: 'text'
@@ -186,6 +264,20 @@ Demande utilisateur: ${input}`;
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Fonction pour détecter les demandes de création de projet
+  const isProjectCreationRequest = (message: string): boolean => {
+    const projectKeywords = [
+      'crée', 'génère', 'développe', 'construis', 'fais',
+      'todo', 'dashboard', 'blog', 'e-commerce', 'landing', 'portfolio',
+      'app', 'application', 'site', 'plateforme', 'système',
+      'page', 'interface', 'ui', 'frontend'
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    return projectKeywords.some(keyword => lowerMessage.includes(keyword)) ||
+           message.length > 20; // Messages longs = probablement création projet
   };
 
   const extractReactCode = (content: string, targetTab?: 'tsx' | 'css' | 'typescript') => {
