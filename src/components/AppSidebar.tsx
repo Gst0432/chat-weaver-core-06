@@ -234,12 +234,14 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
+              {/* Générateur Vidéo - Temporairement masqué
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={toggleVideoGenerator} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Video className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Générateur Vidéo</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              */}
               
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => handleNavigation('/speech-to-text')} className="w-full justify-start text-muted-foreground hover:text-foreground">
