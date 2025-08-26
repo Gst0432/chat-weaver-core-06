@@ -157,18 +157,30 @@ Demande utilisateur: ${input}`;
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.choices[0].message.content,
+        content: data.generatedText || "Désolé, impossible de générer une réponse.",
         role: "assistant",
         timestamp: new Date(),
-        type: data.choices[0].message.content.includes('```') ? 'code' : 'text'
+        type: data.generatedText?.includes('```') ? 'code' : 'text'
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Lovable AI Error:', error);
+      
+      // Message d'erreur plus détaillé pour debug
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: `Erreur technique : ${error.message || 'API indisponible'}.\n\nEssayez une commande simple comme "/create-component" ou reformulez votre demande.`,
+        role: "assistant",
+        timestamp: new Date(),
+        type: 'text'
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      
       toast({
         title: "Erreur IA",
-        description: "Impossible de générer une réponse",
+        description: "Vérifiez votre connexion et réessayez",
         variant: "destructive"
       });
     } finally {
