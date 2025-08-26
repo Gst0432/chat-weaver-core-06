@@ -176,8 +176,9 @@ GÉNÈRE MAINTENANT LE PROJET COMPLET:`;
 
         const { data, error } = await supabase.functions.invoke('openai-chat', {
           body: {
-            message: projectPrompt,
-            model: "gpt-4o"
+            messages: [{ role: 'user', content: projectPrompt }],
+            model: "gpt-4o",
+            max_tokens: 4000
           }
         });
 
@@ -185,7 +186,7 @@ GÉNÈRE MAINTENANT LE PROJET COMPLET:`;
 
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: data.response,
+          content: data.generatedText,
           role: "assistant",
           timestamp: new Date(),
           type: 'code'
@@ -195,7 +196,7 @@ GÉNÈRE MAINTENANT LE PROJET COMPLET:`;
 
         // Auto-insérer le code généré
         setTimeout(() => {
-          extractReactCode(data.response);
+          extractReactCode(data.generatedText);
         }, 1000);
 
       } else {
@@ -225,8 +226,9 @@ Demande utilisateur: ${input}`;
 
         const { data, error } = await supabase.functions.invoke('openai-chat', {
           body: {
-            message: lovablePrompt,
-            model: "gpt-4o"
+            messages: [{ role: 'user', content: lovablePrompt }],
+            model: "gpt-4o",
+            max_tokens: 3000
           }
         });
 
@@ -234,10 +236,10 @@ Demande utilisateur: ${input}`;
         
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: data.response || "Désolé, impossible de générer une réponse.",
+          content: data.generatedText || "Désolé, impossible de générer une réponse.",
           role: "assistant",
           timestamp: new Date(),
-          type: data.response?.includes('```') ? 'code' : 'text'
+          type: data.generatedText?.includes('```') ? 'code' : 'text'
         };
 
         setMessages(prev => [...prev, assistantMessage]);

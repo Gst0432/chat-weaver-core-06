@@ -150,15 +150,16 @@ GÉNÈRE MAINTENANT:`;
 
       const response = await supabase.functions.invoke('openai-chat', {
         body: {
-          message: enhancedPrompt,
-          model: "gpt-4o"
+          messages: [{ role: 'user', content: enhancedPrompt }],
+          model: "gpt-4o",
+          max_tokens: 4000
         }
       });
 
       if (response.error) throw response.error;
 
       // Extraire le code généré
-      const generatedCode = response.data.response;
+      const generatedCode = response.data.generatedText;
       const { tsx, css, typescript } = extractCodeBlocks(generatedCode);
 
       // Sauvegarder le projet
