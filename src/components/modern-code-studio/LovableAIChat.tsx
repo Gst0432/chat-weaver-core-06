@@ -57,16 +57,20 @@ export const LovableAIChat = ({ currentCode, activeTab, onInsertCode }: LovableA
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Message de bienvenue style Lovable
+    // Message de bienvenue adaptatif
+    const hasExistingCode = currentCode.tsx.length > 100 || currentCode.css.length > 50;
+    
     const welcomeMessage: Message = {
       id: 'welcome',
-      content: "Bonjour ! Je suis votre assistant IA Lovable pour le développement React moderne.\n\n✨ **Génération automatique de projet :** Décrivez simplement votre idée (ex: \"une todo app\", \"un dashboard admin\", \"un site e-commerce\") et je vais automatiquement :\n\n• Créer la structure complète React + Vite + Tailwind\n• Générer les composants nécessaires\n• Configurer les fonctionnalités de base\n• Ajouter les types TypeScript\n\nCommencez par me dire ce que vous voulez créer !",
+      content: hasExistingCode 
+        ? "👋 Bonjour ! Je vois que vous avez déjà du code dans votre projet.\n\n💬 **Mode conversation :** Vous pouvez maintenant me demander des modifications en langage naturel :\n\n• \"Ajoute un bouton de connexion\"\n• \"Change la couleur en bleu\"\n• \"Rends le design plus moderne\"\n• \"Ajoute une sidebar\"\n• \"Corrige les erreurs\"\n\nJe vais analyser votre code existant et appliquer les changements demandés !"
+        : "🚀 **Bienvenue dans Lovable Code Studio !**\n\n✨ **Génération d'architecture complète :** Décrivez simplement votre projet en une phrase et je vais créer automatiquement :\n\n• 📁 **Structure complète** React + TypeScript + Tailwind\n• 🎨 **Interface utilisateur** moderne et responsive  \n• ⚡ **Fonctionnalités de base** prêtes à l'emploi\n• 🔧 **Architecture scalable** et maintenir\n\n**Exemples :**\n• \"Une todo app avec drag & drop\"\n• \"Un dashboard admin avec graphiques\"\n• \"Un site e-commerce avec panier\"\n• \"Une landing page pour SaaS\"\n\n**Commencez par décrire votre projet !**",
       role: "assistant",
       timestamp: new Date(),
       type: 'suggestion'
     };
     setMessages([welcomeMessage]);
-  }, []);
+  }, [currentCode.tsx, currentCode.css]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -109,74 +113,231 @@ export const LovableAIChat = ({ currentCode, activeTab, onInsertCode }: LovableA
     setIsLoading(true);
 
     try {
-      // Détecter si c'est une demande de création de projet complet
-      const isProjectCreation = isProjectCreationRequest(input);
+      // Détecter le type d'interaction
+      const hasExistingCode = currentCode.tsx.length > 100 || currentCode.css.length > 50;
+      const isArchitectureCreation = !hasExistingCode && isNewProjectRequest(input);
+      const isModificationRequest = hasExistingCode && isModificationRequestFn(input);
       
-      if (isProjectCreation) {
-        // Génération automatique de projet complet
-        const projectPrompt = `Tu es Lovable AI, assistant expert en développement React moderne.
+      if (isArchitectureCreation) {
+        // 🏗️ GÉNÉRATION ARCHITECTURE COMPLÈTE
+        const architecturePrompt = `Tu es Lovable AI, architecte expert en développement React moderne.
 
-MISSION: Génère un projet React COMPLET et fonctionnel basé sur cette demande: "${input}"
+🎯 MISSION ARCHITECTURALE: Crée une architecture React COMPLÈTE et FONCTIONNELLE pour: "${input}"
 
-STRUCTURE AUTOMATIQUE À GÉNÉRER:
-1. Composant principal (App.tsx) avec structure complète
-2. Styles Tailwind CSS avec design moderne 
-3. Types TypeScript appropriés
-4. Configuration automatique
+📐 ARCHITECTURE OBLIGATOIRE:
+1. **App.tsx** - Composant principal avec toute la logique métier
+2. **Styles.css** - Design système complet avec Tailwind + customs
+3. **Utils.ts** - Types TypeScript + fonctions utilitaires + hooks
 
-TECHNOLOGIES:
-- React 18 + TypeScript
-- Tailwind CSS pour le styling
-- Hooks modernes (useState, useEffect, etc.)
-- Architecture component-based
+🛠️ STACK TECHNIQUE:
+- React 18 + TypeScript strict
+- Tailwind CSS + design système moderne
+- Hooks React (useState, useEffect, useCallback, useMemo)
+- Architecture component-based scalable
 
-REQUIREMENTS:
-- Code PRODUCTION-READY immédiatement utilisable
-- Design moderne et responsive
-- Interface utilisateur intuitive
-- Fonctionnalités de base implémentées
-- Structure de projet scalable
+✨ EXIGENCES QUALITÉ:
+- Code PRODUCTION-READY immédiatement déployable
+- Interface utilisateur moderne et intuitive
+- Responsive design mobile-first parfait
+- Interactions fluides avec micro-animations
+- Gestion d'état robuste et performante
+- Types TypeScript complets et stricts
+- Accessibilité (ARIA, semantic HTML)
+- SEO optimized (meta tags, structure)
 
-EXEMPLE DE STRUCTURE ATTENDUE:
+📝 FORMAT DE RÉPONSE OBLIGATOIRE:
+
 \`\`\`tsx
-// Composant principal avec toutes les fonctionnalités
-import React, { useState, useEffect } from 'react';
+// 🏗️ ARCHITECTURE COMPLÈTE - App.tsx
+import React, { useState, useEffect, useCallback } from 'react';
 
-interface [Types appropriés] {
-  // Types nécessaires
+// Types métier complets
+interface [NomInterface] {
+  // Propriétés avec types stricts
 }
 
+// Hook personnalisé si nécessaire
+const use[NomHook] = () => {
+  // Logique réutilisable
+};
+
 export default function App() {
-  // État et logique
+  // 🔥 ÉTAT GLOBAL DE L'APPLICATION
+  const [state, setState] = useState<TypeState>({});
   
+  // 🎯 LOGIQUE MÉTIER COMPLÈTE
+  const handleAction = useCallback(() => {
+    // Implémentation complète
+  }, []);
+
+  // 🎨 INTERFACE UTILISATEUR COMPLÈTE
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Interface utilisateur complète */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* 🏠 Header/Navigation */}
+      <header className="bg-white shadow-sm border-b">
+        {/* Navigation complète */}
+      </header>
+
+      {/* 📱 Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        {/* Contenu principal avec toutes les fonctionnalités */}
+      </main>
+
+      {/* 🦶 Footer */}
+      <footer className="bg-gray-900 text-white py-8">
+        {/* Footer complet */}
+      </footer>
     </div>
   );
 }
 \`\`\`
 
 \`\`\`css
-/* Styles Tailwind + customs */
+/* 🎨 DESIGN SYSTÈME COMPLET - Styles.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Styles personnalisés si nécessaire */
+/* 🎯 Variables CSS personnalisées */
+:root {
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --shadow-elegant: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+  --animation-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 🚀 Classes utilitaires personnalisées */
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300;
+  }
+  
+  .card-elegant {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+  }
+}
+
+/* 🎭 Animations personnalisées */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* 📱 Responsive design optimisé */
+@media (max-width: 768px) {
+  .container {
+    @apply px-4;
+  }
+}
 \`\`\`
 
 \`\`\`typescript
-// Types et utilitaires TypeScript
-export interface [Interfaces]
-export const [Utils]
+// 🔧 TYPES & UTILITAIRES - Utils.ts
+
+// 📝 Types métier principaux
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: 'admin' | 'user';
+  createdAt: Date;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  success: boolean;
+  message?: string;
+}
+
+// 🎯 Types pour l'état de l'application
+export interface AppState {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+}
+
+// 🛠️ Fonctions utilitaires
+export const formatDate = (date: Date): string => {
+  return new Intl.DateTimeFormat('fr-FR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(date);
+};
+
+export const generateId = (): string => {
+  return Math.random().toString(36).substr(2, 9);
+};
+
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): ((...args: Parameters<T>) => void) => {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(null, args), delay);
+  };
+};
+
+// 🎨 Constantes de design
+export const COLORS = {
+  primary: '#667eea',
+  secondary: '#764ba2',
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444'
+} as const;
+
+export const BREAKPOINTS = {
+  sm: '640px',
+  md: '768px',
+  lg: '1024px',
+  xl: '1280px'
+} as const;
+
+// 🚀 Hook personnalisé pour les API calls
+export const useApi = <T>() => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const execute = useCallback(async (apiCall: () => Promise<T>) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await apiCall();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { data, loading, error, execute };
+};
 \`\`\`
 
-GÉNÈRE MAINTENANT LE PROJET COMPLET:`;
+🎯 GÉNÈRE MAINTENANT L'ARCHITECTURE COMPLÈTE:`;
 
         const { data, error } = await supabase.functions.invoke('openai-chat', {
           body: {
-            messages: [{ role: 'user', content: projectPrompt }],
+            messages: [{ role: 'user', content: architecturePrompt }],
             model: "gpt-4o",
             max_tokens: 4000
           }
@@ -194,39 +355,70 @@ GÉNÈRE MAINTENANT LE PROJET COMPLET:`;
 
         setMessages(prev => [...prev, assistantMessage]);
 
-        // Auto-insérer le code généré
+        // Auto-insérer le code généré après un court délai
         setTimeout(() => {
-          extractReactCode(data.generatedText);
+          extractAndApplyAllCode(data.generatedText);
         }, 1000);
 
-      } else {
-        // Génération normale pour améliorations
-        const reactContext = `
-Contexte du projet React actuel:
-- Onglet actif: ${activeTab.toUpperCase()}
-- Composant React/TSX: ${currentCode.tsx.slice(0, 800)}${currentCode.tsx.length > 800 ? '...' : ''}
-- Styles CSS/Tailwind: ${currentCode.css.slice(0, 400)}${currentCode.css.length > 400 ? '...' : ''}
-- TypeScript utils: ${currentCode.typescript.slice(0, 400)}${currentCode.typescript.length > 400 ? '...' : ''}
-`;
+      } else if (isModificationRequest || hasExistingCode) {
+        // 💬 MODE MODIFICATION CONVERSATIONNEL
+        const modificationPrompt = `Tu es Lovable AI, expert en React et modification de code existant.
 
-        const lovablePrompt = `Tu es l'assistant IA de Lovable.dev, expert en React, TypeScript et Tailwind CSS.
+🔄 MISSION: Modifie le code existant selon cette demande: "${input}"
 
-${reactContext}
+📝 CODE ACTUEL:
+=== App.tsx (${currentCode.tsx.length} caractères) ===
+\`\`\`tsx
+${currentCode.tsx}
+\`\`\`
 
-Instructions spécialisées Lovable:
-- Code prêt à utiliser avec des commentaires explicatifs
-- Utilise Tailwind CSS pour tous les styles (classes modernes)
-- TypeScript strict avec interfaces appropriées
-- Composants fonctionnels avec hooks
-- Responsive design mobile-first
-- Animations fluides avec Tailwind
-- Accessibilité (aria-labels, semantic HTML)
+=== Styles.css (${currentCode.css.length} caractères) ===
+\`\`\`css
+${currentCode.css}
+\`\`\`
 
-Demande utilisateur: ${input}`;
+=== Utils.ts (${currentCode.typescript.length} caractères) ===
+\`\`\`typescript
+${currentCode.typescript}
+\`\`\`
+
+🎯 INSTRUCTIONS MODIFICATION:
+- Analyse le code existant et comprend sa structure
+- Applique UNIQUEMENT la modification demandée
+- Conserve tout le code existant qui fonctionne
+- Retourne SEULEMENT les fichiers modifiés
+- Utilise les mêmes conventions de nommage
+- Maintiens la cohérence du design et de l'architecture
+- Optimise la performance si possible
+
+⚡ TYPES DE MODIFICATIONS SUPPORTÉES:
+- Ajout de composants/fonctionnalités
+- Modification du design/styling
+- Correction de bugs
+- Refactoring/optimisation
+- Ajout d'interactions/animations
+- Modification de l'état/logique
+
+📤 FORMAT RÉPONSE:
+Explique brièvement ce que tu vas modifier, puis fournis le code modifié dans les blocs appropriés.
+
+\`\`\`tsx
+// Code TSX modifié (seulement si nécessaire)
+\`\`\`
+
+\`\`\`css  
+// Code CSS modifié (seulement si nécessaire)
+\`\`\`
+
+\`\`\`typescript
+// Code TypeScript modifié (seulement si nécessaire)
+\`\`\`
+
+🚀 APPLIQUE LA MODIFICATION MAINTENANT:`;
 
         const { data, error } = await supabase.functions.invoke('openai-chat', {
           body: {
-            messages: [{ role: 'user', content: lovablePrompt }],
+            messages: [{ role: 'user', content: modificationPrompt }],
             model: "gpt-4o",
             max_tokens: 3000
           }
@@ -240,6 +432,39 @@ Demande utilisateur: ${input}`;
           role: "assistant",
           timestamp: new Date(),
           type: data.generatedText?.includes('```') ? 'code' : 'text'
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+
+        // Auto-appliquer les modifications si du code est détecté
+        if (data.generatedText?.includes('```')) {
+          setTimeout(() => {
+            extractAndApplyAllCode(data.generatedText);
+          }, 1000);
+        }
+
+      } else {
+        // 🤔 MODE CONVERSATION GÉNÉRALE
+        const generalPrompt = `Tu es Lovable AI. L'utilisateur dit: "${input}"
+        
+Réponds de manière conversationnelle et propose des suggestions concrètes pour leur projet React.`;
+
+        const { data, error } = await supabase.functions.invoke('openai-chat', {
+          body: {
+            messages: [{ role: 'user', content: generalPrompt }],
+            model: "gpt-4o",
+            max_tokens: 1000
+          }
+        });
+
+        if (error) throw error;
+        
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data.generatedText || "Désolé, impossible de générer une réponse.",
+          role: "assistant",
+          timestamp: new Date(),
+          type: 'text'
         };
 
         setMessages(prev => [...prev, assistantMessage]);
@@ -268,38 +493,85 @@ Demande utilisateur: ${input}`;
     }
   };
 
-  // Fonction pour détecter les demandes de création de projet
-  const isProjectCreationRequest = (message: string): boolean => {
-    const projectKeywords = [
-      'crée', 'génère', 'développe', 'construis', 'fais',
-      'todo', 'dashboard', 'blog', 'e-commerce', 'landing', 'portfolio',
+  // Fonction pour détecter les demandes de nouveau projet
+  const isNewProjectRequest = (message: string): boolean => {
+    const creationKeywords = [
+      'crée', 'génère', 'développe', 'construis', 'fais', 'créer',
       'app', 'application', 'site', 'plateforme', 'système',
-      'page', 'interface', 'ui', 'frontend'
+      'todo', 'dashboard', 'blog', 'e-commerce', 'landing', 'portfolio'
     ];
     
     const lowerMessage = message.toLowerCase();
-    return projectKeywords.some(keyword => lowerMessage.includes(keyword)) ||
-           message.length > 20; // Messages longs = probablement création projet
+    return creationKeywords.some(keyword => lowerMessage.includes(keyword)) &&
+           message.length > 10;
   };
 
-  const extractReactCode = (content: string, targetTab?: 'tsx' | 'css' | 'typescript') => {
-    const tab = targetTab || activeTab;
+  // Fonction pour détecter les demandes de modification
+  const isModificationRequestFn = (message: string): boolean => {
+    const modificationKeywords = [
+      'ajoute', 'modifie', 'change', 'améliore', 'corrige', 'supprime',
+      'met', 'rend', 'fait', 'transforme', 'ajuste', 'optimise',
+      'couleur', 'taille', 'position', 'style', 'design', 'bouton',
+      'plus', 'moins', 'mieux', 'autre', 'différent'
+    ];
     
-    // Patterns améliorés pour React
+    const lowerMessage = message.toLowerCase();
+    return modificationKeywords.some(keyword => lowerMessage.includes(keyword));
+  };
+
+  // Fonction améliorée pour extraire et appliquer tout le code
+  const extractAndApplyAllCode = (content: string) => {
+    const blocks = {
+      tsx: extractCodeBlock(content, 'tsx'),
+      css: extractCodeBlock(content, 'css'), 
+      typescript: extractCodeBlock(content, 'typescript')
+    };
+
+    let appliedCount = 0;
+
+    // Appliquer chaque bloc trouvé
+    Object.entries(blocks).forEach(([type, code]) => {
+      if (code.trim()) {
+        onInsertCode(code, type as 'tsx' | 'css' | 'typescript');
+        appliedCount++;
+      }
+    });
+
+    if (appliedCount > 0) {
+      toast({
+        title: `✅ Code appliqué automatiquement`,
+        description: `${appliedCount} fichier(s) mis à jour dans votre projet`
+      });
+    } else {
+      toast({
+        title: "ℹ️ Réponse conversationnelle",
+        description: "Pas de code à appliquer dans cette réponse",
+        variant: "default"
+      });
+    }
+  };
+
+  const extractCodeBlock = (content: string, type: 'tsx' | 'css' | 'typescript'): string => {
     const patterns = {
       tsx: /```(?:tsx|jsx|typescript|react)\n([\s\S]*?)\n```/g,
       css: /```css\n([\s\S]*?)\n```/g,
       typescript: /```(?:typescript|ts)\n([\s\S]*?)\n```/g
     };
     
-    const matches = [...content.matchAll(patterns[tab])];
-    const code = matches.map(match => match[1]).join('\n\n');
+    const matches = [...content.matchAll(patterns[type])];
+    return matches.map(match => match[1]).join('\n\n');
+  };
+
+  // Fonction legacy pour compatibilité avec les boutons d'insertion manuelle
+  const extractReactCode = (content: string, targetTab?: 'tsx' | 'css' | 'typescript') => {
+    const tab = targetTab || activeTab;
+    const code = extractCodeBlock(content, tab);
     
-    if (code) {
+    if (code.trim()) {
       onInsertCode(code, tab);
       toast({
         title: "Code inséré ✅",
-        description: `Code React ajouté dans ${tab.toUpperCase()}`
+        description: `Code ajouté dans ${tab.toUpperCase()}`
       });
     } else {
       toast({
