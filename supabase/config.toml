@@ -45,6 +45,9 @@ verify_jwt = false
 [functions.veo3-video]
 verify_jwt = false
 
+[functions.kling-official-video]
+verify_jwt = false
+
 [functions.gemini-chat]
 verify_jwt = true
 

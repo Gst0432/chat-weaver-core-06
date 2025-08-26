@@ -1,51 +1,85 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Play, Download, Loader2, Video, Image, Wand2 } from "lucide-react";
+import { Upload, Play, Download, Loader2, Video, Image, Wand2, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { klingAIService, KlingVideoParams, KlingVideoResult } from "@/services/klingAIService";
 import { supabase } from "@/integrations/supabase/client";
 
 interface GeneratedVideo {
-  videoURL: string;
-  taskUUID: string;
-  positivePrompt: string;
+  videoUrl: string;
+  taskId: string;
+  prompt: string;
   duration: number;
-  dimensions: string;
-}
-
-interface VideoGenerationParams {
-  positivePrompt: string;
-  negativePrompt?: string;
-  duration: 5 | 10;
-  width: 1920 | 1080;
-  height: 1080 | 1920;
-  inputImage?: string;
+  aspectRatio: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 export const KlingAIVideoGenerator = () => {
   const [mode, setMode] = useState<'text-to-video' | 'image-to-video'>('text-to-video');
-  const [positivePrompt, setPositivePrompt] = useState('');
+  const [prompt, setPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [duration, setDuration] = useState<5 | 10>(10);
-  const [dimensions, setDimensions] = useState<'16:9' | '1:1' | '9:16'>('16:9');
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '1:1' | '9:16'>('16:9');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
+  const [currentTask, setCurrentTask] = useState<string | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const getDimensionsValues = (ratio: string) => {
-    switch (ratio) {
-      case '16:9': return { width: 1920, height: 1080 };
-      case '1:1': return { width: 1080, height: 1080 };
-      case '9:16': return { width: 1080, height: 1920 };
-      default: return { width: 1920, height: 1080 };
-    }
-  };
+  // Poll task status when generating
+  useEffect(() => {
+    if (!currentTask || !isGenerating) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const result = await klingAIService.checkTaskStatus(currentTask);
+        
+        if (result.status === 'completed' && result.videoUrl) {
+          const newVideo: GeneratedVideo = {
+            videoUrl: result.videoUrl,
+            taskId: currentTask,
+            prompt,
+            duration,
+            aspectRatio,
+            status: 'completed'
+          };
+
+          setGeneratedVideos(prev => [newVideo, ...prev]);
+          setIsGenerating(false);
+          setCurrentTask(null);
+          setEstimatedTime(null);
+          
+          toast({
+            title: "Vidéo générée !",
+            description: "Votre vidéo KlingAI est prête"
+          });
+          
+          clearInterval(pollInterval);
+        } else if (result.status === 'failed') {
+          setIsGenerating(false);
+          setCurrentTask(null);
+          setEstimatedTime(null);
+          
+          toast({
+            title: "Erreur de génération",
+            description: result.errorMessage || "La génération a échoué",
+            variant: "destructive"
+          });
+          
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        console.error('Erreur poll status:', error);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [currentTask, isGenerating, prompt, duration, aspectRatio]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -79,7 +113,6 @@ export const KlingAIVideoGenerator = () => {
         .getPublicUrl(fileName);
 
       setUploadedImageUrl(publicUrl);
-      setUploadedImage(fileName);
       
       toast({
         title: "Image uploadée",
@@ -96,7 +129,7 @@ export const KlingAIVideoGenerator = () => {
   };
 
   const generateVideo = async () => {
-    if (!positivePrompt.trim()) {
+    if (!prompt.trim()) {
       toast({
         title: "Prompt requis",
         description: "Veuillez entrer une description pour votre vidéo",
@@ -105,7 +138,7 @@ export const KlingAIVideoGenerator = () => {
       return;
     }
 
-    if (mode === 'image-to-video' && !uploadedImage) {
+    if (mode === 'image-to-video' && !uploadedImageUrl) {
       toast({
         title: "Image requise",
         description: "Veuillez uploader une image pour la génération image-to-video",
@@ -117,61 +150,42 @@ export const KlingAIVideoGenerator = () => {
     setIsGenerating(true);
     
     try {
-      const { width, height } = getDimensionsValues(dimensions);
-      
-      const params: VideoGenerationParams = {
-        positivePrompt: positivePrompt.trim(),
+      const params: KlingVideoParams = {
+        mode,
+        prompt: prompt.trim(),
         negativePrompt: negativePrompt.trim() || undefined,
         duration,
-        width: width as 1920 | 1080,
-        height: height as 1080 | 1920
+        aspectRatio,
+        imageUrl: mode === 'image-to-video' ? uploadedImageUrl : undefined
       };
-
-      if (mode === 'image-to-video' && uploadedImage) {
-        params.inputImage = uploadedImage;
-      }
 
       console.log('Génération vidéo avec params:', params);
 
-      const { data, error } = await supabase.functions.invoke('klingai-video', {
-        body: {
-          mode,
-          ...params
-        }
+      const result = await klingAIService.generateVideo(params);
+      
+      setCurrentTask(result.taskId);
+      setEstimatedTime(result.estimatedTime || 120);
+      
+      toast({
+        title: "Génération lancée !",
+        description: `Temps estimé: ${Math.ceil((result.estimatedTime || 120) / 60)} minutes`
       });
-
-      if (error) throw error;
-
-      if (data.videoURL) {
-        const newVideo: GeneratedVideo = {
-          videoURL: data.videoURL,
-          taskUUID: data.taskUUID || Date.now().toString(),
-          positivePrompt: positivePrompt,
-          duration,
-          dimensions: `${width}x${height}`
-        };
-
-        setGeneratedVideos(prev => [newVideo, ...prev]);
-        
-        toast({
-          title: "Vidéo générée !",
-          description: "Votre vidéo KlingAI est prête"
-        });
-      }
 
     } catch (error: any) {
       console.error('Erreur génération vidéo:', error);
+      setIsGenerating(false);
+      setCurrentTask(null);
+      setEstimatedTime(null);
+      
       toast({
         title: "Erreur de génération",
         description: error.message || "Impossible de générer la vidéo",
         variant: "destructive"
       });
-    } finally {
-      setIsGenerating(false);
     }
   };
 
-  const downloadVideo = async (videoUrl: string, prompt: string) => {
+  const downloadVideo = async (videoUrl: string, videoPrompt: string) => {
     try {
       const response = await fetch(videoUrl);
       const blob = await response.blob();
@@ -179,7 +193,7 @@ export const KlingAIVideoGenerator = () => {
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = `klingai-video-${prompt.slice(0, 30).replace(/[^a-z0-9]/gi, '_')}.mp4`;
+      a.download = `klingai-video-${videoPrompt.slice(0, 30).replace(/[^a-z0-9]/gi, '_')}.mp4`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -202,13 +216,13 @@ export const KlingAIVideoGenerator = () => {
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-foreground flex items-center justify-center gap-3">
           <Video className="w-8 h-8 text-primary" />
-          KlingAI 2.1 Master
+          KlingAI Officiel
         </h1>
         <p className="text-muted-foreground">
-          Générateur de vidéos VFX haute qualité • Full HD • 24 FPS
+          Générateur de vidéos AI officiel • Haute qualité • API KlingAI
         </p>
         <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-          🎬 Modèle Premium klingai:5@3
+          🎬 API Officielle KlingAI v1
         </Badge>
       </div>
 
@@ -290,14 +304,14 @@ export const KlingAIVideoGenerator = () => {
                 Description de la vidéo (2-2500 caractères)
               </label>
               <Textarea
-                value={positivePrompt}
-                onChange={(e) => setPositivePrompt(e.target.value)}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Décrivez votre vidéo... Ex: Prise de vue cinématographique aérienne des vagues s'écrasant contre des falaises dramatiques pendant l'heure dorée"
                 className="min-h-[100px] resize-none"
                 maxLength={2500}
               />
               <div className="text-xs text-muted-foreground mt-1">
-                {positivePrompt.length}/2500 caractères
+                {prompt.length}/2500 caractères
               </div>
             </div>
 
@@ -336,14 +350,14 @@ export const KlingAIVideoGenerator = () => {
               <label className="text-sm font-medium text-foreground mb-2 block">
                 Format vidéo
               </label>
-              <Select value={dimensions} onValueChange={(value: '16:9' | '1:1' | '9:16') => setDimensions(value)}>
+              <Select value={aspectRatio} onValueChange={(value: '16:9' | '1:1' | '9:16') => setAspectRatio(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="16:9">16:9 (1920×1080) - Paysage</SelectItem>
-                  <SelectItem value="1:1">1:1 (1080×1080) - Carré</SelectItem>
-                  <SelectItem value="9:16">9:16 (1080×1920) - Portrait</SelectItem>
+                  <SelectItem value="16:9">16:9 - Paysage</SelectItem>
+                  <SelectItem value="1:1">1:1 - Carré</SelectItem>
+                  <SelectItem value="9:16">9:16 - Portrait</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -352,12 +366,17 @@ export const KlingAIVideoGenerator = () => {
           {/* Generate Button */}
           <Button
             onClick={generateVideo}
-            disabled={isGenerating || !positivePrompt.trim() || (mode === 'image-to-video' && !uploadedImage)}
+            disabled={isGenerating || !prompt.trim() || (mode === 'image-to-video' && !uploadedImageUrl)}
             className="w-full h-12 text-lg bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
           >
             {isGenerating ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                {estimatedTime && (
+                  <span className="text-sm mr-2">
+                    ~{Math.ceil(estimatedTime / 60)}min
+                  </span>
+                )}
                 Génération en cours...
               </>
             ) : (
@@ -367,6 +386,21 @@ export const KlingAIVideoGenerator = () => {
               </>
             )}
           </Button>
+
+          {/* Progress indicator */}
+          {isGenerating && currentTask && (
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                Génération en cours - ID: {currentTask.slice(0, 8)}...
+              </div>
+              {estimatedTime && (
+                <p className="text-xs text-muted-foreground">
+                  Temps estimé: {Math.ceil(estimatedTime / 60)} minutes
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </Card>
 
@@ -379,7 +413,7 @@ export const KlingAIVideoGenerator = () => {
           </h3>
           <div className="grid gap-4">
             {generatedVideos.map((video, index) => (
-              <Card key={video.taskUUID} className="p-4">
+              <Card key={video.taskId} className="p-4">
                 <div className="flex flex-col lg:flex-row gap-4">
                   <div className="flex-1">
                     <video
@@ -387,24 +421,31 @@ export const KlingAIVideoGenerator = () => {
                       className="w-full max-w-md rounded-lg shadow-md"
                       poster="/placeholder.svg"
                     >
-                      <source src={video.videoURL} type="video/mp4" />
+                      <source src={video.videoUrl} type="video/mp4" />
                       Votre navigateur ne supporte pas la lecture vidéo.
                     </video>
                   </div>
                   <div className="flex-1 space-y-2">
                     <div className="flex gap-2 flex-wrap">
                       <Badge variant="outline">{video.duration}s</Badge>
-                      <Badge variant="outline">{video.dimensions}</Badge>
-                      <Badge variant="outline">24 FPS</Badge>
+                      <Badge variant="outline">{klingAIService.getAspectRatioDisplay(video.aspectRatio)}</Badge>
+                      <Badge variant="outline" className={
+                        video.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        video.status === 'failed' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }>
+                        {video.status}
+                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-3">
-                      {video.positivePrompt}
+                      {video.prompt}
                     </p>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => downloadVideo(video.videoURL, video.positivePrompt)}
+                      onClick={() => downloadVideo(video.videoUrl, video.prompt)}
                       className="w-full"
+                      disabled={video.status !== 'completed'}
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Télécharger MP4

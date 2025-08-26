@@ -15,7 +15,7 @@ import {
   History
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { RunwareService, GenerateVideoParams } from "@/services/runwareService";
+import { klingAIService, KlingVideoParams } from "@/services/klingAIService";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuota } from "@/hooks/useQuota";
 import { useVideoHistory } from "@/hooks/useVideoHistory";
@@ -99,35 +99,26 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
     setIsGenerating(true);
     
     try {
-      // Get Runware API key
-      const { data: keyData, error: keyError } = await supabase.functions.invoke('get-runware-key');
-      
-      if (keyError || !keyData?.apiKey) {
-        throw new Error("Clé API Runware non configurée");
-      }
-
-      const runwareService = new RunwareService(keyData.apiKey);
       const { width, height } = getVideoDimensions();
+      const aspectRatio = width === height ? '1:1' : width > height ? '16:9' : '9:16';
       
-      const params: GenerateVideoParams = {
-        positivePrompt: prompt,
-        model: selectedModel,
-        duration,
-        CFGScale: cfgScale,
-        width,
-        height,
-        ...(negativePrompt.trim() && { negativePrompt: negativePrompt.trim() }),
-        ...(initImage && { initImage })
+      const params: KlingVideoParams = {
+        mode: initImage ? 'image-to-video' : 'text-to-video',
+        prompt,
+        negativePrompt: negativePrompt.trim() || undefined,
+        duration: duration as 5 | 10,
+        aspectRatio,
+        imageUrl: initImage
       };
 
       console.log("🎬 Génération vidéo avec paramètres:", params);
       
-      const result = await runwareService.generateVideo(params);
+      const result = await klingAIService.generateVideo(params);
       
-      console.log("🎬 Réponse complète de Runware:", result);
+      console.log("🎬 Réponse KlingAI:", result);
       
-      // Extract the video URL from the response - check different possible property names
-      const videoUrl = result.videoURL || (result as any).videoUrl || (result as any).video_url || (result as any).url;
+      // Pour KlingAI, on attend le taskId et on poll pour le statut
+      const videoUrl = result.videoUrl;
       
       if (!videoUrl) {
         throw new Error("URL de vidéo non trouvée dans la réponse");
@@ -157,7 +148,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
         description: `Vidéo de ${duration}s générée avec succès`
       });
       
-      runwareService.disconnect();
+      
       
     } catch (error) {
       console.error('Video generation error:', error);

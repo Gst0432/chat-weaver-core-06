@@ -1,22 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
-import { RunwareService, type GenerateImageParams as RunwareParams } from "./runwareService";
 
 export interface ImageGenerationOptions {
   prompt: string;
   size?: '1024x1024' | '1792x1024' | '1024x1792';
   quality?: 'hd' | 'standard';
-  provider?: 'dalle' | 'runware' | 'huggingface' | 'stable-diffusion' | 'midjourney' | 'auto';
+  provider?: 'dalle' | 'huggingface' | 'stable-diffusion' | 'auto';
   
   // 🎯 CONTRÔLE DE FIDÉLITÉ AU PROMPT
   preserveOriginalPrompt?: boolean; // Utiliser les instructions exactes
   promptFidelity?: number; // 0-100, contrôle les améliorations automatiques
   autoTranslate?: boolean; // Traduire automatiquement le français
   
-  // Options avancées Runware pour fidélité
-  cfgScale?: number; // 1-20, plus élevé = plus fidèle
-  steps?: number; // 1-50, plus élevé = plus de détails
-  scheduler?: string;
-  seed?: number;
   // Options Hugging Face
   model?: string; // 'black-forest-labs/FLUX.1-schnell', 'stabilityai/stable-diffusion-xl-base-1.0'
   width?: number;
@@ -38,42 +32,12 @@ export interface ImageVariationOptions {
   quality?: 'hd' | 'standard';
 }
 
-// Instance globale Runware (sera initialisée si clé API disponible)
-let runwareInstance: RunwareService | null = null;
-
 /**
  * Service centralisé pour toutes les opérations d'images
- * Supporte DALL-E (OpenAI) et Runware pour plus de fidélité
+ * Supporte DALL-E (OpenAI) et Hugging Face pour plus de variété
  */
 export class ImageService {
   
-  /**
-   * Initialise Runware si clé API disponible
-   */
-  static async initRunware(apiKey?: string): Promise<boolean> {
-    try {
-      if (apiKey) {
-        runwareInstance = new RunwareService(apiKey);
-        console.log("🚀 Runware initialisé avec clé API fournie");
-        return true;
-      }
-      
-      // Tenter de récupérer depuis Supabase
-      const { data, error } = await supabase.functions.invoke('get-runware-key');
-      if (!error && data?.apiKey) {
-        runwareInstance = new RunwareService(data.apiKey);
-        console.log("🚀 Runware initialisé depuis Supabase");
-        return true;
-      }
-      
-      console.log("⚠️ Runware non disponible (pas de clé API)");
-      return false;
-    } catch (error) {
-      console.error("❌ Erreur initialisation Runware:", error);
-      return false;
-    }
-  }
-
   /**
    * Génère une image avec le meilleur provider disponible
    * Auto-sélection intelligente basée sur le type de demande
@@ -134,32 +98,6 @@ export class ImageService {
         console.error('❌ Erreur Hugging Face:', error);
       }
     }
-    
-    // Essayer Runware si disponible
-    if (finalProvider === 'runware' || (!finalProvider && runwareInstance)) {
-      try {
-        console.log('🎨 Génération avec Runware (fidélité maximale):', prompt);
-        
-        const [width, height] = this.parseSizeForRunware(options.size || '1024x1024');
-        const result = await runwareInstance!.generateImage({
-          positivePrompt: prompt,
-          width,
-          height,
-          CFGScale: options.cfgScale || 15, // Fidélité très élevée (augmenté de 12 à 15)
-          steps: options.steps || 30, // Plus de détails (augmenté de 25 à 30)
-          scheduler: options.scheduler || "DPMSolverMultistepScheduler", // Meilleur scheduler pour la qualité
-          promptWeighting: "compel", // Meilleur suivi du prompt
-          seed: options.seed,
-          model: "runware:100@1", // Modèle optimisé
-        });
-        
-        if (result.imageURL) {
-          return result.imageURL;
-        }
-      } catch (error) {
-        console.error('❌ Erreur Runware, fallback vers DALL-E:', error);
-      }
-    }
 
     // Fallback vers DALL-E
     console.log('🎨 Génération avec DALL-E 3:', prompt);
@@ -185,7 +123,6 @@ export class ImageService {
 
   /**
    * Édite une image existante avec DALL-E 2
-   * Force toujours l'utilisation de DALL-E, ignore le modèle frontend
    */
   static async editImage(options: ImageEditOptions): Promise<string> {
     console.log('✏️ Édition d\'image avec DALL-E 2:', options.prompt);
@@ -218,7 +155,6 @@ export class ImageService {
 
   /**
    * Crée des variations d'une image avec DALL-E 2
-   * Force toujours l'utilisation de DALL-E, ignore le modèle frontend
    */
   static async createVariations(options: ImageVariationOptions): Promise<string[]> {
     console.log('🎭 Création de variations avec DALL-E 2, nombre:', options.n || 2);
@@ -269,29 +205,21 @@ export class ImageService {
     const commonTranslations = {
       // Animaux
       'chat': 'cat', 'chien': 'dog', 'oiseau': 'bird', 'poisson': 'fish', 'cheval': 'horse',
-      'vache': 'cow', 'mouton': 'sheep', 'lapin': 'rabbit', 'souris': 'mouse', 'lion': 'lion',
       
       // Nature & paysages
       'paysage': 'landscape', 'montagne': 'mountain', 'océan': 'ocean', 'mer': 'sea',
       'forêt': 'forest', 'arbre': 'tree', 'fleur': 'flower', 'jardin': 'garden',
-      'rivière': 'river', 'lac': 'lake', 'plage': 'beach', 'désert': 'desert',
       
       // Architecture
       'maison': 'house', 'château': 'castle', 'église': 'church', 'ville': 'city',
-      'bâtiment': 'building', 'pont': 'bridge', 'tour': 'tower', 'rue': 'street',
       
       // Couleurs
       'rouge': 'red', 'bleu': 'blue', 'vert': 'green', 'jaune': 'yellow',
       'noir': 'black', 'blanc': 'white', 'gris': 'gray', 'rose': 'pink',
       
-      // Temps & éclairage
-      'coucher de soleil': 'sunset', 'lever de soleil': 'sunrise', 'nuit': 'night',
-      'jour': 'day', 'matin': 'morning', 'soir': 'evening', 'lumière': 'light',
-      
       // Style & qualité
       'beau': 'beautiful', 'joli': 'pretty', 'magnifique': 'magnificent',
-      'réaliste': 'realistic', 'artistique': 'artistic', 'moderne': 'modern',
-      'ancien': 'ancient', 'classique': 'classic'
+      'réaliste': 'realistic', 'artistique': 'artistic', 'moderne': 'modern'
     };
     
     let translatedPrompt = prompt;
@@ -316,7 +244,6 @@ export class ImageService {
     
     // Détecter l'intention du prompt (minimaliste, détaillé, artistique)
     const isMinimalist = /simple|minimal|clean|basic/i.test(prompt);
-    const isDetailed = /detailed|complex|intricate|elaborate/i.test(prompt);
     
     // Respecter l'intention minimaliste
     if (isMinimalist && fidelityLevel > 30) {
@@ -332,50 +259,19 @@ export class ImageService {
       enhancedPrompt += `, ${lightEnhancements.join(', ')}`;
     }
     
-    if (fidelityLevel < 40 && !isMinimalist && !isDetailed) {
+    if (fidelityLevel < 40 && !isMinimalist) {
       // Améliorations moyennes (0-39%)
       const mediumEnhancements = ['detailed', 'sharp focus'];
       enhancedPrompt += `, ${mediumEnhancements.join(', ')}`;
-      
-      // Détection du type de contenu pour des améliorations ciblées
-      if (/portrait|person|face|human/i.test(prompt)) {
-        enhancedPrompt += ", natural skin texture";
-      } else if (/landscape|nature|outdoor/i.test(prompt)) {
-        enhancedPrompt += ", natural lighting";
-      }
-    }
-    
-    if (fidelityLevel < 20 && !isMinimalist) {
-      // Améliorations maximales (0-19%)
-      const heavyEnhancements = ['masterpiece', 'best quality', 'ultra-detailed'];
-      enhancedPrompt += `, ${heavyEnhancements.join(', ')}`;
     }
     
     return enhancedPrompt;
   }
 
   /**
-   * @deprecated Utilisez enhancePromptWithFidelity à la place
-   */
-  static enhancePromptForFidelity(prompt: string): string {
-    return this.enhancePromptWithFidelity(prompt, 30); // Niveau moyen par défaut
-  }
-
-  /**
-   * Convertit les tailles DALL-E vers les dimensions Runware
-   */
-  static parseSizeForRunware(size: string): [number, number] {
-    switch (size) {
-      case '1792x1024': return [1792, 1024];
-      case '1024x1792': return [1024, 1792]; 
-      default: return [1024, 1024];
-    }
-  }
-
-  /**
    * Sélectionne automatiquement le meilleur provider selon le type de demande
    */
-  static selectBestProvider(prompt: string): 'dalle' | 'runware' | 'huggingface' | 'stable-diffusion' {
+  static selectBestProvider(prompt: string): 'dalle' | 'huggingface' | 'stable-diffusion' {
     const lowerPrompt = prompt.toLowerCase();
     
     // Stable Diffusion pour art conceptuel et styles artistiques
@@ -390,32 +286,7 @@ export class ImageService {
       return 'huggingface';
     }
     
-    // Runware pour fidélité maximale si disponible
-    if (runwareInstance) {
-      return 'runware';
-    }
-    
     // DALL-E en fallback
     return 'dalle';
-  }
-
-  /**
-   * Génère plusieurs images avec différents providers
-   */
-  static async generateMultipleProviders(options: ImageGenerationOptions): Promise<{ provider: string; url: string }[]> {
-    const providers = ['dalle', 'huggingface', 'runware'].filter(p => 
-      p === 'runware' ? runwareInstance : true
-    );
-    
-    const results = await Promise.allSettled(
-      providers.map(async (provider) => {
-        const url = await this.generateImage({ ...options, provider: provider as any });
-        return { provider, url };
-      })
-    );
-    
-    return results
-      .filter((r): r is PromiseFulfilledResult<{ provider: string; url: string }> => r.status === 'fulfilled')
-      .map(r => r.value);
   }
 }

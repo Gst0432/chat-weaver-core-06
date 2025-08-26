@@ -6,14 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface VideoGenerationRequest {
-  mode: 'text-to-video' | 'image-to-video';
-  positivePrompt: string;
-  negativePrompt?: string;
-  duration: 5 | 10;
-  width: 1920 | 1080;
-  height: 1080 | 1920;
-  inputImage?: string;
+interface KlingVideoRequest {
+  mode?: 'text-to-video' | 'image-to-video';
+  prompt?: string;
+  negative_prompt?: string;
+  duration?: 5 | 10;
+  aspect_ratio?: '16:9' | '9:16' | '1:1';
+  image_url?: string;
+  action?: 'check_status';
+  task_id?: string;
 }
 
 serve(async (req) => {
@@ -23,30 +24,59 @@ serve(async (req) => {
   }
 
   try {
-    const runwareApiKey = Deno.env.get('RUNWARE_API_KEY');
-    if (!runwareApiKey) {
-      throw new Error('RUNWARE_API_KEY not configured');
+    const klingApiKey = Deno.env.get('KLING_API_KEY');
+    if (!klingApiKey) {
+      throw new Error('KLING_API_KEY not configured');
     }
 
-    const body: VideoGenerationRequest = await req.json();
-    console.log('KlingAI Video Generation Request:', body);
+    const body: KlingVideoRequest = await req.json();
+    console.log('KlingAI Official API Request:', body);
 
+    // Handle status check
+    if (body.action === 'check_status' && body.task_id) {
+      const statusResponse = await fetch(`https://api.klingai.com/v1/videos/text2video/${body.task_id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${klingApiKey}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error('KlingAI Status API Error:', errorText);
+        throw new Error(`Erreur API KlingAI: ${statusResponse.status}`);
+      }
+
+      const statusResult = await statusResponse.json();
+      console.log('KlingAI Status Response:', statusResult);
+
+      return new Response(JSON.stringify({
+        task_id: statusResult.id,
+        status: statusResult.status,
+        video_url: statusResult.status === 'succeed' ? statusResult.works?.[0]?.resource : null,
+        estimated_time: statusResult.estimated_wait_time
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Handle video generation
     const { 
-      mode, 
-      positivePrompt, 
-      negativePrompt, 
-      duration, 
-      width, 
-      height, 
-      inputImage 
+      mode = 'text-to-video', 
+      prompt, 
+      negative_prompt, 
+      duration = 5, 
+      aspect_ratio = '16:9',
+      image_url 
     } = body;
 
     // Validation
-    if (!positivePrompt || positivePrompt.length < 2 || positivePrompt.length > 2500) {
-      throw new Error('Le prompt positif doit contenir entre 2 et 2500 caractères');
+    if (!prompt || prompt.length < 2 || prompt.length > 2500) {
+      throw new Error('Le prompt doit contenir entre 2 et 2500 caractères');
     }
 
-    if (negativePrompt && (negativePrompt.length < 2 || negativePrompt.length > 2500)) {
+    if (negative_prompt && (negative_prompt.length < 2 || negative_prompt.length > 2500)) {
       throw new Error('Le prompt négatif doit contenir entre 2 et 2500 caractères');
     }
 
@@ -54,57 +84,46 @@ serve(async (req) => {
       throw new Error('La durée doit être 5 ou 10 secondes');
     }
 
-    // Generate unique task UUID
-    const taskUUID = crypto.randomUUID();
+    if (!['16:9', '9:16', '1:1'].includes(aspect_ratio)) {
+      throw new Error('Le format doit être 16:9, 9:16 ou 1:1');
+    }
 
-    console.log('Using KlingAI 2.1 Master model for video generation...');
+    console.log('Using KlingAI Official API for video generation...');
 
-    // Prepare authentication request
-    const authRequest = {
-      taskType: "authentication",
-      apiKey: runwareApiKey
-    };
-
-    let videoRequest: any = {
-      taskType: "videoInference",
-      taskUUID: taskUUID,
-      model: "klingai:5@3",
-      positivePrompt: positivePrompt,
+    let requestPayload: any = {
+      model: "kling-v1",
+      prompt: prompt,
       duration: duration,
-      width: width,
-      height: height,
-      CFGScale: 0.5
+      aspect_ratio: aspect_ratio,
+      professional_mode: false,
+      callback_url: null
     };
 
-    // Add negative prompt if provided  
-    if (negativePrompt) {
-      videoRequest.negativePrompt = negativePrompt;
+    // Add negative prompt if provided
+    if (negative_prompt) {
+      requestPayload.negative_prompt = negative_prompt;
     }
 
     // Handle image-to-video mode
     if (mode === 'image-to-video') {
-      if (!inputImage) {
+      if (!image_url) {
         throw new Error('Image requise pour le mode image-to-video');
       }
-
-      // For image-to-video, we need to use frameImages
-      videoRequest.frameImages = [
-        {
-          inputImage: inputImage,
-          frame: "first"
-        }
-      ];
+      requestPayload.image = image_url;
     }
 
-    // Prepare full request payload
-    const requestPayload = [authRequest, videoRequest];
+    console.log('Sending request to KlingAI:', JSON.stringify(requestPayload, null, 2));
 
-    console.log('Sending request to Runware:', JSON.stringify(requestPayload, null, 2));
+    // Determine endpoint based on mode
+    const endpoint = mode === 'image-to-video' 
+      ? 'https://api.klingai.com/v1/videos/image2video'
+      : 'https://api.klingai.com/v1/videos/text2video';
 
-    // Call Runware API
-    const response = await fetch('https://api.runware.ai/v1', {
+    // Call KlingAI Official API
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${klingApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestPayload)
@@ -112,52 +131,43 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Runware API Error Response:', errorText);
-      throw new Error(`Erreur API Runware: ${response.status} - ${errorText}`);
+      console.error('KlingAI API Error Response:', errorText);
+      throw new Error(`Erreur API KlingAI: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('Runware API Response:', JSON.stringify(result, null, 2));
+    console.log('KlingAI API Response:', JSON.stringify(result, null, 2));
 
     // Check for errors in response
-    if (result.error || result.errors) {
-      const errorMessage = result.errorMessage || result.errors?.[0]?.message || 'Erreur inconnue';
-      console.error('Runware API Error:', errorMessage);
+    if (result.error || result.code !== 0) {
+      const errorMessage = result.message || result.error || 'Erreur inconnue';
+      console.error('KlingAI API Error:', errorMessage);
       throw new Error(`Erreur génération vidéo: ${errorMessage}`);
     }
 
-    // Extract video data from response
-    const videoData = result.data?.find((item: any) => item.taskType === 'videoInference');
-    
-    if (!videoData) {
-      console.error('No video data in response:', result);
-      throw new Error('Aucune données vidéo dans la réponse de l\'API');
-    }
-
-    if (!videoData.videoURL) {
-      console.error('No video URL in response:', videoData);
-      throw new Error('URL vidéo manquante dans la réponse');
+    if (!result.data || !result.data.task_id) {
+      console.error('No task ID in response:', result);
+      throw new Error('ID de tâche manquant dans la réponse');
     }
 
     const responseData = {
-      taskUUID: videoData.taskUUID,
-      videoURL: videoData.videoURL,
-      positivePrompt: videoData.positivePrompt,
-      duration: videoData.duration || duration,
-      width: videoData.width || width,
-      height: videoData.height || height,
-      model: 'klingai:5@3',
+      task_id: result.data.task_id,
+      status: 'pending',
+      estimated_time: result.data.estimated_wait_time || 120,
+      prompt: prompt,
+      duration: duration,
+      aspect_ratio: aspect_ratio,
       mode: mode
     };
 
-    console.log('Returning video data:', responseData);
+    console.log('Returning task data:', responseData);
 
     return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in klingai-video function:', error);
+    console.error('Error in kling-official-video function:', error);
     
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Erreur interne du serveur',

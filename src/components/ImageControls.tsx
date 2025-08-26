@@ -27,7 +27,7 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState<'1024x1024' | '1792x1024' | '1024x1792'>('1024x1024');
   const [quality, setQuality] = useState<'hd' | 'standard'>('hd');
-  const [provider, setProvider] = useState<'dalle' | 'runware'>('dalle');
+  const [provider, setProvider] = useState<'dalle' | 'huggingface' | 'stable-diffusion' | 'auto'>('huggingface');
   
   // 🎯 CONTRÔLES DE FIDÉLITÉ AU PROMPT
   const [preserveOriginalPrompt, setPreserveOriginalPrompt] = useState(false);
@@ -75,16 +75,9 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
   
   const { toast } = useToast();
 
-  // Initialiser Runware au chargement
+  // Initialize component
   useEffect(() => {
-    const initRunware = async () => {
-      const available = await ImageService.initRunware();
-      setRunwareAvailable(available);
-      if (available) {
-        setProvider('runware'); // Utiliser Runware par défaut si disponible
-      }
-    };
-    initRunware();
+    setProvider('huggingface'); // Default to Hugging Face
   }, []);
 
 
@@ -104,15 +97,11 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
         prompt: prompt.trim(),
         size,
         quality,
-        provider,
+        provider: provider as 'dalle' | 'huggingface' | 'stable-diffusion' | 'auto',
         // 🎯 Contrôles de fidélité
         preserveOriginalPrompt,
         promptFidelity,
         autoTranslate,
-        // Options avancées Runware
-        cfgScale: provider === 'runware' ? cfgScale : undefined,
-        steps: provider === 'runware' ? steps : undefined,
-        seed: provider === 'runware' && seed ? seed : undefined,
       };
       
       const imageUrl = await ImageService.generateImage(options);
@@ -120,7 +109,7 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
       
       toast({
         title: "Image générée avec succès",
-        description: `Image créée avec ${provider === 'runware' ? 'Runware (Haute Fidélité)' : 'DALL-E 3'}`
+        description: `Image créée avec ${provider === 'huggingface' ? 'Hugging Face' : provider === 'stable-diffusion' ? 'Stable Diffusion' : 'DALL-E 3'}`
       });
       
       setPrompt('');
@@ -402,11 +391,6 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
                 )}
               </div>
               
-              {provider === 'runware' && (
-                <p className="text-xs text-green-700">
-                  💡 Runware excelle avec des descriptions détaillées et spécifiques
-                </p>
-              )}
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -438,8 +422,6 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
               </div>
             </div>
 
-            {/* Options avancées Runware */}
-            {provider === 'runware' && (
               <div className="space-y-4 p-4 border rounded-lg bg-green-50/50">
                 <div className="flex items-center gap-2 mb-2">
                   <Settings className="h-4 w-4 text-green-600" />
@@ -495,9 +477,8 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
                   </div>
                 )}
               </div>
-            )}
             
-            <Button 
+            <Button
               onClick={handleGenerate}
               disabled={isGenerating || !prompt.trim()}
               className="w-full"
@@ -505,21 +486,12 @@ export const ImageControls = ({ onImageGenerated }: ImageControlsProps) => {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {provider === 'runware' ? 'Génération Runware...' : 'Génération DALL-E 3...'}
+                  Génération en cours...
                 </>
               ) : (
                 <>
-                  {provider === 'runware' ? (
-                    <>
-                      <Zap className="mr-2 h-4 w-4" />
-                      Générer avec Runware (Haute Fidélité)
-                    </>
-                  ) : (
-                    <>
-                      <Image className="mr-2 h-4 w-4" />
-                      Générer avec DALL-E 3
-                    </>
-                  )}
+                  <Image className="mr-2 h-4 w-4" />
+                  Générer une image
                 </>
               )}
             </Button>
