@@ -79,7 +79,7 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
               { role: 'system', content: 'You are a professional ebook writer who creates high-quality, structured content.' },
               { role: 'user', content: prompt }
             ],
-            max_tokens: 2000, // Ultra-réduit pour vitesse maximale
+            max_tokens: 4000, // Suffisant pour chapitres complets
           }),
         });
         
@@ -111,11 +111,11 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
         };
 
         // Handle API parameter differences for newer vs legacy models
-        // Ultra-réduit pour vitesse maximale (4000 -> 2000)
+        // Optimisé pour chapitres complets
         if (modelToUse.includes('gpt-5') || modelToUse.includes('o3') || modelToUse.includes('o4') || modelToUse.includes('gpt-4.1')) {
-          requestBody.max_completion_tokens = 2000;
+          requestBody.max_completion_tokens = 4000;
         } else {
-          requestBody.max_tokens = 2000;
+          requestBody.max_tokens = 4000;
           requestBody.temperature = 0.8; // Légèrement plus créatif mais rapide
         }
 
