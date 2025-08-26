@@ -870,6 +870,48 @@ export type Database = {
         }
         Relationships: []
       }
+      video_history: {
+        Row: {
+          aspect_ratio: string
+          cfg_scale: number
+          created_at: string
+          duration: number
+          id: string
+          model: string
+          negative_prompt: string | null
+          prompt: string
+          updated_at: string
+          user_id: string
+          video_url: string
+        }
+        Insert: {
+          aspect_ratio: string
+          cfg_scale: number
+          created_at?: string
+          duration: number
+          id?: string
+          model: string
+          negative_prompt?: string | null
+          prompt: string
+          updated_at?: string
+          user_id: string
+          video_url: string
+        }
+        Update: {
+          aspect_ratio?: string
+          cfg_scale?: number
+          created_at?: string
+          duration?: number
+          id?: string
+          model?: string
+          negative_prompt?: string | null
+          prompt?: string
+          updated_at?: string
+          user_id?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
       youtube_transcriptions: {
         Row: {
           confidence: number | null

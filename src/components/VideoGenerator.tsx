@@ -5,17 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { 
   Video, 
   Download,
   Lock,
   Upload,
-  Play
+  Play,
+  History
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { RunwareService, GenerateVideoParams } from "@/services/runwareService";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuota } from "@/hooks/useQuota";
+import { useVideoHistory } from "@/hooks/useVideoHistory";
+import { VideoHistory } from "@/components/VideoHistory";
 
 interface VideoGeneratorProps {
   onVideoGenerated?: (videoUrl: string) => void;
@@ -31,7 +35,9 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
   const [cfgScale, setCfgScale] = useState(0.5);
   const [selectedModel, setSelectedModel] = useState("klingai:5@3");
   const [aspectRatio, setAspectRatio] = useState("16:9");
+  const [showHistory, setShowHistory] = useState(false);
   const { canGenerate, isTestMode, incrementUsage } = useQuota();
+  const { history, loading: historyLoading, saveToHistory, deleteFromHistory } = useVideoHistory();
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -121,6 +127,17 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
       setGeneratedVideo(result.videoURL);
       onVideoGenerated?.(result.videoURL);
       
+      // Save to history
+      await saveToHistory({
+        prompt,
+        negative_prompt: negativePrompt.trim() || undefined,
+        model: selectedModel,
+        duration,
+        cfg_scale: cfgScale,
+        aspect_ratio: aspectRatio,
+        video_url: result.videoURL,
+      });
+      
       // Increment usage for free users
       if (isTestMode) {
         await incrementUsage();
@@ -156,13 +173,33 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
     }
   };
 
+  const handleReplayFromHistory = (item: any) => {
+    setPrompt(item.prompt);
+    setNegativePrompt(item.negative_prompt || '');
+    setDuration(item.duration);
+    setCfgScale(item.cfg_scale);
+    setAspectRatio(item.aspect_ratio);
+    setGeneratedVideo(item.video_url);
+    setShowHistory(false);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Video className="w-5 h-5" />
-            Générateur de Vidéo Runware
+          <CardTitle className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2">
+              <Video className="w-5 h-5" />
+              Générateur de Vidéo KlingAI 2.1 Master
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center gap-2"
+            >
+              <History className="h-4 w-4" />
+              Historique
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -308,6 +345,17 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
         </CardContent>
       </Card>
 
+      <Collapsible open={showHistory} onOpenChange={setShowHistory}>
+        <CollapsibleContent>
+          <VideoHistory
+            history={history}
+            loading={historyLoading}
+            onDelete={deleteFromHistory}
+            onReplay={handleReplayFromHistory}
+          />
+        </CollapsibleContent>
+      </Collapsible>
+
       {generatedVideo && (
         <Card>
           <CardHeader>
@@ -323,6 +371,14 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
               className="w-full max-w-md mx-auto rounded border"
               autoPlay
               loop
+              onError={(e) => {
+                console.error('Video load error:', e);
+                toast({
+                  title: "Erreur",
+                  description: "Impossible de charger la vidéo (URL expirée)",
+                  variant: "destructive",
+                });
+              }}
             />
             
             <div className="flex gap-2">
