@@ -25,6 +25,7 @@ interface ReactPreviewProps {
   tsContent: string;
   showPreviewOnly: boolean;
   onTogglePreview: (show: boolean) => void;
+  onErrorsDetected?: (errors: string[]) => void;
 }
 
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
@@ -34,7 +35,8 @@ export const ReactPreview = ({
   cssContent, 
   tsContent, 
   showPreviewOnly, 
-  onTogglePreview 
+  onTogglePreview,
+  onErrorsDetected
 }: ReactPreviewProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('desktop');
   const [consoleMessages, setConsoleMessages] = useState<string[]>([]);
@@ -268,7 +270,11 @@ export const ReactPreview = ({
         const { message, level } = event.data;
         
         if (level === 'error') {
-          setErrors(prev => [...prev.slice(-9), message]);
+          setErrors(prev => {
+            const newErrors = [...prev.slice(-9), message];
+            onErrorsDetected?.(newErrors);
+            return newErrors;
+          });
         } else {
           setConsoleMessages(prev => [...prev.slice(-19), `${level.toUpperCase()}: ${message}`]);
         }

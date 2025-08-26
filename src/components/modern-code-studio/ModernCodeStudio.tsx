@@ -8,6 +8,7 @@ import { ReactFileExplorer } from "./ReactFileExplorer";
 import { TemplateLibrary } from "./TemplateLibrary";
 import { CommandPalette } from "./CommandPalette";
 import { AutoProjectGenerator } from "./AutoProjectGenerator";
+import { ErrorFixAssistant } from "./ErrorFixAssistant";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,8 @@ export default function ModernCodeStudio() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAutoGenerator, setShowAutoGenerator] = useState(false);
+  const [showErrorAssistant, setShowErrorAssistant] = useState(false);
+  const [currentErrors, setCurrentErrors] = useState<string[]>([]);
   
   // Editor state - React/TypeScript focused
   const [tsxContent, setTsxContent] = useState('');
@@ -243,6 +246,93 @@ export default function ModernCodeStudio() {
     console.log('Create file:', path, type);
   };
 
+  const handleShareProject = async () => {
+    if (!activeProject) {
+      toast({
+        title: "Aucun projet",
+        description: "Sélectionnez un projet à partager",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const shareUrl = `${window.location.origin}/shared/${activeProject.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      toast({
+        title: "Lien copié",
+        description: "Le lien de partage a été copié dans le presse-papiers"
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de copier le lien de partage",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExportProject = () => {
+    if (!activeProject) {
+      toast({
+        title: "Aucun projet",
+        description: "Sélectionnez un projet à exporter",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const projectData = {
+      name: activeProject.name,
+      tsx: tsxContent,
+      css: cssContent,
+      typescript: tsContent
+    };
+
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeProject.name.replace(/\s+/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Projet exporté",
+      description: `${activeProject.name} a été téléchargé`
+    });
+  };
+
+  const handleImproveWithAI = () => {
+    if (currentErrors.length > 0) {
+      setShowErrorAssistant(true);
+    } else {
+      toast({
+        title: "Amélioration IA",
+        description: "Fonctionnalité d'amélioration automatique bientôt disponible",
+      });
+    }
+  };
+
+  const handleCodeFixed = (fixedCode: { tsx?: string; css?: string; typescript?: string }) => {
+    if (fixedCode.tsx) setTsxContent(fixedCode.tsx);
+    if (fixedCode.css) setCssContent(fixedCode.css);
+    if (fixedCode.typescript) setTsContent(fixedCode.typescript);
+    
+    // Auto-save après correction
+    setTimeout(saveProject, 1000);
+  };
+
+  // Auto-détection des erreurs pour afficher l'assistant
+  useEffect(() => {
+    if (currentErrors.length > 0 && !showErrorAssistant) {
+      const timer = setTimeout(() => setShowErrorAssistant(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentErrors.length, showErrorAssistant]);
+
   // Auto-save every 30 seconds
   useEffect(() => {
     if (!activeProject) return;
@@ -258,6 +348,9 @@ export default function ModernCodeStudio() {
         onNewProject={() => setShowAutoGenerator(true)}
         onSaveProject={saveProject}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
+        onShareProject={() => handleShareProject()}
+        onExportProject={() => handleExportProject()}
+        onImproveWithAI={() => handleImproveWithAI()}
       />
       
       <div className="h-[calc(100vh-4rem)] flex">
@@ -293,13 +386,24 @@ export default function ModernCodeStudio() {
 
           {/* Preview Panel - Plein écran par défaut */}
           <ResizablePanel defaultSize={showPreviewOnly ? 60 : 30} minSize={20}>
-            <ReactPreview
-              tsxContent={tsxContent}
-              cssContent={cssContent}
-              tsContent={tsContent}
-              showPreviewOnly={showPreviewOnly}
-              onTogglePreview={setShowPreviewOnly}
-            />
+            <div className="relative h-full">
+              <ReactPreview
+                tsxContent={tsxContent}
+                cssContent={cssContent}
+                tsContent={tsContent}
+                showPreviewOnly={showPreviewOnly}
+                onTogglePreview={setShowPreviewOnly}
+                onErrorsDetected={setCurrentErrors}
+              />
+              
+              <ErrorFixAssistant
+                errors={currentErrors}
+                code={{ tsx: tsxContent, css: cssContent, typescript: tsContent }}
+                onCodeFixed={handleCodeFixed}
+                isVisible={showErrorAssistant && currentErrors.length > 0}
+                onClose={() => setShowErrorAssistant(false)}
+              />
+            </div>
           </ResizablePanel>
 
           <ResizableHandle />

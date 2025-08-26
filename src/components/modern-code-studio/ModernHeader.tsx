@@ -17,13 +17,19 @@ interface ModernHeaderProps {
   onNewProject: () => void;
   onSaveProject: () => void;
   onOpenCommandPalette: () => void;
+  onShareProject: () => void;
+  onExportProject: () => void;
+  onImproveWithAI: () => void;
 }
 
 export const ModernHeader = ({ 
   activeProject, 
   onNewProject, 
   onSaveProject, 
-  onOpenCommandPalette 
+  onOpenCommandPalette,
+  onShareProject,
+  onExportProject,
+  onImproveWithAI
 }: ModernHeaderProps) => {
   return (
     <header className="h-16 bg-card/80 backdrop-blur-sm border-b border-border/60 flex items-center justify-between px-6 shadow-sm">
@@ -90,6 +96,7 @@ export const ModernHeader = ({
         <Button
           variant="outline"
           size="sm"
+          onClick={onShareProject}
           className="flex items-center gap-2"
         >
           <Share className="w-4 h-4" />
@@ -99,6 +106,7 @@ export const ModernHeader = ({
         <Button
           variant="outline"
           size="sm"
+          onClick={onExportProject}
           className="flex items-center gap-2"
         >
           <Download className="w-4 h-4" />
@@ -107,6 +115,7 @@ export const ModernHeader = ({
         
         <Button
           size="sm"
+          onClick={onImproveWithAI}
           className="bg-gradient-to-r from-primary to-primary-glow hover:from-primary/90 hover:to-primary-glow/90 text-primary-foreground flex items-center gap-2"
         >
           <Sparkles className="w-4 h-4" />
