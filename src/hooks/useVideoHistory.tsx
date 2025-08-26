@@ -46,6 +46,14 @@ export const useVideoHistory = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Validate that we have a video URL before saving
+      if (!videoData.video_url) {
+        console.error('Tentative de sauvegarde sans video_url:', videoData);
+        throw new Error('URL de vidéo manquante');
+      }
+
+      console.log('💾 Sauvegarde vidéo en base:', videoData);
+
       const { error } = await supabase
         .from('video_history')
         .insert({

@@ -124,10 +124,19 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
       
       const result = await runwareService.generateVideo(params);
       
-      setGeneratedVideo(result.videoURL);
-      onVideoGenerated?.(result.videoURL);
+      console.log("🎬 Réponse complète de Runware:", result);
       
-      // Save to history
+      // Extract the video URL from the response - check different possible property names
+      const videoUrl = result.videoURL || (result as any).videoUrl || (result as any).video_url || (result as any).url;
+      
+      if (!videoUrl) {
+        throw new Error("URL de vidéo non trouvée dans la réponse");
+      }
+      
+      setGeneratedVideo(videoUrl);
+      onVideoGenerated?.(videoUrl);
+      
+      // Save to history only if we have a valid video URL
       await saveToHistory({
         prompt,
         negative_prompt: negativePrompt.trim() || undefined,
@@ -135,7 +144,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
         duration,
         cfg_scale: cfgScale,
         aspect_ratio: aspectRatio,
-        video_url: result.videoURL,
+        video_url: videoUrl,
       });
       
       // Increment usage for free users
