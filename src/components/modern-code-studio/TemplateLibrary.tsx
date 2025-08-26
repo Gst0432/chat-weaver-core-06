@@ -20,7 +20,8 @@ import {
   MessageCircle,
   Calendar,
   Users,
-  BarChart
+  BarChart,
+  Plus
 } from "lucide-react";
 
 interface Template {
