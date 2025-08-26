@@ -243,10 +243,10 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
 
         {/* Mode de génération */}
         <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" />
-              <Label htmlFor="fastMode">Mode Ultra-Rapide (90-120 secondes)</Label>
+              <Label htmlFor="fastMode" className="text-sm sm:text-base">Mode Rapide (2-3 minutes)</Label>
             </div>
             <Switch
               id="fastMode"
@@ -255,24 +255,30 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
             />
           </div>
           
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs sm:text-sm text-muted-foreground">
             {fastMode ? (
-              <div className="flex items-center gap-2 text-green-600">
-                <CheckCircle className="w-4 h-4" />
-                <span><strong>Mode Rapide:</strong> 8-10 chapitres, 20k-25k mots, génération en 2-3 minutes ⚡</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-green-600">
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="font-medium">Mode Rapide:</span>
+                </div>
+                <span>8-10 chapitres • <strong>20k-25k mots minimum</strong> • 2-3 min ⚡</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-blue-600">
-                <BookOpen className="w-4 h-4" />
-                <span><strong>Mode Complet:</strong> 10-15 chapitres, 25k-30k mots, génération en 4-6 minutes</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-blue-600">
+                <div className="flex items-center gap-1">
+                  <BookOpen className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="font-medium">Mode Complet:</span>
+                </div>
+                <span>10-15 chapitres • <strong>25k-30k mots minimum</strong> • 4-6 min</span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              <Label htmlFor="useAI">Génération automatique avec IA</Label>
+              <Label htmlFor="useAI" className="text-sm sm:text-base">Génération automatique avec IA</Label>
             </div>
             <Switch
               id="useAI"
@@ -317,21 +323,27 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           )}
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col sm:flex-row justify-between gap-4">
+          <div className="text-xs text-muted-foreground space-y-1 flex-1">
+            <p className="font-medium">📱 Compatible mobile et desktop</p>
+            <p><strong>Garantie:</strong> 20 000+ mots sur tous les appareils</p>
+          </div>
           <Button
             onClick={handleGenerate}
             disabled={generating}
-            className="bg-gradient-primary hover:shadow-glow"
+            className="bg-gradient-primary hover:shadow-glow w-full sm:w-auto"
           >
             {generating ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Génération en cours...
+                <span className="hidden sm:inline">Génération en cours...</span>
+                <span className="sm:hidden">Génération...</span>
               </>
             ) : (
               <>
                 <BookOpen className="w-4 h-4 mr-2" />
-                Générer l'Ebook
+                <span className="hidden sm:inline">Générer l'Ebook (20k+ mots)</span>
+                <span className="sm:hidden">Générer Ebook</span>
               </>
             )}
           </Button>
@@ -612,10 +624,13 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
             )}
             
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>📚 Génération d'un ebook professionnel de 20 000-25 000 mots minimum</p>
-              <p>🔄 La génération continue en arrière-plan, vous pouvez fermer cette page</p>
+              <p className="font-medium text-center">📚 Ebook professionnel garantie</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-center">
+                <p><strong>20 000-25 000 mots minimum</strong></p>
+                <p>🔄 Génération continue en arrière-plan</p>
+              </div>
               {generation?.status === 'generating_chapters' && (
-                <p>⚡ Retry automatique activé en cas d'erreur temporaire d'API</p>
+                <p className="text-center">⚡ Auto-retry activé sur mobile/desktop</p>
               )}
             </div>
           </div>
