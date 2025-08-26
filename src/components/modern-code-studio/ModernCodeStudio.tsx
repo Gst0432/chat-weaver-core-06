@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { ModernHeader } from "./ModernHeader";
-import { PersistentAIChat } from "./PersistentAIChat";
-import { AdvancedPreview } from "./AdvancedPreview";
-import { ModernCodeEditor } from "./ModernCodeEditor";
+import { ReactCodeEditor } from "./ReactCodeEditor";
+import { ReactPreview } from "./ReactPreview";
+import { LovableAIChat } from "./LovableAIChat";
 import { ProjectManager } from "./ProjectManager";
 import { TemplateLibrary } from "./TemplateLibrary";
 import { CommandPalette } from "./CommandPalette";
@@ -13,10 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 export interface Project {
   id: string;
   name: string;
-  type: 'web-app' | 'component' | 'prototype';
-  html: string;
+  type: 'react-app' | 'component' | 'prototype';
+  tsx: string;
   css: string;
-  javascript: string;
+  typescript: string;
   created_at: string;
   updated_at: string;
   description?: string;
@@ -31,11 +31,12 @@ export default function ModernCodeStudio() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   
-  // Editor state
-  const [htmlContent, setHtmlContent] = useState('');
+  // Editor state - React/TypeScript focused
+  const [tsxContent, setTsxContent] = useState('');
   const [cssContent, setCssContent] = useState('');
-  const [jsContent, setJsContent] = useState('');
-  const [activeTab, setActiveTab] = useState<'html' | 'css' | 'javascript'>('html');
+  const [tsContent, setTsContent] = useState('');
+  const [activeTab, setActiveTab] = useState<'tsx' | 'css' | 'typescript'>('tsx');
+  const [showPreviewOnly, setShowPreviewOnly] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -70,10 +71,10 @@ export default function ModernCodeStudio() {
         return {
           id: item.id,
           name: item.app_name || 'Sans nom',
-          type: (item.app_type as 'web-app' | 'component' | 'prototype') || 'web-app',
-          html: content?.html || '',
-          css: content?.css || '',
-          javascript: content?.javascript || '',
+          type: (item.app_type as 'react-app' | 'component' | 'prototype') || 'react-app',
+          tsx: content?.tsx || content?.html || 'import React from "react";\n\nexport default function App() {\n  return (\n    <div className="p-8">\n      <h1 className="text-2xl font-bold">Nouveau Projet React</h1>\n    </div>\n  );\n}',
+          css: content?.css || '@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  font-family: Inter, system-ui, sans-serif;\n}',
+          typescript: content?.typescript || content?.javascript || '// Types et utilitaires TypeScript\nexport interface User {\n  id: string;\n  name: string;\n}\n\nexport const formatDate = (date: Date) => {\n  return date.toLocaleDateString();\n};',
           created_at: item.created_at,
           updated_at: item.updated_at
         };
@@ -99,13 +100,13 @@ export default function ModernCodeStudio() {
 
       const projectData = {
         user_id: user.id,
-        app_name: template?.name || 'Nouveau Projet',
-        app_type: template?.type || 'web-app',
+        app_name: template?.name || 'Nouveau Projet React',
+        app_type: template?.type || 'react-app',
         industry: 'web-development',
         generated_content: {
-          html: template?.html || '<!DOCTYPE html>\n<html>\n<head>\n  <title>Nouveau Projet</title>\n</head>\n<body>\n  <h1>Bienvenue!</h1>\n</body>\n</html>',
-          css: template?.css || 'body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }',
-          javascript: template?.javascript || 'console.log("Projet initialisé");'
+          tsx: template?.tsx || 'import React from "react";\n\nexport default function App() {\n  return (\n    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">\n      <div className="max-w-4xl mx-auto">\n        <h1 className="text-4xl font-bold text-gray-800 mb-4">Bienvenue dans votre projet React!</h1>\n        <p className="text-lg text-gray-600 mb-8">Commencez à développer votre application moderne avec React et TypeScript.</p>\n        \n        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">\n          <div className="bg-white p-6 rounded-lg shadow-lg">\n            <h2 className="text-2xl font-semibold mb-4">Composants</h2>\n            <p className="text-gray-600">Créez des composants réutilisables avec TypeScript</p>\n          </div>\n          <div className="bg-white p-6 rounded-lg shadow-lg">\n            <h2 className="text-2xl font-semibold mb-4">Styling</h2>\n            <p className="text-gray-600">Utilisez Tailwind CSS pour un design moderne</p>\n          </div>\n        </div>\n      </div>\n    </div>\n  );\n}',
+          css: template?.css || '@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n/* Custom styles */\nbody {\n  font-family: "Inter", system-ui, sans-serif;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n\n.gradient-bg {\n  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n}',
+          typescript: template?.typescript || '// Types et interfaces TypeScript\nexport interface AppProps {\n  title: string;\n  children?: React.ReactNode;\n}\n\nexport interface User {\n  id: string;\n  name: string;\n  email: string;\n}\n\n// Utilitaires\nexport const formatDate = (date: Date): string => {\n  return new Intl.DateTimeFormat("fr-FR").format(date);\n};\n\nexport const generateId = (): string => {\n  return Math.random().toString(36).substr(2, 9);\n};'
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -123,19 +124,19 @@ export default function ModernCodeStudio() {
       const newProject: Project = {
         id: data.id,
         name: data.app_name,
-        type: data.app_type as 'web-app' | 'component' | 'prototype',
-        html: content.html,
+        type: data.app_type as 'react-app' | 'component' | 'prototype',
+        tsx: content.tsx,
         css: content.css,
-        javascript: content.javascript,
+        typescript: content.typescript,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
 
       setProjects(prev => [newProject, ...prev]);
       setActiveProject(newProject);
-      setHtmlContent(newProject.html);
+      setTsxContent(newProject.tsx);
       setCssContent(newProject.css);
-      setJsContent(newProject.javascript);
+      setTsContent(newProject.typescript);
 
       toast({
         title: "Projet créé",
@@ -156,9 +157,9 @@ export default function ModernCodeStudio() {
 
     try {
       const updatedContent = {
-        html: htmlContent,
+        tsx: tsxContent,
         css: cssContent,
-        javascript: jsContent
+        typescript: tsContent
       };
 
       const { error } = await supabase
@@ -171,7 +172,7 @@ export default function ModernCodeStudio() {
 
       if (error) throw error;
 
-      setActiveProject(prev => prev ? { ...prev, html: htmlContent, css: cssContent, javascript: jsContent } : null);
+      setActiveProject(prev => prev ? { ...prev, tsx: tsxContent, css: cssContent, typescript: tsContent } : null);
       
       toast({
         title: "Sauvegardé",
@@ -184,35 +185,35 @@ export default function ModernCodeStudio() {
 
   const loadProject = (project: Project) => {
     setActiveProject(project);
-    setHtmlContent(project.html);
+    setTsxContent(project.tsx);
     setCssContent(project.css);
-    setJsContent(project.javascript);
+    setTsContent(project.typescript);
   };
 
-  const handleCodeChange = (code: string, tab: 'html' | 'css' | 'javascript') => {
+  const handleCodeChange = (code: string, tab: 'tsx' | 'css' | 'typescript') => {
     switch (tab) {
-      case 'html':
-        setHtmlContent(code);
+      case 'tsx':
+        setTsxContent(code);
         break;
       case 'css':
         setCssContent(code);
         break;
-      case 'javascript':
-        setJsContent(code);
+      case 'typescript':
+        setTsContent(code);
         break;
     }
   };
 
-  const handleInsertCode = (code: string, tab: 'html' | 'css' | 'javascript') => {
+  const handleInsertCode = (code: string, tab: 'tsx' | 'css' | 'typescript') => {
     switch (tab) {
-      case 'html':
-        setHtmlContent(prev => prev + '\n' + code);
+      case 'tsx':
+        setTsxContent(prev => prev + '\n' + code);
         break;
       case 'css':
         setCssContent(prev => prev + '\n' + code);
         break;
-      case 'javascript':
-        setJsContent(prev => prev + '\n' + code);
+      case 'typescript':
+        setTsContent(prev => prev + '\n' + code);
         break;
     }
   };
@@ -223,7 +224,7 @@ export default function ModernCodeStudio() {
     
     const interval = setInterval(saveProject, 30000);
     return () => clearInterval(interval);
-  }, [activeProject, htmlContent, cssContent, jsContent]);
+  }, [activeProject, tsxContent, cssContent, tsContent]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -249,38 +250,44 @@ export default function ModernCodeStudio() {
 
           <ResizableHandle />
 
-          {/* Main Editor Area */}
-          <ResizablePanel defaultSize={42} minSize={30}>
-            <ModernCodeEditor
-              htmlContent={htmlContent}
-              cssContent={cssContent}
-              jsContent={jsContent}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              onCodeChange={handleCodeChange}
-            />
-          </ResizablePanel>
+          {!showPreviewOnly && (
+            <>
+              {/* Main Editor Area */}
+              <ResizablePanel defaultSize={42} minSize={30}>
+                <ReactCodeEditor
+                  tsxContent={tsxContent}
+                  cssContent={cssContent}
+                  tsContent={tsContent}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  onCodeChange={handleCodeChange}
+                />
+              </ResizablePanel>
 
-          <ResizableHandle />
+              <ResizableHandle />
+            </>
+          )}
 
           {/* Preview Panel */}
-          <ResizablePanel defaultSize={25} minSize={20}>
-            <AdvancedPreview
-              htmlContent={htmlContent}
+          <ResizablePanel defaultSize={showPreviewOnly ? 70 : 25} minSize={20}>
+            <ReactPreview
+              tsxContent={tsxContent}
               cssContent={cssContent}
-              jsContent={jsContent}
+              tsContent={tsContent}
+              showPreviewOnly={showPreviewOnly}
+              onTogglePreview={setShowPreviewOnly}
             />
           </ResizablePanel>
 
           <ResizableHandle />
 
           {/* AI Chat Panel */}
-          <ResizablePanel defaultSize={15} minSize={12} maxSize={30}>
-            <PersistentAIChat
+          <ResizablePanel defaultSize={showPreviewOnly ? 30 : 15} minSize={12} maxSize={35}>
+            <LovableAIChat
               currentCode={{
-                html: htmlContent,
+                tsx: tsxContent,
                 css: cssContent,
-                javascript: jsContent
+                typescript: tsContent
               }}
               activeTab={activeTab}
               onInsertCode={handleInsertCode}

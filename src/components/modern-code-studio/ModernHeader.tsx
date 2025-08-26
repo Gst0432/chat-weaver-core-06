@@ -45,7 +45,7 @@ export const ModernHeader = ({
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-sm font-medium">{activeProject.name}</span>
             <Badge variant="outline" className="text-xs">
-              {activeProject.type === 'web-app' ? 'App Web' : 
+              {activeProject.type === 'react-app' ? 'React App' : 
                activeProject.type === 'component' ? 'Composant' : 'Prototype'}
             </Badge>
             <Badge variant="secondary" className="text-xs flex items-center gap-1">

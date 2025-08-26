@@ -36,11 +36,11 @@ export const ProjectManager = ({
   isLoading 
 }: ProjectManagerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<'all' | 'web-app' | 'component' | 'prototype'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'react-app' | 'component' | 'prototype'>('all');
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'web-app': return <Globe className="w-4 h-4" />;
+      case 'react-app': return <Globe className="w-4 h-4" />;
       case 'component': return <FileCode2 className="w-4 h-4" />;
       case 'prototype': return <Code2 className="w-4 h-4" />;
       default: return <FileCode2 className="w-4 h-4" />;
@@ -49,7 +49,7 @@ export const ProjectManager = ({
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'web-app': return 'from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-600';
+      case 'react-app': return 'from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-600';
       case 'component': return 'from-green-500/10 to-green-600/5 border-green-500/20 text-green-600';
       case 'prototype': return 'from-purple-500/10 to-purple-600/5 border-purple-500/20 text-purple-600';
       default: return 'from-gray-500/10 to-gray-600/5 border-gray-500/20 text-gray-600';
@@ -108,9 +108,9 @@ export const ProjectManager = ({
             Tous
           </Button>
           <Button
-            variant={filterType === 'web-app' ? 'default' : 'ghost'}
+            variant={filterType === 'react-app' ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => setFilterType('web-app')}
+            onClick={() => setFilterType('react-app')}
             className="h-6 px-2 text-xs"
           >
             <Globe className="w-3 h-3" />
@@ -276,7 +276,7 @@ export const ProjectManager = ({
                         variant="outline" 
                         className={`text-xs h-5 bg-gradient-to-r ${getTypeColor(project.type)}`}
                       >
-                        {project.type === 'web-app' ? 'App Web' : 
+                        {project.type === 'react-app' ? 'React App' : 
                          project.type === 'component' ? 'Composant' : 'Prototype'}
                       </Badge>
                     </div>
