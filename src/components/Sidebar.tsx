@@ -72,6 +72,46 @@ export const Sidebar = () => {
     }
   };
 
+  const deleteConversation = async (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Empêcher la sélection de la conversation
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Delete the specific conversation and its messages
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setItems(prev => prev.filter(item => item.id !== conversationId));
+      
+      // If this was the active conversation, clear it
+      if (activeId === conversationId) {
+        setActiveId(null);
+        window.dispatchEvent(new CustomEvent('chat:new-conversation'));
+      }
+      
+      window.dispatchEvent(new CustomEvent('chat:reload-conversations'));
+      
+      toast({
+        title: "Conversation supprimée",
+        description: "La conversation a été supprimée avec succès.",
+      });
+    } catch (error) {
+      console.error('Erreur suppression conversation:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer la conversation.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const deleteAllConversations = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -163,16 +203,24 @@ export const Sidebar = () => {
             <Card
               key={c.id}
               onClick={() => selectConversation(c.id)}
-              className={`p-3 border ${activeId === c.id ? 'border-primary bg-primary/10' : 'bg-secondary/50 border-secondary hover:bg-secondary/70'} cursor-pointer transition-colors`}
+              className={`group p-3 border ${activeId === c.id ? 'border-primary bg-primary/10' : 'bg-secondary/50 border-secondary hover:bg-secondary/70'} cursor-pointer transition-colors`}
             >
               <div className="flex items-start gap-2">
-                <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5" />
+                <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-foreground truncate">{c.title || 'Sans titre'}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: fr })}
                   </p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => deleteConversation(c.id, e)}
+                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all flex-shrink-0"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
             </Card>
           ))}
