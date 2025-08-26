@@ -67,7 +67,11 @@ export const VideoHistory: React.FC<VideoHistoryProps> = ({
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
-            Aucune vidéo générée pour le moment
+            <div className="mb-4">
+              <Play className="h-12 w-12 mx-auto opacity-50" />
+            </div>
+            <p className="text-lg font-medium mb-2">Aucune vidéo générée</p>
+            <p className="text-sm">Commencez par générer votre première vidéo avec KlingAI 2.1 Master</p>
           </div>
         </CardContent>
       </Card>
@@ -76,12 +80,17 @@ export const VideoHistory: React.FC<VideoHistoryProps> = ({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Historique des vidéos ({history.length})
-        </CardTitle>
-      </CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Historique des vidéos
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {history.length} vidéo{history.length > 1 ? 's' : ''}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
       <CardContent className="space-y-4">
         {history.map((item) => (
           <div key={item.id} className="border rounded-lg p-4 space-y-3">

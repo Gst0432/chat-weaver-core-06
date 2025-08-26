@@ -35,7 +35,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
   const [cfgScale, setCfgScale] = useState(0.5);
   const [selectedModel, setSelectedModel] = useState("klingai:5@3");
   const [aspectRatio, setAspectRatio] = useState("16:9");
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(true); // Show history by default
   const { canGenerate, isTestMode, incrementUsage } = useQuota();
   const { history, loading: historyLoading, saveToHistory, deleteFromHistory } = useVideoHistory();
 
@@ -201,14 +201,19 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
               <Video className="w-5 h-5" />
               Générateur de Vidéo KlingAI 2.1 Master
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-2"
-            >
-              <History className="h-4 w-4" />
-              Historique
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {history.length} vidéo{history.length > 1 ? 's' : ''} générée{history.length > 1 ? 's' : ''}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-2"
+              >
+                <History className="h-4 w-4" />
+                {showHistory ? 'Masquer' : 'Afficher'} l'historique
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -354,6 +359,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
         </CardContent>
       </Card>
 
+      {/* Always show history section, but collapsible */}
       <Collapsible open={showHistory} onOpenChange={setShowHistory}>
         <CollapsibleContent>
           <VideoHistory
