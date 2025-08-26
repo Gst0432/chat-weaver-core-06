@@ -18,14 +18,14 @@ interface EbookGeneratorProps {
 }
 
 const templates = [
-  { value: 'business', label: 'Guide Business Ultra-Rapide', description: 'Guide essentiels avec stratégies et plans d\'action (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
-  { value: 'tech', label: 'Manuel Technique Express', description: 'Documentation optimisée avec tutoriels et bonnes pratiques (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
-  { value: 'education', label: 'Livre Éducatif Rapide', description: 'Contenu pédagogique avec cas pratiques (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
-  { value: 'fiction', label: 'Nouvelle Fiction Express', description: 'Histoire captivante avec personnages développés (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
-  { value: 'howto', label: 'Guide Pratique Express', description: 'Tutoriel concis avec méthodologie claire (4-6 étapes, 5 000-8 000 mots, 90-120s)' },
-  { value: 'self-help', label: 'Développement Personnel Express', description: 'Méthodes pratiques avec exercices (4-6 modules, 5 000-8 000 mots, 90-120s)' },
-  { value: 'academic', label: 'Étude Académique Rapide', description: 'Recherche structurée avec analyses (4-6 chapitres, 5 000-8 000 mots, 90-120s)' },
-  { value: 'cookbook', label: 'Livre de Cuisine Express', description: 'Recettes sélectionnées avec techniques (25-30 recettes, 5 000-8 000 mots, 90-120s)' }
+  { value: 'business', label: 'Guide Business Complet', description: 'Guide essentiels avec stratégies et plans d\'action (8-12 chapitres, 20 000-25 000 mots, 2-3 minutes)' },
+  { value: 'tech', label: 'Manuel Technique Détaillé', description: 'Documentation optimisée avec tutoriels et bonnes pratiques (8-12 chapitres, 20 000-25 000 mots, 2-3 minutes)' },
+  { value: 'education', label: 'Livre Éducatif Complet', description: 'Contenu pédagogique avec cas pratiques (8-12 chapitres, 20 000-25 000 mots, 2-3 minutes)' },
+  { value: 'fiction', label: 'Nouvelle Fiction Développée', description: 'Histoire captivante avec personnages développés (8-12 chapitres, 20 000-25 000 mots, 2-3 minutes)' },
+  { value: 'howto', label: 'Guide Pratique Détaillé', description: 'Tutoriel détaillé avec méthodologie claire (8-12 étapes, 20 000-25 000 mots, 2-3 minutes)' },
+  { value: 'self-help', label: 'Développement Personnel Approfondi', description: 'Méthodes pratiques avec exercices (8-12 modules, 20 000-25 000 mots, 2-3 minutes)' },
+  { value: 'academic', label: 'Étude Académique Complète', description: 'Recherche structurée avec analyses (8-12 chapitres, 20 000-25 000 mots, 2-3 minutes)' },
+  { value: 'cookbook', label: 'Livre de Cuisine Détaillé', description: 'Recettes sélectionnées avec techniques (40-50 recettes, 20 000-25 000 mots, 2-3 minutes)' }
 ];
 
 const models = [
@@ -259,12 +259,12 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
             {fastMode ? (
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle className="w-4 h-4" />
-                <span><strong>Mode Ultra-Rapide:</strong> 4-6 chapitres, 5k-8k mots, génération en 90-120 secondes ⚡</span>
+                <span><strong>Mode Rapide:</strong> 8-10 chapitres, 20k-25k mots, génération en 2-3 minutes ⚡</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-blue-600">
                 <BookOpen className="w-4 h-4" />
-                <span><strong>Mode Standard:</strong> 6-8 chapitres, 8k-12k mots, génération en 3-5 minutes</span>
+                <span><strong>Mode Complet:</strong> 10-15 chapitres, 25k-30k mots, génération en 4-6 minutes</span>
               </div>
             )}
           </div>
@@ -612,7 +612,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
             )}
             
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>📚 Génération d'un ebook professionnel de 15 000-25 000 mots</p>
+              <p>📚 Génération d'un ebook professionnel de 20 000-25 000 mots minimum</p>
               <p>🔄 La génération continue en arrière-plan, vous pouvez fermer cette page</p>
               {generation?.status === 'generating_chapters' && (
                 <p>⚡ Retry automatique activé en cas d'erreur temporaire d'API</p>

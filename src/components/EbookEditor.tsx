@@ -31,7 +31,7 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
   const { toast } = useToast();
 
   const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
-  const isMinimumLength = wordCount >= 15000;
+  const isMinimumLength = wordCount >= 20000;
 
   useEffect(() => {
     if (ebook) {
@@ -55,10 +55,10 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
       return;
     }
 
-    if (wordCount < 15000) {
+    if (wordCount < 20000) {
       toast({
         title: "Contenu insuffisant",
-        description: `Votre ebook contient ${wordCount} mots. Le minimum requis est de 15 000 mots.`,
+        description: `Votre ebook contient ${wordCount} mots. Le minimum requis est de 20 000 mots.`,
         variant: "destructive",
       });
       return;
@@ -185,10 +185,10 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
                 </Badge>
               </div>
               <div className="text-sm text-muted-foreground">
-                Fourchette: 15 000 - 25 000 mots
-                {wordCount < 15000 && (
+                Fourchette: 20 000 - 25 000 mots
+                {wordCount < 20000 && (
                   <span className="text-destructive ml-2">
-                    ({(15000 - wordCount).toLocaleString()} mots manquants)
+                    ({(20000 - wordCount).toLocaleString()} mots manquants)
                   </span>
                 )}
                 {wordCount > 25000 && (
@@ -196,7 +196,7 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
                     ({(wordCount - 25000).toLocaleString()} mots en trop)
                   </span>
                 )}
-                {wordCount >= 15000 && wordCount <= 25000 && (
+                {wordCount >= 20000 && wordCount <= 25000 && (
                   <span className="text-green-600 ml-2">✓ Optimal</span>
                 )}
               </div>

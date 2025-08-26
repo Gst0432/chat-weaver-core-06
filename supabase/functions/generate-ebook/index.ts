@@ -308,30 +308,36 @@ serve(async (req) => {
           }).eq('id', generation.id);
 
           console.log('📋 Phase 1: Generating table of contents...');
-          // Mode ultra-rapide optimisé pour 2 minutes max
-          const targetWords = fast_mode ? '5,000-8,000' : '15,000-25,000';
-          const chapterCount = fast_mode ? '4-6' : '15-25'; // Drastiquement réduit
-          const chapterWords = fast_mode ? '800-1200' : '800-1200';
+          // Mode optimisé pour 20k+ mots minimum
+          const targetWords = fast_mode ? '20,000-25,000' : '25,000-30,000';
+          const chapterCount = fast_mode ? '8-12' : '12-18';
+          const chapterWords = fast_mode ? '1,800-2,500' : '2,000-2,800';
 
           const tocPrompt = `Create ${template} ebook structure for "${title}" on ${prompt}.
 
-ULTRA-FAST MODE (2min max):
+COMPREHENSIVE MODE (20k+ words minimum):
 - ${chapterCount} chapters total
 - ${targetWords} words
-- Structure: Intro + ${fast_mode ? '3-4' : '15-20'} core + Conclusion
+- Structure: Intro + ${fast_mode ? '6-10' : '10-16'} core chapters + Conclusion
+- Each chapter: ${chapterWords} words for detailed coverage
 
 JSON only:
 {
   "title": "${title}",
   "chapters": [
-    {"id": 1, "type": "intro", "title": "Introduction", "summary": "Core overview", "target_words": ${fast_mode ? '1000' : '900'}},
-    {"id": 2, "type": "chapter", "title": "Core Chapter 1", "summary": "Key concept", "target_words": ${fast_mode ? '1200' : '1000'}},
-    {"id": 3, "type": "chapter", "title": "Core Chapter 2", "summary": "Key concept", "target_words": ${fast_mode ? '1200' : '1000'}},
-    ${fast_mode ? '{"id": 4, "type": "chapter", "title": "Core Chapter 3", "summary": "Key concept", "target_words": 1200},' : ''}
-    ${fast_mode ? '{"id": 5, "type": "chapter", "title": "Core Chapter 4", "summary": "Key concept", "target_words": 1200},' : ''}
-    {"id": ${fast_mode ? '6' : 'last'}, "type": "conclusion", "title": "Conclusion", "summary": "Next steps", "target_words": ${fast_mode ? '800' : '700'}}
+    {"id": 1, "type": "intro", "title": "Introduction", "summary": "Comprehensive overview and roadmap", "target_words": ${fast_mode ? '2000' : '2200'}},
+    {"id": 2, "type": "chapter", "title": "Core Chapter 1", "summary": "Detailed analysis of key concept", "target_words": ${fast_mode ? '2200' : '2400'}},
+    {"id": 3, "type": "chapter", "title": "Core Chapter 2", "summary": "In-depth exploration", "target_words": ${fast_mode ? '2200' : '2400'}},
+    {"id": 4, "type": "chapter", "title": "Core Chapter 3", "summary": "Practical applications", "target_words": ${fast_mode ? '2200' : '2400'}},
+    {"id": 5, "type": "chapter", "title": "Core Chapter 4", "summary": "Advanced techniques", "target_words": ${fast_mode ? '2200' : '2400'}},
+    {"id": 6, "type": "chapter", "title": "Core Chapter 5", "summary": "Case studies and examples", "target_words": ${fast_mode ? '2200' : '2400'}},
+    {"id": 7, "type": "chapter", "title": "Core Chapter 6", "summary": "Implementation strategies", "target_words": ${fast_mode ? '2200' : '2400'}},
+    {"id": 8, "type": "chapter", "title": "Core Chapter 7", "summary": "Optimization and best practices", "target_words": ${fast_mode ? '2200' : '2400'}},
+    ${fast_mode ? '' : '{"id": 9, "type": "chapter", "title": "Core Chapter 8", "summary": "Advanced applications", "target_words": 2400},'}
+    ${fast_mode ? '' : '{"id": 10, "type": "chapter", "title": "Core Chapter 9", "summary": "Future trends", "target_words": 2400},'}
+    {"id": ${fast_mode ? '9' : '11'}, "type": "conclusion", "title": "Conclusion", "summary": "Summary and next steps", "target_words": ${fast_mode ? '1800' : '2000'}}
   ],
-  "total_estimated_words": ${fast_mode ? '6400' : '15000'}
+  "total_estimated_words": ${fast_mode ? '20000' : '25000'}
 }`;
 
           // Phase 1: Generate Table of Contents
@@ -375,8 +381,8 @@ JSON only:
           });
           fullContent += '\n---\n\n';
 
-          // 🚀 GÉNÉRATION PARALLÈLE ULTRA-RAPIDE (2-3 chapitres à la fois)
-          const batchSize = fast_mode ? 3 : 2; // Plus agressif en mode rapide
+          // 🚀 GÉNÉRATION PARALLÈLE OPTIMISÉE (2-3 chapitres à la fois)
+          const batchSize = fast_mode ? 2 : 2; // Maintenir la qualité avec plus de contenu
           const validChapters = tableOfContents.chapters.filter(ch => ch.type !== 'toc');
           
           for (let batchStart = 0; batchStart < validChapters.length; batchStart += batchSize) {
@@ -391,22 +397,25 @@ JSON only:
               
               console.log(`📝 Generating chapter ${globalIndex + 1}/${validChapters.length}: "${chapter.title}"`);
               
-              // Prompt ultra-optimisé pour vitesse
-              const chapterPrompt = `Write ${chapter.target_words} words for "${chapter.title}" in ${template} style.
+              // Prompt optimisé pour contenu de qualité 20k+ mots
+              const chapterPrompt = `Write a comprehensive ${chapter.target_words}-word chapter titled "${chapter.title}" for a ${template} ebook.
 
 Topic: ${prompt}
-Type: ${chapter.type}
-Summary: ${chapter.summary}
+Chapter Type: ${chapter.type}
+Chapter Summary: ${chapter.summary}
 
 Requirements:
-- ${chapter.target_words} words exactly
-- Markdown format (## title, ### sections)
-- Professional ${template} tone
-- ${chapter.type === 'intro' ? 'Hook readers, set expectations' : ''}
-- ${chapter.type === 'conclusion' ? 'Summarize, provide next steps' : ''}
-- Practical, actionable content
+- TARGET: ${chapter.target_words} words minimum (detailed content required)
+- Markdown format with proper structure (## title, ### sections, #### subsections)
+- Professional ${template} tone and style
+- ${chapter.type === 'intro' ? 'Engaging introduction, clear expectations, chapter overview' : ''}
+- ${chapter.type === 'conclusion' ? 'Comprehensive summary, actionable next steps, resources' : ''}
+- ${chapter.type === 'chapter' ? 'Detailed explanations, examples, practical applications, exercises' : ''}
+- Include specific examples, case studies, and actionable advice
+- Add relevant subsections and detailed explanations
+- Professional formatting with headers, lists, and emphasis
 
-Write complete chapter:`;
+Write complete, detailed chapter with comprehensive coverage:`;
 
               try {
                 const response = await callAI(chapterPrompt, model, isOpenRouterModel(model));
