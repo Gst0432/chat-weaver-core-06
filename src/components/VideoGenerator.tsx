@@ -27,8 +27,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
   const [initImage, setInitImage] = useState<string | null>(null);
   const [duration, setDuration] = useState(3);
-  const [fps, setFps] = useState(24);
-  const [motionScale, setMotionScale] = useState(127);
+  const [cfgScale, setCfgScale] = useState(0.5);
   const [selectedModel, setSelectedModel] = useState("klingai:5@3");
   const { canGenerate, isTestMode, incrementUsage } = useQuota();
 
@@ -78,8 +77,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
         positivePrompt: prompt,
         model: selectedModel,
         duration,
-        fps,
-        motionScale,
+        CFGScale: cfgScale,
         width: 768,
         height: 768,
         ...(initImage && { initImage })
@@ -163,7 +161,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
             </Select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="duration">Durée (secondes)</Label>
               <Select value={duration.toString()} onValueChange={(value) => setDuration(parseInt(value))}>
@@ -179,28 +177,15 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
             </div>
 
             <div>
-              <Label htmlFor="fps">FPS</Label>
-              <Select value={fps.toString()} onValueChange={(value) => setFps(parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="12">12 FPS</SelectItem>
-                  <SelectItem value="24">24 FPS</SelectItem>
-                  <SelectItem value="30">30 FPS</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="motion">Mouvement (0-255)</Label>
+              <Label htmlFor="cfg-scale">CFG Scale (0.1-1.0)</Label>
               <Input
-                id="motion"
+                id="cfg-scale"
                 type="number"
-                min="0"
-                max="255"
-                value={motionScale}
-                onChange={(e) => setMotionScale(parseInt(e.target.value) || 127)}
+                min="0.1"
+                max="1.0"
+                step="0.1"
+                value={cfgScale}
+                onChange={(e) => setCfgScale(parseFloat(e.target.value) || 0.5)}
                 disabled={isGenerating}
               />
             </div>

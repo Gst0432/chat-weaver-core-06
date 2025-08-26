@@ -29,15 +29,14 @@ export interface GeneratedImage {
 
 export interface GenerateVideoParams {
   positivePrompt: string;
+  negativePrompt?: string;
   model?: string;
   width?: number;
   height?: number;
   duration?: number;
-  fps?: number;
-  motionScale?: number;
+  CFGScale?: number;
   seed?: number | null;
   initImage?: string; // Base64 or URL for image-to-video
-  guidance?: number;
 }
 
 export interface GeneratedVideo {
@@ -215,15 +214,14 @@ export class RunwareService {
         taskType: "videoInference",
         taskUUID,
         positivePrompt: params.positivePrompt,
-        model: params.model || "klingai:5@3", // Modèle vidéo KlingAI par défaut
+        model: params.model || "klingai:5@3",
         width: params.width || 768,
         height: params.height || 768,
-        duration: params.duration || 3, // 3 secondes par défaut
-        fps: params.fps || 24,
-        motionScale: params.motionScale || 127, // Échelle de mouvement (0-255)
-        guidance: params.guidance || 17.5, // Guidance CFG pour vidéo
+        duration: params.duration || 3,
+        CFGScale: params.CFGScale || 0.5,
+        ...(params.negativePrompt && { negativePrompt: params.negativePrompt }),
         ...(params.seed && { seed: params.seed }),
-        ...(params.initImage && { initImage: params.initImage }), // Pour image-to-video
+        ...(params.initImage && { initImage: params.initImage }),
       }];
 
       console.log("🎬 Génération vidéo Runware:", params.positivePrompt);
