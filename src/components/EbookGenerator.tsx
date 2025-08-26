@@ -17,6 +17,21 @@ interface EbookGeneratorProps {
   onEbookGenerated: () => void;
 }
 
+const languages = [
+  { value: 'fr', label: 'Français', flag: '🇫🇷' },
+  { value: 'en', label: 'English', flag: '🇺🇸' },
+  { value: 'es', label: 'Español', flag: '🇪🇸' },
+  { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { value: 'it', label: 'Italiano', flag: '🇮🇹' },
+  { value: 'pt', label: 'Português', flag: '🇧🇷' },
+  { value: 'ar', label: 'العربية', flag: '🇸🇦' },
+  { value: 'zh', label: '中文', flag: '🇨🇳' },
+  { value: 'ja', label: '日本語', flag: '🇯🇵' },
+  { value: 'ko', label: '한국어', flag: '🇰🇷' },
+  { value: 'ru', label: 'Русский', flag: '🇷🇺' },
+  { value: 'hi', label: 'हिन्दी', flag: '🇮🇳' }
+];
+
 const templates = [
   { value: 'business', label: 'Guide Business Complet', description: 'Guide essentiels avec stratégies et plans d\'action (8-12 chapitres, 20 000-25 000 mots, 2-3 minutes)' },
   { value: 'tech', label: 'Manuel Technique Détaillé', description: 'Documentation optimisée avec tutoriels et bonnes pratiques (8-12 chapitres, 20 000-25 000 mots, 2-3 minutes)' },
@@ -71,6 +86,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
   const [useAI, setUseAI] = useState(true);
   const [model, setModel] = useState('gpt-4o-mini');
   const [fastMode, setFastMode] = useState(true);
+  const [language, setLanguage] = useState('fr');
   const [generating, setGenerating] = useState(false);
   const [generationId, setGenerationId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -104,6 +120,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           useAI,
           model,
           template,
+          language,
           format: 'markdown',
           fast_mode: fastMode
         }
@@ -156,6 +173,7 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
     setTitle('');
     setAuthor('');
     setPrompt('');
+    setLanguage('fr');
     
     onEbookGenerated();
   }
@@ -206,28 +224,49 @@ export function EbookGenerator({ onEbookGenerated }: EbookGeneratorProps) {
           </div>
         </div>
 
-        <div>
-          <Label htmlFor="template">Type d'ebook</Label>
-          <Select value={template} onValueChange={setTemplate}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {templates.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  <div className="flex flex-col">
-                    <span>{t.label}</span>
-                    <span className="text-xs text-muted-foreground">{t.description}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedTemplate && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedTemplate.description}
-            </p>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="template">Type d'ebook</Label>
+            <Select value={template} onValueChange={setTemplate}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    <div className="flex flex-col">
+                      <span>{t.label}</span>
+                      <span className="text-xs text-muted-foreground">{t.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedTemplate && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {selectedTemplate.description}
+              </p>
+            )}
+          </div>
+          
+          <div>
+            <Label htmlFor="language">Langue de génération</Label>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {languages.map((lang) => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    <div className="flex items-center gap-2">
+                      <span>{lang.flag}</span>
+                      <span>{lang.label}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div>

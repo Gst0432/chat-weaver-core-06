@@ -211,6 +211,7 @@ serve(async (req) => {
       useAI = true,
       model = 'gpt-4o-mini', // Modèle ultra-rapide optimisé
       template = 'business',
+      language = 'fr', // Langue de génération
       chapters = [],
       resume_generation_id = null, // For resuming partial generations
       fast_mode = true // Mode rapide par défaut pour 2mn max
@@ -326,7 +327,27 @@ serve(async (req) => {
           const chapterCount = fast_mode ? '8-12' : '12-18';
           const chapterWords = fast_mode ? '1,800-2,500' : '2,000-2,800';
 
+          const getLanguageName = (lang: string) => {
+            const langMap: Record<string, string> = {
+              'fr': 'français',
+              'en': 'English',
+              'es': 'español',
+              'de': 'Deutsch',
+              'it': 'italiano',
+              'pt': 'português',
+              'ar': 'العربية',
+              'zh': '中文',
+              'ja': '日本語',
+              'ko': '한국어',
+              'ru': 'русский',
+              'hi': 'हिन्दी'
+            };
+            return langMap[lang] || 'français';
+          };
+
           const tocPrompt = `Create ${template} ebook structure for "${title}" on ${prompt}.
+
+LANGUAGE: Write EVERYTHING in ${getLanguageName(language)} (${language}). ALL content must be in this language.
 
 COMPREHENSIVE MODE (20k+ words minimum):
 - ${chapterCount} chapters total
@@ -412,6 +433,8 @@ JSON only:
               
               // Prompt optimisé pour contenu de qualité 20k+ mots
               const chapterPrompt = `Write a comprehensive ${chapter.target_words}-word chapter titled "${chapter.title}" for a ${template} ebook.
+
+LANGUAGE: Write EVERYTHING in ${getLanguageName(language)} (${language}). ALL content must be in this language.
 
 Topic: ${prompt}
 Chapter Type: ${chapter.type}
