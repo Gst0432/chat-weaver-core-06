@@ -215,7 +215,7 @@ export class RunwareService {
         taskType: "videoInference",
         taskUUID,
         positivePrompt: params.positivePrompt,
-        model: params.model || "runware:101@1", // Modèle vidéo par défaut
+        model: params.model || "klingai:5@3", // Modèle vidéo KlingAI par défaut
         width: params.width || 768,
         height: params.height || 768,
         duration: params.duration || 3, // 3 secondes par défaut

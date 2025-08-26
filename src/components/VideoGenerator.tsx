@@ -29,6 +29,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
   const [duration, setDuration] = useState(3);
   const [fps, setFps] = useState(24);
   const [motionScale, setMotionScale] = useState(127);
+  const [selectedModel, setSelectedModel] = useState("klingai:5@3");
   const { canGenerate, isTestMode, incrementUsage } = useQuota();
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,6 +76,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
       
       const params: GenerateVideoParams = {
         positivePrompt: prompt,
+        model: selectedModel,
         duration,
         fps,
         motionScale,
@@ -145,6 +147,20 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
               className="min-h-[100px] mt-2"
               disabled={isGenerating}
             />
+          </div>
+
+          <div>
+            <Label htmlFor="model">Modèle de génération</Label>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="klingai:5@3">KlingAI v5.3 (Recommandé)</SelectItem>
+                <SelectItem value="klingai:5@2">KlingAI v5.2</SelectItem>
+                <SelectItem value="klingai:4@1">KlingAI v4.1</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
