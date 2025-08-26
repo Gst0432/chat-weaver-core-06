@@ -33,20 +33,20 @@ serve(async (req) => {
       console.log(`🧹 Cleaned model name: ${model} -> ${cleanModel}`);
     }
 
-    // Mapper GPT-5 vers GPT-4.1 en backend (après nettoyage)
+    // Mapper GPT-5 vers GPT-4 en backend (après nettoyage)
     let actualModel = cleanModel;
     if (cleanModel.startsWith('gpt-5')) {
       if (cleanModel.includes('mini')) {
-        actualModel = "gpt-4.1-mini-2025-04-14";
+        actualModel = "gpt-4o-mini";
       } else if (cleanModel.includes('nano')) {
-        actualModel = "gpt-4.1-mini-2025-04-14"; // Utiliser mini pour nano aussi
+        actualModel = "gpt-4o-mini"; // Utiliser mini pour nano aussi
       } else {
-        actualModel = "gpt-4.1-2025-04-14"; // GPT-5 standard -> GPT-4.1
+        actualModel = "gpt-4o"; // GPT-5 standard -> GPT-4o
       }
       console.log(`🔄 Mapping ${cleanModel} -> ${actualModel}`);
     }
 
-    // Support nouveaux modèles OpenAI (GPT-4.1, O3, etc.)
+    // Support nouveaux modèles OpenAI (GPT-4.1, O3, etc.) vs anciens (GPT-4o)
     const isNewModel = actualModel && (actualModel.startsWith('gpt-4.1') || 
                                 actualModel.startsWith('o3-') || actualModel.startsWith('o4-'));
     

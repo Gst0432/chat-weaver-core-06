@@ -110,14 +110,27 @@ async function callAI(prompt: string, model: string, useOpenRouter: boolean, ret
           ]
         };
 
+        // Mapper GPT-5 vers GPT-4 pour ebooks aussi
+        let actualModelForEbook = modelToUse;
+        if (modelToUse.includes('gpt-5')) {
+          if (modelToUse.includes('mini') || modelToUse.includes('nano')) {
+            actualModelForEbook = "gpt-4o-mini";
+          } else {
+            actualModelForEbook = "gpt-4o";
+          }
+        }
+        
         // Handle API parameter differences for newer vs legacy models
-        // Optimisé pour chapitres complets
-        if (modelToUse.includes('gpt-5') || modelToUse.includes('o3') || modelToUse.includes('o4') || modelToUse.includes('gpt-4.1')) {
+        // Optimisé pour chapitres complets - GPT-4o utilise max_tokens
+        if (actualModelForEbook.includes('o3') || actualModelForEbook.includes('o4') || actualModelForEbook.includes('gpt-4.1')) {
           requestBody.max_completion_tokens = 4000;
         } else {
           requestBody.max_tokens = 4000;
           requestBody.temperature = 0.8; // Légèrement plus créatif mais rapide
         }
+        
+        // Utiliser le modèle mappé
+        requestBody.model = actualModelForEbook;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',

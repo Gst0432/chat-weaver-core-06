@@ -23,20 +23,20 @@ serve(async (req) => {
 
     const { messages, model, temperature, max_tokens, max_completion_tokens } = await req.json();
 
-    // Mapper GPT-5 vers GPT-4.1 en backend (garder mapping)
-    let actualModel = model || "gpt-4.1-2025-04-14";
+    // Mapper GPT-5 vers GPT-4 en backend (garder mapping)
+    let actualModel = model || "gpt-4o";
     if (model && model.startsWith('gpt-5')) {
       if (model.includes('mini')) {
-        actualModel = "gpt-4.1-mini-2025-04-14";
+        actualModel = "gpt-4o-mini";
       } else if (model.includes('nano')) {
-        actualModel = "gpt-4.1-mini-2025-04-14";
+        actualModel = "gpt-4o-mini";
       } else {
-        actualModel = "gpt-4.1-2025-04-14";
+        actualModel = "gpt-4o";
       }
       console.log(`🔄 Streaming mapping ${model} -> ${actualModel}`);
     }
 
-    // Support nouveaux modèles OpenAI
+    // Support nouveaux modèles OpenAI vs anciens (GPT-4o)
     const isNewModel = actualModel && (actualModel.startsWith('gpt-4.1') || 
                                 actualModel.startsWith('o3-') || actualModel.startsWith('o4-'));
     
