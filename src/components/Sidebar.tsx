@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
 
 interface ConversationRow {
   id: string;
@@ -15,6 +16,7 @@ interface ConversationRow {
 
 export const Sidebar = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -70,6 +72,40 @@ export const Sidebar = () => {
     }
   };
 
+  const deleteAllConversations = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Delete all conversations and their messages
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      setItems([]);
+      setActiveId(null);
+      
+      // Notify other components
+      window.dispatchEvent(new CustomEvent('chat:new-conversation'));
+      window.dispatchEvent(new CustomEvent('chat:reload-conversations'));
+      
+      toast({
+        title: "Historique supprimé",
+        description: "Toutes vos conversations ont été supprimées avec succès.",
+      });
+    } catch (error) {
+      console.error('Erreur suppression historique:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer l'historique des conversations.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -101,7 +137,19 @@ export const Sidebar = () => {
 
       {/* Conversations */}
       <div className="flex-1 overflow-y-auto">
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Conversations (30 jours)</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Conversations (30 jours)</h3>
+          {items.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={deleteAllConversations}
+              className="h-6 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
         <div className="space-y-2">
           {loading && (
             <Card className="p-3 bg-secondary/50 border-secondary">

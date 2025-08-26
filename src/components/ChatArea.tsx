@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Document as DocxDocument, Packer, Paragraph } from "docx";
 import PptxGenJS from "pptxgenjs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
@@ -182,6 +182,8 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
   const [showImageControls, setShowImageControls] = useState(false);
   const [autoRouterChoice, setAutoRouterChoice] = useState<string>('');
   const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const createNewConversation = async () => {
     try {
@@ -241,6 +243,13 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
       window.removeEventListener('chat:new-conversation', handleNewConversation);
     };
   }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isLoading]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -603,7 +612,7 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
-      <ScrollArea className="flex-1 p-4 bg-background">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 bg-background">
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
@@ -646,6 +655,8 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
               </div>
             </div>
           )}
+          {/* Invisible element for scrolling to bottom */}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
