@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,6 @@ import {
   Play,
   History
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 import { RunwareService, GenerateVideoParams } from "@/services/runwareService";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuota } from "@/hooks/useQuota";
@@ -371,47 +371,91 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
         </CollapsibleContent>
       </Collapsible>
 
-      {generatedVideo && (
+      {/* Video Generation/Preview Area */}
+      {(isGenerating || generatedVideo) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Play className="w-5 h-5" />
-              Vidéo générée
+              {isGenerating ? "Génération en cours..." : "Vidéo générée"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <video 
-              src={generatedVideo} 
-              controls 
-              className="w-full max-w-md mx-auto rounded border"
-              autoPlay
-              loop
-              onError={(e) => {
-                console.error('Video load error:', e);
-                toast({
-                  title: "Erreur",
-                  description: "Impossible de charger la vidéo (URL expirée)",
-                  variant: "destructive",
-                });
-              }}
-            />
-            
-            <div className="flex gap-2">
-              {isTestMode ? (
-                <Button disabled variant="outline" className="opacity-50">
-                  <Lock className="w-4 h-4 mr-2" />
-                  Télécharger (Premium)
-                </Button>
-              ) : (
-                <Button onClick={downloadVideo} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Télécharger
-                </Button>
-              )}
+            <div className="aspect-video bg-muted rounded-lg overflow-hidden relative">
+              {isGenerating ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <div className="relative mb-6">
+                    {/* Loading animation */}
+                    <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                    <Video className="w-8 h-8 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <p className="text-lg font-medium">Génération de votre vidéo...</p>
+                    <p className="text-sm">
+                      Modèle: {selectedModel} • Durée: {duration}s • Format: {aspectRatio}
+                    </p>
+                    <p className="text-xs opacity-75">
+                      Cela peut prendre jusqu'à 60 secondes
+                    </p>
+                  </div>
+                  
+                  {/* Progress bar simulation */}
+                  <div className="w-full max-w-md mt-6">
+                    <div className="w-full bg-muted-foreground/20 rounded-full h-2">
+                      <div className="bg-primary h-2 rounded-full animate-pulse w-1/3"></div>
+                    </div>
+                  </div>
+                </div>
+              ) : generatedVideo ? (
+                <video 
+                  src={generatedVideo} 
+                  controls 
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  loop
+                  onError={(e) => {
+                    console.error('Video load error:', e);
+                    toast({
+                      title: "Erreur",
+                      description: "Impossible de charger la vidéo (URL expirée)",
+                      variant: "destructive",
+                    });
+                  }}
+                />
+              ) : null}
             </div>
+            
+            {/* Action buttons for generated video */}
+            {generatedVideo && !isGenerating && (
+              <div className="flex gap-2 justify-center">
+                {isTestMode ? (
+                  <Button disabled variant="outline" className="opacity-50">
+                    <Lock className="w-4 h-4 mr-2" />
+                    Télécharger (Premium)
+                  </Button>
+                ) : (
+                  <Button onClick={downloadVideo} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Télécharger
+                  </Button>
+                )}
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setGeneratedVideo(null);
+                    setPrompt('');
+                    setNegativePrompt('');
+                  }}
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Nouvelle génération
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
+
     </div>
   );
 };
