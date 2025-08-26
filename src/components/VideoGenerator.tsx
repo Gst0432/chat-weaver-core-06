@@ -23,12 +23,14 @@ interface VideoGeneratorProps {
 
 export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
   const [prompt, setPrompt] = useState("");
+  const [negativePrompt, setNegativePrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
   const [initImage, setInitImage] = useState<string | null>(null);
-  const [duration, setDuration] = useState(3);
+  const [duration, setDuration] = useState(5);
   const [cfgScale, setCfgScale] = useState(0.5);
   const [selectedModel, setSelectedModel] = useState("klingai:5@3");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
   const { canGenerate, isTestMode, incrementUsage } = useQuota();
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,11 +44,38 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
     }
   };
 
+  const getVideoDimensions = () => {
+    switch (aspectRatio) {
+      case "16:9": return { width: 1920, height: 1080 };
+      case "1:1": return { width: 1080, height: 1080 };
+      case "9:16": return { width: 1080, height: 1920 };
+      default: return { width: 1920, height: 1080 };
+    }
+  };
+
   const generateVideo = async () => {
-    if (!prompt.trim()) {
+    if (!prompt.trim() || prompt.length < 2) {
       toast({
         title: "Prompt requis",
-        description: "Veuillez décrire la vidéo que vous voulez générer.",
+        description: "Veuillez décrire la vidéo que vous voulez générer (2-2500 caractères).",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (prompt.length > 2500) {
+      toast({
+        title: "Prompt trop long",
+        description: "Le prompt ne peut pas dépasser 2500 caractères.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (negativePrompt.length > 0 && (negativePrompt.length < 2 || negativePrompt.length > 2500)) {
+      toast({
+        title: "Prompt négatif invalide",
+        description: "Le prompt négatif doit contenir entre 2 et 2500 caractères.",
         variant: "destructive"
       });
       return;
@@ -72,14 +101,16 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
       }
 
       const runwareService = new RunwareService(keyData.apiKey);
+      const { width, height } = getVideoDimensions();
       
       const params: GenerateVideoParams = {
         positivePrompt: prompt,
         model: selectedModel,
         duration,
         CFGScale: cfgScale,
-        width: 768,
-        height: 768,
+        width,
+        height,
+        ...(negativePrompt.trim() && { negativePrompt: negativePrompt.trim() }),
         ...(initImage && { initImage })
       };
 
@@ -136,7 +167,7 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="video-prompt">Description de la vidéo</Label>
+            <Label htmlFor="video-prompt">Description de la vidéo (2-2500 caractères)</Label>
             <Textarea
               id="video-prompt"
               placeholder="Décrivez la vidéo que vous voulez générer..."
@@ -145,6 +176,24 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
               className="min-h-[100px] mt-2"
               disabled={isGenerating}
             />
+            <div className="text-sm text-muted-foreground mt-1">
+              {prompt.length}/2500 caractères
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="negative-prompt">Prompt négatif (optionnel, 2-2500 caractères)</Label>
+            <Textarea
+              id="negative-prompt"
+              placeholder="Décrivez ce que vous ne voulez pas voir dans la vidéo..."
+              value={negativePrompt}
+              onChange={(e) => setNegativePrompt(e.target.value)}
+              className="min-h-[80px] mt-2"
+              disabled={isGenerating}
+            />
+            <div className="text-sm text-muted-foreground mt-1">
+              {negativePrompt.length}/2500 caractères
+            </div>
           </div>
 
           <div>
@@ -154,9 +203,21 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="klingai:5@3">KlingAI v5.3 (Recommandé)</SelectItem>
-                <SelectItem value="klingai:5@2">KlingAI v5.2</SelectItem>
-                <SelectItem value="klingai:4@1">KlingAI v4.1</SelectItem>
+                <SelectItem value="klingai:5@3">KlingAI 2.1 Master (Recommandé)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="aspect-ratio">Format vidéo</Label>
+            <Select value={aspectRatio} onValueChange={setAspectRatio}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="16:9">16:9 - Paysage (1920×1080)</SelectItem>
+                <SelectItem value="1:1">1:1 - Carré (1080×1080)</SelectItem>
+                <SelectItem value="9:16">9:16 - Portrait (1080×1920)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -164,12 +225,11 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="duration">Durée (secondes)</Label>
-              <Select value={duration.toString()} onValueChange={(value) => setDuration(parseInt(value))}>
+              <Select value={duration.toString()} onValueChange={(value) => setDuration(parseFloat(value))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="3">3 secondes</SelectItem>
                   <SelectItem value="5">5 secondes</SelectItem>
                   <SelectItem value="10">10 secondes</SelectItem>
                 </SelectContent>
@@ -177,12 +237,12 @@ export const VideoGenerator = ({ onVideoGenerated }: VideoGeneratorProps) => {
             </div>
 
             <div>
-              <Label htmlFor="cfg-scale">CFG Scale (0.1-1.0)</Label>
+              <Label htmlFor="cfg-scale">CFG Scale (0-1)</Label>
               <Input
                 id="cfg-scale"
                 type="number"
-                min="0.1"
-                max="1.0"
+                min="0"
+                max="1"
                 step="0.1"
                 value={cfgScale}
                 onChange={(e) => setCfgScale(parseFloat(e.target.value) || 0.5)}

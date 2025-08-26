@@ -210,19 +210,27 @@ export class RunwareService {
     const taskUUID = crypto.randomUUID();
     
     return new Promise((resolve, reject) => {
-      const message = [{
+      const message: any = [{
         taskType: "videoInference",
         taskUUID,
-        positivePrompt: params.positivePrompt,
         model: params.model || "klingai:5@3",
-        width: params.width || 768,
-        height: params.height || 768,
-        duration: params.duration || 3,
-        CFGScale: params.CFGScale || 0.5,
+        positivePrompt: params.positivePrompt,
+        width: params.width || 1920,
+        height: params.height || 1080,
+        duration: params.duration || 5.0,
         ...(params.negativePrompt && { negativePrompt: params.negativePrompt }),
         ...(params.seed && { seed: params.seed }),
-        ...(params.initImage && { initImage: params.initImage }),
       }];
+
+      // Handle image-to-video using frameImages format for KlingAI 2.1 Master
+      if (params.initImage) {
+        message[0].frameImages = [
+          {
+            inputImage: params.initImage,
+            frame: "first"
+          }
+        ];
+      }
 
       console.log("🎬 Génération vidéo Runware:", params.positivePrompt);
 
