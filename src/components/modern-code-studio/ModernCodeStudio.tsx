@@ -4,6 +4,7 @@ import { ReactCodeEditor } from "./ReactCodeEditor";
 import { ReactPreview } from "./ReactPreview";
 import { LovableAIChat } from "./LovableAIChat";
 import { ProjectManager } from "./ProjectManager";
+import { ReactFileExplorer } from "./ReactFileExplorer";
 import { TemplateLibrary } from "./TemplateLibrary";
 import { CommandPalette } from "./CommandPalette";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -36,7 +37,8 @@ export default function ModernCodeStudio() {
   const [cssContent, setCssContent] = useState('');
   const [tsContent, setTsContent] = useState('');
   const [activeTab, setActiveTab] = useState<'tsx' | 'css' | 'typescript'>('tsx');
-  const [showPreviewOnly, setShowPreviewOnly] = useState(false);
+  const [showPreviewOnly, setShowPreviewOnly] = useState(true); // Preview par défaut
+  const [activeFileId, setActiveFileId] = useState('src/components/App.tsx');
 
   useEffect(() => {
     loadProjects();
@@ -218,6 +220,27 @@ export default function ModernCodeStudio() {
     }
   };
 
+  const handleFileSelect = (fileId: string, fileName: string, content: string) => {
+    setActiveFileId(fileId);
+    
+    // Déterminer le type de fichier et mettre à jour le contenu approprié
+    if (fileName.endsWith('.tsx') || fileName.endsWith('.jsx')) {
+      setTsxContent(content);
+      setActiveTab('tsx');
+    } else if (fileName.endsWith('.css') || fileName.endsWith('.scss')) {
+      setCssContent(content);
+      setActiveTab('css');
+    } else if (fileName.endsWith('.ts') || fileName.endsWith('.js')) {
+      setTsContent(content);
+      setActiveTab('typescript');
+    }
+  };
+
+  const handleCreateFile = (path: string, type: 'file' | 'folder') => {
+    // Logique pour créer un nouveau fichier/dossier
+    console.log('Create file:', path, type);
+  };
+
   // Auto-save every 30 seconds
   useEffect(() => {
     if (!activeProject) return;
@@ -237,14 +260,12 @@ export default function ModernCodeStudio() {
       
       <div className="h-[calc(100vh-4rem)] flex">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Project Sidebar */}
-          <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
-            <ProjectManager
-              projects={projects}
-              activeProject={activeProject}
-              onLoadProject={loadProject}
-              onCreateProject={createProject}
-              isLoading={isLoading}
+          {/* File Explorer */}
+          <ResizablePanel defaultSize={16} minSize={12} maxSize={25}>
+            <ReactFileExplorer
+              activeFile={activeFileId}
+              onSelectFile={handleFileSelect}
+              onCreateFile={handleCreateFile}
             />
           </ResizablePanel>
 
@@ -252,8 +273,8 @@ export default function ModernCodeStudio() {
 
           {!showPreviewOnly && (
             <>
-              {/* Main Editor Area */}
-              <ResizablePanel defaultSize={42} minSize={30}>
+              {/* Code Editor */}
+              <ResizablePanel defaultSize={34} minSize={25}>
                 <ReactCodeEditor
                   tsxContent={tsxContent}
                   cssContent={cssContent}
@@ -268,8 +289,8 @@ export default function ModernCodeStudio() {
             </>
           )}
 
-          {/* Preview Panel */}
-          <ResizablePanel defaultSize={showPreviewOnly ? 70 : 25} minSize={20}>
+          {/* Preview Panel - Plein écran par défaut */}
+          <ResizablePanel defaultSize={showPreviewOnly ? 60 : 30} minSize={20}>
             <ReactPreview
               tsxContent={tsxContent}
               cssContent={cssContent}
@@ -282,7 +303,7 @@ export default function ModernCodeStudio() {
           <ResizableHandle />
 
           {/* AI Chat Panel */}
-          <ResizablePanel defaultSize={showPreviewOnly ? 30 : 15} minSize={12} maxSize={35}>
+          <ResizablePanel defaultSize={showPreviewOnly ? 24 : 20} minSize={15} maxSize={35}>
             <LovableAIChat
               currentCode={{
                 tsx: tsxContent,

@@ -18,9 +18,9 @@ import {
   Zap,
   Palette,
   RefreshCw
-} from "lucide-react";
+ } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { aiService } from "@/services/aiService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -140,14 +140,27 @@ Style de réponse Lovable:
 
 Demande utilisateur: ${input}`;
 
-      const response = await aiService.generateIntelligent(lovablePrompt, 'openai:gpt-4');
+      // Utiliser votre API via Supabase Functions
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          messages: [
+            { role: 'system', content: 'Tu es l\'assistant IA de Lovable.dev, expert en React, TypeScript et Tailwind CSS.' },
+            { role: 'user', content: lovablePrompt }
+          ],
+          model: 'gpt-4o-mini', // Modèle rapide et efficace
+          max_tokens: 2000,
+          temperature: 0.7
+        }
+      });
+
+      if (error) throw error;
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: response.text,
+        content: data.choices[0].message.content,
         role: "assistant",
         timestamp: new Date(),
-        type: response.text.includes('```') ? 'code' : 'text'
+        type: data.choices[0].message.content.includes('```') ? 'code' : 'text'
       };
 
       setMessages(prev => [...prev, assistantMessage]);
