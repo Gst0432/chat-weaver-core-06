@@ -177,46 +177,94 @@ export default function DocumentPreview({
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Aperçu du contenu</CardTitle>
-                  {file.translations && Object.keys(file.translations).length > 0 && (
-                    <select 
-                      className="px-3 py-1 border rounded text-sm"
-                      value={selectedTranslation}
-                      onChange={(e) => setSelectedTranslation(e.target.value)}
-                    >
-                      <option value="">Original</option>
-                      {Object.entries(file.translations).map(([lang, _]) => (
-                        <option key={lang} value={lang}>
-                          {lang.toUpperCase()}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {file.type.includes('pdf') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = `data:${file.type};base64,${file.content}`;
+                          link.download = file.name;
+                          link.click();
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Télécharger
+                      </Button>
+                    )}
+                    {file.translations && Object.keys(file.translations).length > 0 && (
+                      <select 
+                        className="px-3 py-1 border rounded text-sm"
+                        value={selectedTranslation}
+                        onChange={(e) => setSelectedTranslation(e.target.value)}
+                      >
+                        <option value="">Original</option>
+                        {Object.entries(file.translations).map(([lang, _]) => (
+                          <option key={lang} value={lang}>
+                            {lang.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="h-full p-0">
-                <ScrollArea className="h-full p-6">
-                  {file.analysis ? (
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                {file.type.includes('pdf') ? (
+                  // PDF Visual Preview
+                  <div className="h-full border-t">
+                    <iframe
+                      src={`data:${file.type};base64,${file.content}`}
+                      className="w-full h-full border-0"
+                      title={`Aperçu de ${file.name}`}
+                      style={{ minHeight: '500px' }}
+                    />
+                  </div>
+                ) : (
+                  // Text Analysis Preview
+                  <ScrollArea className="h-full p-6">
+                    {file.analysis ? (
+                      <div className="prose prose-sm max-w-none">
+                        <h3 className="text-lg font-semibold mb-4 text-foreground">
+                          Analyse du document
+                        </h3>
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed bg-secondary/20 p-4 rounded-lg">
+                          {selectedTranslation && file.translations?.[selectedTranslation] 
+                            ? file.translations[selectedTranslation]
+                            : file.analysis
+                          }
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <FileText className="w-12 h-12 text-muted-foreground mb-4" />
+                        <h3 className="font-medium text-lg mb-2">Aperçu non disponible</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Analysez le document pour voir son contenu
+                        </p>
+                        <Button onClick={() => onAnalyze(file.id)} disabled={analyzing}>
+                          {analyzing ? 'Analyse en cours...' : 'Analyser maintenant'}
+                        </Button>
+                      </div>
+                    )}
+                  </ScrollArea>
+                )}
+                
+                {/* Analysis section for PDFs */}
+                {file.type.includes('pdf') && file.analysis && (
+                  <div className="border-t p-4 bg-secondary/10">
+                    <h4 className="font-semibold mb-2 text-foreground">Analyse IA :</h4>
+                    <ScrollArea className="h-32">
+                      <div className="text-sm text-muted-foreground whitespace-pre-wrap">
                         {selectedTranslation && file.translations?.[selectedTranslation] 
                           ? file.translations[selectedTranslation]
                           : file.analysis
                         }
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                      <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="font-medium text-lg mb-2">Aperçu non disponible</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Analysez le document pour voir son contenu
-                      </p>
-                      <Button onClick={() => onAnalyze(file.id)} disabled={analyzing}>
-                        {analyzing ? 'Analyse en cours...' : 'Analyser maintenant'}
-                      </Button>
-                    </div>
-                  )}
-                </ScrollArea>
+                    </ScrollArea>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
