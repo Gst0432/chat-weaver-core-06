@@ -1,18 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Trash2, FileX, FilePlus, Search, Upload, MessageSquare, RefreshCw, Globe, Eye, ArrowLeft } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  FileText, 
+  Download, 
+  Trash2, 
+  Upload, 
+  MessageSquare, 
+  Eye, 
+  Globe, 
+  RefreshCw,
+  Search,
+  ArrowLeft,
+  Plus,
+  Bot,
+  User,
+  Send,
+  MoreHorizontal,
+  FileX
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentGeneratorService } from '@/services/documentGeneratorService';
 import { supabase } from '@/integrations/supabase/client';
-import DocumentPreview from '@/components/DocumentPreview';
-import DocumentChat from '@/components/DocumentChat';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface DocumentGeneration {
   id: string;
@@ -37,161 +56,100 @@ interface UploadedFile {
   translations?: { [lang: string]: string };
 }
 
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
 export default function Documents() {
   const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Data state
   const [documents, setDocuments] = useState<DocumentGeneration[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  
+  // UI state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [rightPanelTab, setRightPanelTab] = useState<'preview' | 'chat'>('preview');
+  const [chatInput, setChatInput] = useState('');
+  
+  // Loading states
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [converting, setConverting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Form state
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [documentType, setDocumentType] = useState<'pdf' | 'docx' | 'pptx' | 'markdown' | 'html' | 'xlsx'>('pdf');
-  const [template, setTemplate] = useState<'report' | 'presentation' | 'letter' | 'resume' | 'contract'>('report');
-  const [aiEnhance, setAiEnhance] = useState(true);
-  
-  // Upload & Analysis state
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [aiQuestion, setAiQuestion] = useState('');
-  const [analysisResult, setAnalysisResult] = useState('');
-  const [targetLanguage, setTargetLanguage] = useState('en');
-  const [translationResult, setTranslationResult] = useState('');
 
-  // Navigation state for preview and chat
-  const [currentView, setCurrentView] = useState<'main' | 'preview' | 'chat'>('main');
-  const [selectedUploadedFile, setSelectedUploadedFile] = useState<UploadedFile | null>(null);
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const loadDocuments = async () => {
+  // Auto-scroll chat
+  useEffect(() => {
+    if (rightPanelTab === 'chat') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, rightPanelTab]);
+
+  // Load chat when file changes
+  useEffect(() => {
+    if (selectedFile) {
+      loadChatHistory(selectedFile.id);
+    } else {
+      setChatMessages([]);
+    }
+  }, [selectedFile?.id]);
+
+  const loadData = async () => {
     setLoading(true);
     try {
-      // Load generated documents
+      const savedFiles = localStorage.getItem('uploaded_files');
+      if (savedFiles) {
+        const files = JSON.parse(savedFiles);
+        setUploadedFiles(files);
+        if (files.length > 0 && !selectedFile) {
+          setSelectedFile(files[0]);
+        }
+      }
+      
       const savedDocs = localStorage.getItem('document_generations');
       if (savedDocs) {
         setDocuments(JSON.parse(savedDocs));
       }
-      
-      // Load uploaded files
-      const savedFiles = localStorage.getItem('uploaded_files');
-      if (savedFiles) {
-        setUploadedFiles(JSON.parse(savedFiles));
-      }
     } catch (error) {
-      console.error('Error loading documents:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les documents",
-        variant: "destructive",
-      });
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveDocuments = (docs: DocumentGeneration[]) => {
-    localStorage.setItem('document_generations', JSON.stringify(docs));
-  };
-
-  const saveUploadedFiles = (files: UploadedFile[]) => {
-    localStorage.setItem('uploaded_files', JSON.stringify(files));
-  };
-
-  const generateDocument = async () => {
-    if (!title.trim() || !content.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir le titre et le contenu",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setGenerating(true);
-    try {
-      const newDocument: DocumentGeneration = {
+  const loadChatHistory = (fileId: string) => {
+    const savedChat = localStorage.getItem(`document_chat_${fileId}`);
+    if (savedChat) {
+      setChatMessages(JSON.parse(savedChat));
+    } else {
+      const welcomeMessage: ChatMessage = {
         id: crypto.randomUUID(),
-        title,
-        content,
-        type: documentType,
-        template,
-        created_at: new Date().toISOString(),
-        status: 'pending'
+        role: 'assistant',
+        content: `Bonjour ! Je peux vous aider à analyser ce document. ${selectedFile?.analysis ? 'Le document a déjà été analysé.' : 'Commencez par analyser le document pour que je puisse répondre à vos questions.'}`,
+        timestamp: new Date().toISOString()
       };
-
-      // Add to list immediately
-      const updatedDocs = [newDocument, ...documents];
-      setDocuments(updatedDocs);
-      saveDocuments(updatedDocs);
-
-      // Generate document
-      const dataUri = await DocumentGeneratorService.generateDocument({
-        content,
-        type: documentType,
-        template: template,
-        enhanceWithAI: aiEnhance
-      });
-
-      // Update with completed status
-      const completedDoc = { ...newDocument, status: 'completed' as const, file_url: dataUri };
-      const finalDocs = updatedDocs.map(doc => doc.id === newDocument.id ? completedDoc : doc);
-      setDocuments(finalDocs);
-      saveDocuments(finalDocs);
-
-      // Clear form
-      setTitle('');
-      setContent('');
-      setTemplate('report');
-
-      toast({
-        title: "Succès",
-        description: "Document généré avec succès",
-      });
-
-    } catch (error) {
-      console.error('Error generating document:', error);
-      
-      // Update status to failed
-      const failedDocs = documents.map(doc => 
-        doc.id === documents[0]?.id ? { ...doc, status: 'failed' as const } : doc
-      );
-      setDocuments(failedDocs);
-      saveDocuments(failedDocs);
-
-      toast({
-        title: "Erreur",
-        description: "Impossible de générer le document",
-        variant: "destructive",
-      });
-    } finally {
-      setGenerating(false);
+      setChatMessages([welcomeMessage]);
     }
   };
 
-  const downloadDocument = (doc: DocumentGeneration) => {
-    if (!doc.file_url) return;
-    
-    const link = document.createElement('a');
-    link.href = doc.file_url;
-    link.download = `${doc.title}.${doc.type}`;
-    link.click();
+  const saveChatHistory = (messages: ChatMessage[]) => {
+    if (selectedFile) {
+      localStorage.setItem(`document_chat_${selectedFile.id}`, JSON.stringify(messages));
+    }
   };
 
-  const deleteDocument = (id: string) => {
-    const updatedDocs = documents.filter(doc => doc.id !== id);
-    setDocuments(updatedDocs);
-    saveDocuments(updatedDocs);
-    
-    toast({
-      title: "Document supprimé",
-      description: "Le document a été supprimé avec succès",
-    });
-  };
-
-  // File upload handler
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -205,9 +163,6 @@ export default function Documents() {
       return;
     }
 
-    setSelectedFile(file);
-    
-    // Convert to base64 and save
     const reader = new FileReader();
     reader.onload = async (e) => {
       const result = e.target?.result as string;
@@ -224,23 +179,18 @@ export default function Documents() {
 
       const updatedFiles = [newFile, ...uploadedFiles];
       setUploadedFiles(updatedFiles);
-      saveUploadedFiles(updatedFiles);
+      localStorage.setItem('uploaded_files', JSON.stringify(updatedFiles));
+      setSelectedFile(newFile);
 
       toast({
         title: "Fichier uploadé",
         description: `${file.name} a été uploadé avec succès`,
       });
-
-      // Auto-open preview after upload
-      setTimeout(() => {
-        openPreview(newFile);
-      }, 1000);
     };
     reader.readAsDataURL(file);
   };
 
-  // Analyze document with AI
-  const analyzeDocument = async (fileId: string, question?: string) => {
+  const analyzeDocument = async (fileId: string) => {
     const file = uploadedFiles.find(f => f.id === fileId);
     if (!file) return;
 
@@ -251,25 +201,29 @@ export default function Documents() {
           fileBase64: file.content,
           fileName: file.name,
           mime: file.type,
-          prompt: question || aiQuestion || 'Analyse ce document et fournis un résumé détaillé de son contenu.'
+          prompt: 'Analyse ce document et fournis un résumé détaillé de son contenu.'
         }
       });
 
       if (error) throw error;
 
       const result = data.generatedText;
-      setAnalysisResult(result);
-
-      // Save analysis to file
+      
+      // Update file with analysis
       const updatedFiles = uploadedFiles.map(f => 
         f.id === fileId ? { ...f, analysis: result } : f
       );
       setUploadedFiles(updatedFiles);
-      saveUploadedFiles(updatedFiles);
+      localStorage.setItem('uploaded_files', JSON.stringify(updatedFiles));
+      
+      // Update selected file if it's the current one
+      if (selectedFile?.id === fileId) {
+        setSelectedFile({ ...selectedFile, analysis: result });
+      }
 
       toast({
         title: "Analyse terminée",
-        description: "L'IA a analysé le document avec succès",
+        description: "Document analysé avec succès",
       });
     } catch (error) {
       console.error('Error analyzing document:', error);
@@ -283,109 +237,81 @@ export default function Documents() {
     }
   };
 
-  // Translate document
-  const translateDocument = async (fileId: string, targetLang: string) => {
-    const file = uploadedFiles.find(f => f.id === fileId);
-    if (!file || !file.analysis) {
-      toast({
-        title: "Erreur",
-        description: "Analysez d'abord le document avant de le traduire",
-        variant: "destructive",
-      });
-      return;
-    }
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || !selectedFile || chatLoading) return;
 
-    setTranslating(true);
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: chatInput.trim(),
+      timestamp: new Date().toISOString()
+    };
+
+    const updatedMessages = [...chatMessages, userMessage];
+    setChatMessages(updatedMessages);
+    setChatInput('');
+    setChatLoading(true);
+
     try {
-      const { data, error } = await supabase.functions.invoke('translate-text', {
+      const context = selectedFile.analysis 
+        ? `Contexte du document "${selectedFile.name}":\n${selectedFile.analysis}\n\nQuestion:`
+        : `Document "${selectedFile.name}" non analysé. Demandez à l'utilisateur d'analyser d'abord.`;
+
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
         body: {
-          text: file.analysis,
-          sourceLang: 'auto',
-          targetLang
+          messages: [
+            {
+              role: 'system',
+              content: 'Vous êtes un assistant IA spécialisé dans l\'analyse de documents. Répondez de manière précise et utile.'
+            },
+            {
+              role: 'user',
+              content: `${context}\n${userMessage.content}`
+            }
+          ],
+          model: 'gpt-4o-mini',
+          temperature: 0.7,
+          max_tokens: 1000
         }
       });
 
       if (error) throw error;
 
-      const result = data.translatedText;
-      setTranslationResult(result);
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.message || 'Désolé, je n\'ai pas pu traiter votre demande.',
+        timestamp: new Date().toISOString()
+      };
 
-      // Save translation to file
-      const updatedFiles = uploadedFiles.map(f => 
-        f.id === fileId ? { 
-          ...f, 
-          translations: { ...f.translations, [targetLang]: result } 
-        } : f
-      );
-      setUploadedFiles(updatedFiles);
-      saveUploadedFiles(updatedFiles);
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setChatMessages(finalMessages);
+      saveChatHistory(finalMessages);
 
-      toast({
-        title: "Traduction terminée",
-        description: `Document traduit vers ${targetLang.toUpperCase()}`,
-      });
     } catch (error) {
-      console.error('Error translating document:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de traduire le document",
-        variant: "destructive",
-      });
+      console.error('Error sending message:', error);
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Désolé, une erreur est survenue. Veuillez réessayer.',
+        timestamp: new Date().toISOString()
+      };
+      const finalMessages = [...updatedMessages, errorMessage];
+      setChatMessages(finalMessages);
+      saveChatHistory(finalMessages);
     } finally {
-      setTranslating(false);
+      setChatLoading(false);
     }
   };
 
-  // Convert PDF to Word
-  const convertPdfToWord = async (fileId: string) => {
-    const file = uploadedFiles.find(f => f.id === fileId);
-    if (!file || !file.type.includes('pdf')) {
-      toast({
-        title: "Erreur",
-        description: "Seuls les fichiers PDF peuvent être convertis",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setConverting(true);
-    try {
-      // Use the analysis content to generate a Word document
-      const content = file.analysis || 'Contenu extrait du PDF';
-      
-      const wordDataUri = await DocumentGeneratorService.generateDocument({
-        content,
-        type: 'docx',
-        template: 'report',
-        enhanceWithAI: false
-      });
-
-      // Create download link
-      const link = document.createElement('a');
-      link.href = wordDataUri;
-      link.download = file.name.replace('.pdf', '.docx');
-      link.click();
-
-      toast({
-        title: "Conversion terminée",
-        description: "PDF converti en document Word",
-      });
-    } catch (error) {
-      console.error('Error converting document:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de convertir le document",
-        variant: "destructive",
-      });
-    } finally {
-      setConverting(false);
-    }
-  };
-
-  const deleteUploadedFile = (id: string) => {
-    const updatedFiles = uploadedFiles.filter(file => file.id !== id);
+  const deleteFile = (id: string) => {
+    const updatedFiles = uploadedFiles.filter(f => f.id !== id);
     setUploadedFiles(updatedFiles);
-    saveUploadedFiles(updatedFiles);
+    localStorage.setItem('uploaded_files', JSON.stringify(updatedFiles));
+    
+    if (selectedFile?.id === id) {
+      setSelectedFile(updatedFiles[0] || null);
+    }
     
     toast({
       title: "Fichier supprimé",
@@ -393,579 +319,342 @@ export default function Documents() {
     });
   };
 
-  // Navigation functions
-  const openPreview = (file: UploadedFile) => {
-    setSelectedUploadedFile(file);
-    setCurrentView('preview');
+  const downloadFile = (file: UploadedFile) => {
+    const link = document.createElement('a');
+    link.href = `data:${file.type};base64,${file.content}`;
+    link.download = file.name;
+    link.click();
   };
 
-  const openChat = (file: UploadedFile) => {
-    setSelectedUploadedFile(file);
-    setCurrentView('chat');
+  const getFileIcon = (type: string) => {
+    if (type.includes('pdf')) return '📄';
+    if (type.includes('word') || type.includes('document')) return '📝';
+    return '📁';
   };
-
-  const backToMain = () => {
-    setCurrentView('main');
-    setSelectedUploadedFile(null);
-  };
-
-  const filteredDocuments = documents.filter(doc =>
-    doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const filteredFiles = uploadedFiles.filter(file =>
-    file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    file.type.toLowerCase().includes(searchTerm.toLowerCase())
+    file.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusBadge = (status: DocumentGeneration['status']) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="default" className="bg-green-500">Terminé</Badge>;
-      case 'pending':
-        return <Badge variant="secondary">En cours</Badge>;
-      case 'failed':
-        return <Badge variant="destructive">Échec</Badge>;
-      default:
-        return <Badge variant="secondary">Inconnu</Badge>;
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    return <FileText className="w-4 h-4" />;
-  };
-
-  useEffect(() => {
-    loadDocuments();
-  }, []);
-
-  // Conditional rendering based on current view
-  if (currentView === 'preview' && selectedUploadedFile) {
-    return (
-      <DocumentPreview
-        file={selectedUploadedFile}
-        onBack={backToMain}
-        onOpenChat={() => openChat(selectedUploadedFile)}
-        onAnalyze={analyzeDocument}
-        onTranslate={translateDocument}
-        onConvert={convertPdfToWord}
-        analyzing={analyzing}
-        translating={translating}
-        converting={converting}
-      />
-    );
-  }
-
-  if (currentView === 'chat' && selectedUploadedFile) {
-    return (
-      <DocumentChat
-        file={selectedUploadedFile}
-        onBack={backToMain}
-      />
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background p-3 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b bg-card">
+        <div className="flex items-center justify-between p-4 max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              onClick={() => window.history.back()}
-              className="flex items-center gap-2 shrink-0"
-            >
+            <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
               <ArrowLeft className="w-4 h-4" />
-              Retour
             </Button>
-            <div className="min-w-0">
-              <h1 className="text-xl md:text-3xl font-bold text-foreground">Traitement de Documents</h1>
-              <p className="text-sm md:text-base text-muted-foreground">Générez, analysez et traduisez vos documents avec l'IA</p>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold">Documents</h1>
+              <p className="text-sm text-muted-foreground">Analysez et discutez avec vos documents</p>
             </div>
           </div>
         </div>
+      </div>
 
-        <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 text-xs md:text-sm">
-            <TabsTrigger value="upload" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <Upload className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="hidden sm:inline">Upload & Analyse</span>
-              <span className="sm:hidden">Upload</span>
-            </TabsTrigger>
-            <TabsTrigger value="generate" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <FilePlus className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="hidden sm:inline">Générer</span>
-              <span className="sm:hidden">Créer</span>
-            </TabsTrigger>
-            <TabsTrigger value="files" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <FileText className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="hidden md:inline">Fichiers Uploadés</span>
-              <span className="md:hidden">Fichiers</span>
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-              <FileText className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="hidden md:inline">Documents Générés</span>
-              <span className="md:hidden">Docs</span>
-            </TabsTrigger>
-          </TabsList>
+      {/* Main Content */}
+      <div className="flex flex-col md:flex-row h-[calc(100vh-80px)]">
+        {/* Left Panel - Document List */}
+        <div className={`${selectedFile ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r md:border-b-0 border-b bg-card flex-col`}>
+          {/* Upload Section */}
+          <div className="p-4 border-b">
+            <label className="block">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button className="w-full" variant="default">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter un document
+              </Button>
+            </label>
+          </div>
 
-          {/* Upload & Analysis Tab */}
-          <TabsContent value="upload" className="space-y-4 md:space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                  <Upload className="w-4 h-4 md:w-5 md:h-5" />
-                  Upload de Documents
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Uploadez des fichiers PDF ou Word pour les analyser avec l'IA
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Sélectionner un fichier</label>
-                  <Input
+          {/* Search */}
+          <div className="p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* File List */}
+          <ScrollArea className="flex-1">
+            <div className="p-2">
+              {filteredFiles.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileX className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-sm">Aucun document</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedFile?.id === file.id 
+                          ? 'bg-primary/10 border-primary/20 border' 
+                          : 'hover:bg-accent'
+                      }`}
+                      onClick={() => setSelectedFile(file)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getFileIcon(file.type)}</span>
+                            <p className="font-medium truncate text-sm">{file.name}</p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs text-muted-foreground">
+                              {(file.size / 1024 / 1024).toFixed(1)} MB
+                            </p>
+                            {file.analysis && (
+                              <Badge variant="secondary" className="text-xs">Analysé</Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => downloadFile(file)}>
+                              <Download className="w-4 h-4 mr-2" />
+                              Télécharger
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => deleteFile(file.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Right Panel - Preview & Chat */}
+        <div className={`${selectedFile ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
+          {selectedFile ? (
+            <>
+              {/* Tab Header */}
+              <div className="border-b bg-card">
+                  <div className="p-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setSelectedFile(null)}
+                          className="md:hidden flex-shrink-0"
+                        >
+                          <ArrowLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="text-lg">{getFileIcon(selectedFile.type)}</span>
+                        <div className="min-w-0">
+                          <h2 className="font-semibold truncate">{selectedFile.name}</h2>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(selectedFile.created_at).toLocaleDateString('fr-FR')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant={selectedFile.analysis ? "secondary" : "default"}
+                          size="sm"
+                          onClick={() => analyzeDocument(selectedFile.id)}
+                          disabled={analyzing}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          {analyzing ? 'Analyse...' : selectedFile.analysis ? 'Re-analyser' : 'Analyser'}
+                        </Button>
+                      </div>
+                    </div>
+                  
+                  <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as 'preview' | 'chat')} className="mt-4">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="preview" className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Aperçu
+                      </TabsTrigger>
+                      <TabsTrigger value="chat" className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        Chat IA
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1">
+                {rightPanelTab === 'preview' ? (
+                  <ScrollArea className="h-full">
+                    <div className="p-6">
+                      {selectedFile.analysis ? (
+                        <div className="prose prose-sm max-w-none">
+                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <Bot className="w-5 h-5" />
+                            Analyse du document
+                          </h3>
+                          <div className="bg-secondary/20 p-4 rounded-lg">
+                            <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">
+                              {selectedFile.analysis}
+                            </pre>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-96 text-center">
+                          <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">Document non analysé</h3>
+                          <p className="text-muted-foreground mb-4 max-w-md">
+                            Analysez ce document pour voir son contenu et pouvoir discuter avec l'IA
+                          </p>
+                          <Button onClick={() => analyzeDocument(selectedFile.id)} disabled={analyzing}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            {analyzing ? 'Analyse en cours...' : 'Analyser maintenant'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  // Chat Interface
+                  <div className="flex flex-col h-full">
+                    <ScrollArea className="flex-1 p-4">
+                      <div className="space-y-4">
+                        {chatMessages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div className={`flex gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                message.role === 'user' 
+                                  ? 'bg-primary text-primary-foreground' 
+                                  : 'bg-secondary'
+                              }`}>
+                                {message.role === 'user' ? (
+                                  <User className="w-4 h-4" />
+                                ) : (
+                                  <Bot className="w-4 h-4" />
+                                )}
+                              </div>
+                              
+                              <div className={`px-4 py-3 rounded-lg ${
+                                message.role === 'user'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-secondary'
+                              }`}>
+                                <div className="text-sm whitespace-pre-wrap">
+                                  {message.content}
+                                </div>
+                                <div className={`text-xs mt-2 opacity-70`}>
+                                  {new Date(message.timestamp).toLocaleTimeString('fr-FR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {chatLoading && (
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                              <Bot className="w-4 h-4" />
+                            </div>
+                            <div className="bg-secondary px-4 py-3 rounded-lg">
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-current rounded-full animate-pulse" />
+                                <div className="w-2 h-2 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                <div className="w-2 h-2 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div ref={messagesEndRef} />
+                    </ScrollArea>
+
+                    {/* Chat Input */}
+                    <div className="border-t p-4">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder={selectedFile.analysis ? "Posez votre question..." : "Analysez d'abord le document..."}
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              sendChatMessage();
+                            }
+                          }}
+                          disabled={chatLoading || !selectedFile.analysis}
+                          className="flex-1"
+                        />
+                        <Button 
+                          onClick={sendChatMessage} 
+                          disabled={!chatInput.trim() || chatLoading || !selectedFile.analysis}
+                          size="sm"
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {!selectedFile.analysis && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          💡 Analysez d'abord le document pour pouvoir poser des questions
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            // No file selected
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <Upload className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Sélectionnez un document</h3>
+                <p className="text-muted-foreground mb-4">
+                  Uploadez un document pour commencer l'analyse et la discussion
+                </p>
+                <label>
+                  <input
                     type="file"
                     accept=".pdf,.doc,.docx"
                     onChange={handleFileUpload}
-                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs md:file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    className="hidden"
                   />
-                </div>
-
-                {selectedFile && (
-                  <div className="p-3 md:p-4 border rounded-lg bg-muted/50">
-                    <p className="font-medium text-sm md:text-base truncate">{selectedFile.name}</p>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* AI Analysis */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                  <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
-                  Analyse IA
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Posez des questions sur le contenu du document
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Question pour l'IA</label>
-                  <Textarea
-                    placeholder="Posez une question sur le document (ex: Résume ce document en 5 points, Quelles sont les informations principales ?)"
-                    value={aiQuestion}
-                    onChange={(e) => setAiQuestion(e.target.value)}
-                    rows={3}
-                    className="text-sm"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => selectedFile && analyzeDocument(uploadedFiles.find(f => f.name === selectedFile.name)?.id || '')}
-                    disabled={!selectedFile || analyzing}
-                    className="flex-1 text-sm"
-                  >
-                    {analyzing ? 'Analyse en cours...' : 'Analyser le Document'}
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ajouter un document
                   </Button>
-                </div>
-
-                {analysisResult && (
-                  <div className="p-3 md:p-4 border rounded-lg bg-background">
-                    <h4 className="font-medium mb-2 text-sm md:text-base">Résultat de l'analyse :</h4>
-                    <div className="whitespace-pre-wrap text-xs md:text-sm max-h-60 overflow-y-auto">{analysisResult}</div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Translation & Conversion */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              {/* Translation */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                    <Globe className="w-4 h-4 md:w-5 md:h-5" />
-                    Traduction
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    Traduisez le contenu analysé
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Langue cible</label>
-                    <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                      <SelectTrigger className="text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">Anglais</SelectItem>
-                        <SelectItem value="es">Espagnol</SelectItem>
-                        <SelectItem value="ar">Arabe</SelectItem>
-                        <SelectItem value="fr">Français</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button 
-                    onClick={() => selectedFile && translateDocument(uploadedFiles.find(f => f.name === selectedFile.name)?.id || '', targetLanguage)}
-                    disabled={!selectedFile || !analysisResult || translating}
-                    className="w-full text-sm"
-                  >
-                    {translating ? 'Traduction en cours...' : 'Traduire'}
-                  </Button>
-
-                  {translationResult && (
-                    <div className="p-3 md:p-4 border rounded-lg bg-background">
-                      <h4 className="font-medium mb-2 text-sm md:text-base">Traduction :</h4>
-                      <div className="whitespace-pre-wrap text-xs md:text-sm max-h-40 overflow-y-auto">{translationResult}</div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* PDF to Word Conversion */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                    <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
-                    Conversion
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    Convertir PDF vers Word
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    Convertissez vos documents PDF en format Word éditable basé sur l'analyse IA.
-                  </p>
-
-                  <Button 
-                    onClick={() => selectedFile && convertPdfToWord(uploadedFiles.find(f => f.name === selectedFile.name)?.id || '')}
-                    disabled={!selectedFile || !analysisResult || converting || !selectedFile?.type.includes('pdf')}
-                    className="w-full text-sm"
-                  >
-                    {converting ? 'Conversion en cours...' : 'Convertir PDF → Word'}
-                  </Button>
-                </CardContent>
-              </Card>
+                </label>
+              </div>
             </div>
-          </TabsContent>
-
-          {/* Generate Tab */}
-          <TabsContent value="generate">
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FilePlus className="w-5 h-5" />
-                  Générateur de Documents
-                </CardTitle>
-                <CardDescription>
-                  Créez des documents professionnels avec l'aide de l'IA
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Titre du document</label>
-                    <Input
-                      placeholder="Entrez le titre..."
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Type de document</label>
-                    <Select value={documentType} onValueChange={(value: any) => setDocumentType(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pdf">PDF</SelectItem>
-                        <SelectItem value="docx">Word (DOCX)</SelectItem>
-                        <SelectItem value="pptx">PowerPoint (PPTX)</SelectItem>
-                        <SelectItem value="markdown">Markdown</SelectItem>
-                        <SelectItem value="html">HTML</SelectItem>
-                        <SelectItem value="xlsx">Excel</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Contenu</label>
-                  <Textarea
-                    placeholder="Entrez le contenu du document..."
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={6}
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Template</label>
-                  <Select value={template} onValueChange={(value: any) => setTemplate(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="report">Rapport</SelectItem>
-                      <SelectItem value="presentation">Présentation</SelectItem>
-                      <SelectItem value="letter">Lettre</SelectItem>
-                      <SelectItem value="resume">CV</SelectItem>
-                      <SelectItem value="contract">Contrat</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button 
-                  onClick={generateDocument} 
-                  disabled={generating}
-                  className="w-full"
-                >
-                  {generating ? 'Génération en cours...' : 'Générer le Document'}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Uploaded Files Tab */}
-          <TabsContent value="files">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Fichiers Uploadés</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Rechercher..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                ) : filteredFiles.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileX className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Aucun fichier uploadé</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fichier</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Taille</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredFiles.map((file) => (
-                        <TableRow key={file.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4" />
-                              <div>
-                                <p className="font-medium">{file.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Uploadé le {new Date(file.created_at).toLocaleDateString('fr-FR')}
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {file.type.includes('pdf') ? 'PDF' : 'Word'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              {file.analysis && <Badge variant="default" className="bg-green-500 text-xs">Analysé</Badge>}
-                              {file.translations && Object.keys(file.translations).length > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {Object.keys(file.translations).length} traduction{Object.keys(file.translations).length > 1 ? 's' : ''}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openPreview(file)}
-                                className="flex items-center gap-1"
-                              >
-                                <Eye className="w-4 h-4" />
-                                <span className="hidden sm:inline">Aperçu</span>
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openChat(file)}
-                                className="flex items-center gap-1"
-                              >
-                                <MessageSquare className="w-4 h-4" />
-                                <span className="hidden sm:inline">Chat</span>
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => analyzeDocument(file.id)}
-                                disabled={analyzing}
-                              >
-                                <MessageSquare className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => translateDocument(file.id, 'en')}
-                                disabled={!file.analysis || translating}
-                              >
-                                <Globe className="w-4 h-4" />
-                              </Button>
-                              {file.type.includes('pdf') && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => convertPdfToWord(file.id)}
-                                  disabled={!file.analysis || converting}
-                                >
-                                  <RefreshCw className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => deleteUploadedFile(file.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Generated Documents Tab */}
-          <TabsContent value="documents">
-
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Documents Générés</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Rechercher..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                ) : filteredDocuments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileX className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Aucun document trouvé</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Document</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead>Date de création</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredDocuments.map((doc) => (
-                        <TableRow key={doc.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getTypeIcon(doc.type)}
-                              <div>
-                                <p className="font-medium">{doc.title}</p>
-                                <p className="text-sm text-muted-foreground truncate max-w-xs">
-                                  {doc.content.substring(0, 50)}...
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{doc.type.toUpperCase()}</Badge>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                          <TableCell>
-                            {new Date(doc.created_at).toLocaleDateString('fr-FR')}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {doc.status === 'completed' && doc.file_url && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => downloadDocument(doc)}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => deleteDocument(doc.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
     </div>
   );
