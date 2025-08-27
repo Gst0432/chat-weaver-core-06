@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Trash2, FileX, FilePlus, Search, Upload, MessageSquare, RefreshCw, Globe } from 'lucide-react';
+import { FileText, Download, Trash2, FileX, FilePlus, Search, Upload, MessageSquare, RefreshCw, Globe, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentGeneratorService } from '@/services/documentGeneratorService';
 import { supabase } from '@/integrations/supabase/client';
+import DocumentPreview from '@/components/DocumentPreview';
+import DocumentChat from '@/components/DocumentChat';
 
 interface DocumentGeneration {
   id: string;
@@ -59,6 +61,10 @@ export default function Documents() {
   const [analysisResult, setAnalysisResult] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('en');
   const [translationResult, setTranslationResult] = useState('');
+
+  // Navigation state for preview and chat
+  const [currentView, setCurrentView] = useState<'main' | 'preview' | 'chat'>('main');
+  const [selectedUploadedFile, setSelectedUploadedFile] = useState<UploadedFile | null>(null);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -382,6 +388,22 @@ export default function Documents() {
     });
   };
 
+  // Navigation functions
+  const openPreview = (file: UploadedFile) => {
+    setSelectedUploadedFile(file);
+    setCurrentView('preview');
+  };
+
+  const openChat = (file: UploadedFile) => {
+    setSelectedUploadedFile(file);
+    setCurrentView('chat');
+  };
+
+  const backToMain = () => {
+    setCurrentView('main');
+    setSelectedUploadedFile(null);
+  };
+
   const filteredDocuments = documents.filter(doc =>
     doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     doc.type.toLowerCase().includes(searchTerm.toLowerCase())
@@ -412,6 +434,32 @@ export default function Documents() {
   useEffect(() => {
     loadDocuments();
   }, []);
+
+  // Conditional rendering based on current view
+  if (currentView === 'preview' && selectedUploadedFile) {
+    return (
+      <DocumentPreview
+        file={selectedUploadedFile}
+        onBack={backToMain}
+        onOpenChat={() => openChat(selectedUploadedFile)}
+        onAnalyze={analyzeDocument}
+        onTranslate={translateDocument}
+        onConvert={convertPdfToWord}
+        analyzing={analyzing}
+        translating={translating}
+        converting={converting}
+      />
+    );
+  }
+
+  if (currentView === 'chat' && selectedUploadedFile) {
+    return (
+      <DocumentChat
+        file={selectedUploadedFile}
+        onBack={backToMain}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -744,7 +792,25 @@ export default function Documents() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openPreview(file)}
+                                className="flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                <span className="hidden sm:inline">Aperçu</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openChat(file)}
+                                className="flex items-center gap-1"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                                <span className="hidden sm:inline">Chat</span>
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
