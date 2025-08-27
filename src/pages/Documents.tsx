@@ -137,7 +137,7 @@ export default function Documents() {
       const welcomeMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Bonjour ! Je peux vous aider à analyser ce document. ${selectedFile?.analysis ? 'Le document a déjà été analysé.' : 'Commencez par analyser le document pour que je puisse répondre à vos questions.'}`,
+        content: `Bonjour ! Je peux vous aider à analyser ce document et répondre à toutes vos questions sur son contenu. ${selectedFile?.analysis ? 'Le document a déjà été analysé.' : 'Vous pouvez commencer à poser des questions directement.'}`,
         timestamp: new Date().toISOString()
       };
       setChatMessages([welcomeMessage]);
@@ -253,9 +253,26 @@ export default function Documents() {
     setChatLoading(true);
 
     try {
-      const context = selectedFile.analysis 
-        ? `Contexte du document "${selectedFile.name}":\n${selectedFile.analysis}\n\nQuestion:`
-        : `Document "${selectedFile.name}" non analysé. Demandez à l'utilisateur d'analyser d'abord.`;
+      // Préparer le contexte complet du document pour le chat
+      let context = `Document: "${selectedFile.name}"\n\n`;
+      
+      if (selectedFile.analysis) {
+        context += `Analyse: ${selectedFile.analysis}\n\n`;
+      }
+      
+      // Décoder le contenu base64 pour l'inclure dans le contexte
+      try {
+        const decodedContent = atob(selectedFile.content);
+        // Limiter le contenu à 8000 caractères pour éviter de dépasser les limites
+        const truncatedContent = decodedContent.length > 8000 
+          ? decodedContent.substring(0, 8000) + "...\n[Contenu tronqué]"
+          : decodedContent;
+        context += `Contenu du document:\n${truncatedContent}\n\n`;
+      } catch (error) {
+        console.error('Error decoding document content:', error);
+      }
+      
+      context += `Question:`;
 
       const { data, error } = await supabase.functions.invoke('openai-chat', {
         body: {
@@ -600,7 +617,7 @@ export default function Documents() {
                     <div className="border-t p-4">
                       <div className="flex gap-2">
                         <Input
-                          placeholder={selectedFile.analysis ? "Posez votre question..." : "Analysez d'abord le document..."}
+                          placeholder="Posez votre question sur ce document..."
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
                           onKeyPress={(e) => {
@@ -609,23 +626,18 @@ export default function Documents() {
                               sendChatMessage();
                             }
                           }}
-                          disabled={chatLoading || !selectedFile.analysis}
-                          className="flex-1"
-                        />
-                        <Button 
-                          onClick={sendChatMessage} 
-                          disabled={!chatInput.trim() || chatLoading || !selectedFile.analysis}
-                          size="sm"
-                        >
-                          <Send className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      {!selectedFile.analysis && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          💡 Analysez d'abord le document pour pouvoir poser des questions
-                        </p>
-                      )}
-                    </div>
+                           disabled={chatLoading}
+                           className="flex-1"
+                         />
+                         <Button 
+                           onClick={sendChatMessage} 
+                           disabled={!chatInput.trim() || chatLoading}
+                           size="sm"
+                         >
+                           <Send className="w-4 h-4" />
+                         </Button>
+                       </div>
+                     </div>
                   </div>
                 )}
               </div>
