@@ -15,7 +15,7 @@ import { aiService } from '@/services/aiService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ImageService } from "@/services/imageService";
-import { TextToSpeechService } from "@/services/textToSpeechService";
+
 
 import { OpenRouterService } from "@/services/openRouterService";
 import { AppGeneratorService } from "@/services/appGeneratorService";
@@ -611,68 +611,6 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
     setMessages(prev => [...prev, assistantMessage]);
   };
 
-  // Fonctions TTS pour les boutons du chat
-  const handleSpeak = async (text: string) => {
-    try {
-      const settings = {
-        provider: 'openai',
-        voice: 'alloy',
-        language: 'fr',
-        speed: 1.0,
-        format: 'mp3'
-      };
-      
-      await TextToSpeechService.playTextAudio(text, settings);
-      
-      toast({
-        title: "Audio lu",
-        description: "Le texte est en cours de lecture.",
-      });
-    } catch (error) {
-      console.error('Erreur TTS:', error);
-      toast({
-        title: "Erreur de lecture",
-        description: "Impossible de lire le texte. Vérifiez vos quotas.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDownloadTts = async (text: string) => {
-    try {
-      const settings = {
-        provider: 'openai',
-        voice: 'alloy',
-        language: 'fr',
-        speed: 1.0,
-        format: 'mp3'
-      };
-      
-      const result = await TextToSpeechService.generateSpeech(text, settings);
-      const audioBlob = TextToSpeechService.base64ToBlob(result.audioContent, result.mime);
-      const url = URL.createObjectURL(audioBlob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `audio-${Date.now()}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Audio téléchargé",
-        description: "Le fichier audio a été téléchargé avec succès.",
-      });
-    } catch (error) {
-      console.error('Erreur téléchargement TTS:', error);
-      toast({
-        title: "Erreur de téléchargement",
-        description: "Impossible de télécharger l'audio. Vérifiez vos quotas.",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
@@ -682,8 +620,6 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
             <ChatMessage 
               key={message.id} 
               message={message} 
-              onSpeak={handleSpeak}
-              onDownloadTts={handleDownloadTts}
             />
           ))}
           {isLoading && (

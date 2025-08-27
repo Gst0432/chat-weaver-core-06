@@ -19,8 +19,6 @@ interface Message {
 interface ChatMessageProps {
   message: Message;
   isLoading?: boolean;
-  onSpeak?: (text: string) => void;
-  onDownloadTts?: (text: string) => void;
 }
 
 const getModelInfo = (modelId?: string) => {
@@ -62,7 +60,7 @@ const sanitizeContent = (text: string) => {
   }
 };
 
-export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: ChatMessageProps) => {
+export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
   const isUser = message.role === "user";
   const modelInfo = getModelInfo(message.model);
 
@@ -314,24 +312,6 @@ export const ChatMessage = ({ message, isLoading, onSpeak, onDownloadTts }: Chat
                 isUser={isUser} 
               />
               <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2 flex-wrap`}>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={isUser ? "secondary" : "outline"}
-                  aria-label="Lire (TTS)"
-                  onClick={() => onSpeak?.(sanitizeContent(String(message.content)))}
-                >
-                  <Volume2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={isUser ? "secondary" : "outline"}
-                  aria-label="Télécharger (TTS)"
-                  onClick={() => onDownloadTts?.(sanitizeContent(String(message.content)))}
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
                 <Button
                   type="button"
                   size="sm"
