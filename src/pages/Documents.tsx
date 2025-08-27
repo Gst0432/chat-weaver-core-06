@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Trash2, FileX, FilePlus, Search, Upload, MessageSquare, RefreshCw, Globe, Eye } from 'lucide-react';
+import { FileText, Download, Trash2, FileX, FilePlus, Search, Upload, MessageSquare, RefreshCw, Globe, Eye, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentGeneratorService } from '@/services/documentGeneratorService';
 import { supabase } from '@/integrations/supabase/client';
@@ -230,6 +230,11 @@ export default function Documents() {
         title: "Fichier uploadé",
         description: `${file.name} a été uploadé avec succès`,
       });
+
+      // Auto-open preview after upload
+      setTimeout(() => {
+        openPreview(newFile);
+      }, 1000);
     };
     reader.readAsDataURL(file);
   };
@@ -466,9 +471,19 @@ export default function Documents() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Traitement de Documents</h1>
-            <p className="text-muted-foreground">Générez, analysez et traduisez vos documents avec l'IA</p>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => window.history.back()}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Retour
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Traitement de Documents</h1>
+              <p className="text-muted-foreground">Générez, analysez et traduisez vos documents avec l'IA</p>
+            </div>
           </div>
         </div>
 
