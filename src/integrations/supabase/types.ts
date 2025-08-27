@@ -112,6 +112,168 @@ export type Database = {
           },
         ]
       }
+      document_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_text: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: string
+        }
+        Insert: {
+          chunk_index: number
+          chunk_text: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: string
+        }
+        Update: {
+          chunk_index?: number
+          chunk_text?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_conversations: {
+        Row: {
+          answer: string
+          created_at: string
+          document_id: string
+          id: string
+          question: string
+          relevant_chunks: string[] | null
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          document_id: string
+          id?: string
+          question: string
+          relevant_chunks?: string[] | null
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          question?: string
+          relevant_chunks?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_conversations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_operations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          document_id: string
+          error_message: string | null
+          id: string
+          operation_params: Json
+          operation_type: string
+          result_filename: string | null
+          result_storage_path: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          document_id: string
+          error_message?: string | null
+          id?: string
+          operation_params?: Json
+          operation_type: string
+          result_filename?: string | null
+          result_storage_path?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string
+          error_message?: string | null
+          id?: string
+          operation_params?: Json
+          operation_type?: string
+          result_filename?: string | null
+          result_storage_path?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_operations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          extracted_text: string | null
+          file_size: number
+          file_type: string
+          id: string
+          original_filename: string
+          preview_text: string | null
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extracted_text?: string | null
+          file_size: number
+          file_type: string
+          id?: string
+          original_filename: string
+          preview_text?: string | null
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extracted_text?: string | null
+          file_size?: number
+          file_type?: string
+          id?: string
+          original_filename?: string
+          preview_text?: string | null
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ebook_chapters: {
         Row: {
           chapter_content: string
@@ -1153,6 +1315,19 @@ export type Database = {
           distance: number
           id: number
           message_id: string
+        }[]
+      }
+      search_document_chunks: {
+        Args: {
+          doc_id: string
+          match_count?: number
+          query_embedding: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          chunk_id: string
+          chunk_text: string
+          similarity: number
         }[]
       }
       sparsevec_out: {
