@@ -18,6 +18,30 @@ const models = [
 
   // === 🏆 OPENAI MODELS (CLÉS API DIRECTES) ===
   {
+    id: "gpt-5-2025-08-07",
+    name: "🌟 GPT-5",
+    provider: "OpenAI Direct",
+    icon: Sparkles,
+    color: "openai",
+    description: "GPT-5 flagship - Le plus puissant"
+  },
+  {
+    id: "gpt-5-mini-2025-08-07",
+    name: "⚡ GPT-5 Mini",
+    provider: "OpenAI Direct",
+    icon: Zap,
+    color: "openai",
+    description: "GPT-5 rapide et économique"
+  },
+  {
+    id: "gpt-5-nano-2025-08-07",
+    name: "💫 GPT-5 Nano",
+    provider: "OpenAI Direct",
+    icon: Zap,
+    color: "openai",
+    description: "GPT-5 ultra-rapide"
+  },
+  {
     id: "gpt-4o",
     name: "🏆 GPT-4o",
     provider: "OpenAI Direct",
@@ -43,6 +67,22 @@ const models = [
   },
 
   // === 🧠 REASONING MODELS (CLÉS API DIRECTES) ===
+  {
+    id: "o3-2025-04-16",
+    name: "🧠 O3",
+    provider: "OpenAI Direct",
+    icon: Cpu,
+    color: "openai",
+    description: "Raisonnement O3 - Le plus puissant"
+  },
+  {
+    id: "o4-mini-2025-04-16",
+    name: "⚡ O4 Mini",
+    provider: "OpenAI Direct",
+    icon: Cpu,
+    color: "openai",
+    description: "Raisonnement rapide O4"
+  },
   {
     id: "o1-preview",
     name: "🧠 O1 Preview",
