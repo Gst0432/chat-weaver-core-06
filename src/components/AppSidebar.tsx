@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2, Video, Languages, Image, Volume2, Code2 } from "lucide-react";
+import { MessageSquare, Plus, Settings, Zap, Users, CreditCard, LogOut, Sparkles, Shield, Wand2, Video, Languages, Image, Volume2, Code2, FileText } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -254,6 +254,13 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 <SidebarMenuButton onClick={() => handleNavigation('/code-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Code2 className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Code Studio</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/documents')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <FileText className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Documents</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
