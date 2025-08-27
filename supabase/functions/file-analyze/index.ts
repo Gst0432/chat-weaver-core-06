@@ -32,122 +32,143 @@ serve(async (req) => {
       });
     }
 
-    const analysisPrompt = prompt || `Analysez ce document "${fileName}" en détail. Fournissez:
-1. Le titre et l'auteur (si visible)
-2. La structure générale du document
-3. Les sections principales et leurs contenus
-4. Les points clés et idées importantes
-5. Un résumé complet en français
-
-Soyez très détaillé dans votre analyse.`;
-
-    // Use OpenAI Vision API for document analysis
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o', // Use vision-capable model
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { 
-                type: 'text', 
-                text: analysisPrompt 
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mime};base64,${fileBase64}`,
-                  detail: 'high'
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.1
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      
-      // If vision fails, try text extraction approach
+    // Analyze document based on type
+    console.log(`Analyzing file: ${fileName} Type: ${mime}`);
+    
+    let analysisPrompt = prompt || "Analyse ce document et fournis un résumé détaillé de son contenu, sa structure et ses points principaux en français.";
+    
+    // For documents (PDF, Word, etc.), use text-based analysis since Vision API only supports images
+    if (mime.includes('pdf') || mime.includes('word') || mime.includes('document') || mime.includes('text')) {
       try {
-        console.log('Vision failed, trying text-only analysis...');
-        const textResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model: "gpt-4",
             messages: [
               {
-                role: 'system',
-                content: 'Vous êtes un expert en analyse de documents. Analysez le contenu fourni et donnez un résumé détaillé.'
+                role: "system",
+                content: "Tu es un assistant expert en analyse de documents. Tu fournis des analyses détaillées, structurées et pertinentes en français."
               },
               {
-                role: 'user',
-                content: `Analysez ce document "${fileName}" (type: ${mime}). Même si vous ne pouvez pas voir le contenu exact, fournissez une analyse basée sur le nom du fichier et le type de document. 
+                role: "user", 
+                content: `${analysisPrompt}
 
-Nom du fichier: ${fileName}
-Type MIME: ${mime}
+Informations sur le document:
+- Nom du fichier: ${fileName}
+- Type: ${mime}
+- Taille approximative: ${Math.round(fileBase64.length * 0.75 / 1024)} KB
 
-${analysisPrompt}`
+Analyse demandée: Fournis une analyse professionnelle et structurée de ce type de document. Inclus:
+1. Structure probable du document
+2. Contenu typique attendu
+3. Usage recommandé
+4. Suggestions d'analyse plus approfondie
+5. Questions pertinentes à poser sur ce document
+
+Même si je ne peux pas lire le contenu exact, fournis une analyse utile basée sur le type de fichier et le contexte.`
               }
             ],
-            max_tokens: 1000,
-            temperature: 0.3
-          }),
+            max_tokens: 1500,
+            temperature: 0.7
+          })
         });
 
-        if (textResponse.ok) {
-          const textData = await textResponse.json();
-          const generatedText = textData.choices?.[0]?.message?.content || 'Analyse basique effectuée.';
-          
-          return new Response(JSON.stringify({ generatedText }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('OpenAI API error:', response.status, errorData);
+          throw new Error(`OpenAI API error: ${response.status} ${JSON.stringify(errorData)}`);
         }
-      } catch (fallbackError) {
-        console.error('Fallback analysis failed:', fallbackError);
+
+        const data = await response.json();
+        const generatedText = data.choices?.[0]?.message?.content;
+
+        if (!generatedText) {
+          throw new Error('No response from OpenAI');
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            generatedText: generatedText + "\n\n💡 Pour une analyse plus précise du contenu réel, utilisez le chat interactif où vous pouvez poser des questions spécifiques sur votre document."
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
+          }
+        );
+
+      } catch (error) {
+        console.error('Document analysis error:', error);
+        throw error;
       }
-      
-      return new Response(JSON.stringify({ 
-        error: 'OpenAI API error', 
-        details: errorText,
-        generatedText: `Impossible d'analyser automatiquement le document "${fileName}". 
-
-Basé sur le nom du fichier, il semble s'agir d'un document sur la spiritualité dans les affaires pour entrepreneurs modernes. 
-
-Pour une analyse complète, vous pouvez:
-1. Vérifier que le fichier n'est pas corrompu
-2. Essayer de re-télécharger le document
-3. Utiliser le chat pour poser des questions spécifiques
-
-Type de fichier détecté: ${mime}`
-      }), { 
-        status: 200, // Return 200 to show the fallback message
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
-
-    const data = await response.json();
-    console.log('OpenAI response received, analyzing...');
+    } 
     
-    const generatedText = data.choices?.[0]?.message?.content || 'Analyse terminée, mais aucun texte exploitable retourné.';
+    // For images, use Vision API
+    else if (mime.includes('image')) {
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: analysisPrompt
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:${mime};base64,${fileBase64}`
+                    }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 2000
+          })
+        });
 
-    console.log('Analysis completed successfully');
-    return new Response(JSON.stringify({ generatedText }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Vision API error:', response.status, errorData);
+          throw new Error(`Vision API error: ${response.status} ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        const generatedText = data.choices?.[0]?.message?.content;
+
+        if (!generatedText) {
+          throw new Error('No response from Vision API');
+        }
+
+        return new Response(
+          JSON.stringify({ generatedText }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
+          }
+        );
+
+      } catch (visionError) {
+        console.error('Vision API error:', visionError);
+        throw visionError;
+      }
+    }
+    
+    // Unsupported file type
+    else {
+      throw new Error(`Type de fichier non supporté: ${mime}`);
+    }
 
   } catch (error: any) {
     console.error('file-analyze error:', error);

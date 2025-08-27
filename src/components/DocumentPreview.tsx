@@ -49,33 +49,34 @@ export default function DocumentPreview({
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-3 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={onBack} size="sm">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <span className="text-2xl">{getFileTypeIcon()}</span>
-                {file.name}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2">
+                <span className="text-lg md:text-2xl">{getFileTypeIcon()}</span>
+                <span className="truncate">{file.name}</span>
               </h1>
-              <p className="text-muted-foreground">
-                {(file.size / 1024 / 1024).toFixed(2)} MB • Uploadé le {new Date(file.created_at).toLocaleDateString('fr-FR')}
+              <p className="text-sm text-muted-foreground">
+                {(file.size / 1024 / 1024).toFixed(2)} MB • {new Date(file.created_at).toLocaleDateString('fr-FR')}
               </p>
             </div>
           </div>
           
-          <Button onClick={onOpenChat} className="flex items-center gap-2">
+          <Button onClick={onOpenChat} className="flex items-center gap-2 shrink-0">
             <MessageSquare className="w-4 h-4" />
-            Chat avec l'IA
+            <span className="hidden sm:inline">Chat avec l'IA</span>
+            <span className="sm:hidden">Chat</span>
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Document Info & Actions */}
           <div className="space-y-6">
             {/* File Info */}
@@ -173,11 +174,11 @@ export default function DocumentPreview({
 
           {/* Content Preview */}
           <div className="lg:col-span-2">
-            <Card className="h-[600px]">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Aperçu du contenu</CardTitle>
-                  <div className="flex items-center gap-2">
+            <Card className="h-[400px] md:h-[600px]">
+              <CardHeader className="pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <CardTitle className="text-base md:text-lg">Aperçu du contenu</CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
                     {file.type.includes('pdf') && (
                       <Button
                         variant="outline"
@@ -189,13 +190,13 @@ export default function DocumentPreview({
                           link.click();
                         }}
                       >
-                        <Download className="w-4 h-4 mr-2" />
-                        Télécharger
+                        <Download className="w-4 h-4 mr-1" />
+                        <span className="hidden sm:inline">Télécharger</span>
                       </Button>
                     )}
                     {file.translations && Object.keys(file.translations).length > 0 && (
                       <select 
-                        className="px-3 py-1 border rounded text-sm"
+                        className="px-2 py-1 border rounded text-xs md:text-sm min-w-0"
                         value={selectedTranslation}
                         onChange={(e) => setSelectedTranslation(e.target.value)}
                       >
@@ -210,26 +211,42 @@ export default function DocumentPreview({
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="h-full p-0">
+              <CardContent className="h-full p-0 pb-4">
                 {file.type.includes('pdf') ? (
-                  // PDF Visual Preview
-                  <div className="h-full border-t">
-                    <iframe
-                      src={`data:${file.type};base64,${file.content}`}
-                      className="w-full h-full border-0"
-                      title={`Aperçu de ${file.name}`}
-                      style={{ minHeight: '500px' }}
-                    />
+                  // PDF Preview - Use object instead of iframe for better mobile compatibility
+                  <div className="h-full border-t bg-secondary/5">
+                    <div className="p-4 text-center">
+                      <div className="inline-flex items-center gap-2 bg-background p-4 rounded-lg border">
+                        <FileText className="w-8 h-8 text-primary" />
+                        <div>
+                          <p className="font-medium">Document PDF</p>
+                          <p className="text-sm text-muted-foreground">Cliquez pour télécharger et ouvrir</p>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <Button 
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = `data:${file.type};base64,${file.content}`;
+                            link.download = file.name;
+                            link.click();
+                          }}
+                          className="w-full md:w-auto"
+                        >
+                          Ouvrir le PDF
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   // Text Analysis Preview
-                  <ScrollArea className="h-full p-6">
+                  <ScrollArea className="h-full p-3 md:p-6">
                     {file.analysis ? (
                       <div className="prose prose-sm max-w-none">
-                        <h3 className="text-lg font-semibold mb-4 text-foreground">
+                        <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 text-foreground">
                           Analyse du document
                         </h3>
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed bg-secondary/20 p-4 rounded-lg">
+                        <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed bg-secondary/20 p-3 md:p-4 rounded-lg">
                           {selectedTranslation && file.translations?.[selectedTranslation] 
                             ? file.translations[selectedTranslation]
                             : file.analysis
@@ -237,13 +254,13 @@ export default function DocumentPreview({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-center">
-                        <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                        <h3 className="font-medium text-lg mb-2">Aperçu non disponible</h3>
-                        <p className="text-muted-foreground mb-4">
+                      <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                        <FileText className="w-8 md:w-12 h-8 md:h-12 text-muted-foreground mb-4" />
+                        <h3 className="font-medium text-base md:text-lg mb-2">Aperçu non disponible</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
                           Analysez le document pour voir son contenu
                         </p>
-                        <Button onClick={() => onAnalyze(file.id)} disabled={analyzing}>
+                        <Button onClick={() => onAnalyze(file.id)} disabled={analyzing} className="w-full md:w-auto">
                           {analyzing ? 'Analyse en cours...' : 'Analyser maintenant'}
                         </Button>
                       </div>
@@ -253,10 +270,10 @@ export default function DocumentPreview({
                 
                 {/* Analysis section for PDFs */}
                 {file.type.includes('pdf') && file.analysis && (
-                  <div className="border-t p-4 bg-secondary/10">
-                    <h4 className="font-semibold mb-2 text-foreground">Analyse IA :</h4>
-                    <ScrollArea className="h-32">
-                      <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  <div className="border-t p-3 md:p-4 bg-secondary/10">
+                    <h4 className="font-semibold mb-2 text-foreground text-sm md:text-base">Analyse IA :</h4>
+                    <ScrollArea className="h-24 md:h-32">
+                      <div className="text-xs md:text-sm text-muted-foreground whitespace-pre-wrap">
                         {selectedTranslation && file.translations?.[selectedTranslation] 
                           ? file.translations[selectedTranslation]
                           : file.analysis

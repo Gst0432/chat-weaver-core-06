@@ -467,55 +467,59 @@ export default function Documents() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-3 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button 
               variant="outline" 
               onClick={() => window.history.back()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Traitement de Documents</h1>
-              <p className="text-muted-foreground">Générez, analysez et traduisez vos documents avec l'IA</p>
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-3xl font-bold text-foreground">Traitement de Documents</h1>
+              <p className="text-sm md:text-base text-muted-foreground">Générez, analysez et traduisez vos documents avec l'IA</p>
             </div>
           </div>
         </div>
 
         <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="upload" className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Upload & Analyse
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 text-xs md:text-sm">
+            <TabsTrigger value="upload" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+              <Upload className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Upload & Analyse</span>
+              <span className="sm:hidden">Upload</span>
             </TabsTrigger>
-            <TabsTrigger value="generate" className="flex items-center gap-2">
-              <FilePlus className="w-4 h-4" />
-              Générer
+            <TabsTrigger value="generate" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+              <FilePlus className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Générer</span>
+              <span className="sm:hidden">Créer</span>
             </TabsTrigger>
-            <TabsTrigger value="files" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Fichiers Uploadés
+            <TabsTrigger value="files" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+              <FileText className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden md:inline">Fichiers Uploadés</span>
+              <span className="md:hidden">Fichiers</span>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Documents Générés
+            <TabsTrigger value="documents" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+              <FileText className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden md:inline">Documents Générés</span>
+              <span className="md:hidden">Docs</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Upload & Analysis Tab */}
-          <TabsContent value="upload" className="space-y-6">
+          <TabsContent value="upload" className="space-y-4 md:space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <Upload className="w-4 h-4 md:w-5 md:h-5" />
                   Upload de Documents
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Uploadez des fichiers PDF ou Word pour les analyser avec l'IA
                 </CardDescription>
               </CardHeader>
@@ -526,14 +530,14 @@ export default function Documents() {
                     type="file"
                     accept=".pdf,.doc,.docx"
                     onChange={handleFileUpload}
-                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs md:file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                   />
                 </div>
 
                 {selectedFile && (
-                  <div className="p-4 border rounded-lg bg-muted/50">
-                    <p className="font-medium">{selectedFile.name}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="p-3 md:p-4 border rounded-lg bg-muted/50">
+                    <p className="font-medium text-sm md:text-base truncate">{selectedFile.name}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
@@ -544,11 +548,11 @@ export default function Documents() {
             {/* AI Analysis */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
                   Analyse IA
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Posez des questions sur le contenu du document
                 </CardDescription>
               </CardHeader>
@@ -560,6 +564,7 @@ export default function Documents() {
                     value={aiQuestion}
                     onChange={(e) => setAiQuestion(e.target.value)}
                     rows={3}
+                    className="text-sm"
                   />
                 </div>
 
@@ -567,31 +572,31 @@ export default function Documents() {
                   <Button 
                     onClick={() => selectedFile && analyzeDocument(uploadedFiles.find(f => f.name === selectedFile.name)?.id || '')}
                     disabled={!selectedFile || analyzing}
-                    className="flex-1"
+                    className="flex-1 text-sm"
                   >
                     {analyzing ? 'Analyse en cours...' : 'Analyser le Document'}
                   </Button>
                 </div>
 
                 {analysisResult && (
-                  <div className="p-4 border rounded-lg bg-background">
-                    <h4 className="font-medium mb-2">Résultat de l'analyse :</h4>
-                    <div className="whitespace-pre-wrap text-sm">{analysisResult}</div>
+                  <div className="p-3 md:p-4 border rounded-lg bg-background">
+                    <h4 className="font-medium mb-2 text-sm md:text-base">Résultat de l'analyse :</h4>
+                    <div className="whitespace-pre-wrap text-xs md:text-sm max-h-60 overflow-y-auto">{analysisResult}</div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Translation & Conversion */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* Translation */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Globe className="w-5 h-5" />
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                    <Globe className="w-4 h-4 md:w-5 md:h-5" />
                     Traduction
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     Traduisez le contenu analysé
                   </CardDescription>
                 </CardHeader>
@@ -599,7 +604,7 @@ export default function Documents() {
                   <div>
                     <label className="text-sm font-medium mb-2 block">Langue cible</label>
                     <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -614,15 +619,15 @@ export default function Documents() {
                   <Button 
                     onClick={() => selectedFile && translateDocument(uploadedFiles.find(f => f.name === selectedFile.name)?.id || '', targetLanguage)}
                     disabled={!selectedFile || !analysisResult || translating}
-                    className="w-full"
+                    className="w-full text-sm"
                   >
                     {translating ? 'Traduction en cours...' : 'Traduire'}
                   </Button>
 
                   {translationResult && (
-                    <div className="p-4 border rounded-lg bg-background">
-                      <h4 className="font-medium mb-2">Traduction :</h4>
-                      <div className="whitespace-pre-wrap text-sm">{translationResult}</div>
+                    <div className="p-3 md:p-4 border rounded-lg bg-background">
+                      <h4 className="font-medium mb-2 text-sm md:text-base">Traduction :</h4>
+                      <div className="whitespace-pre-wrap text-xs md:text-sm max-h-40 overflow-y-auto">{translationResult}</div>
                     </div>
                   )}
                 </CardContent>
@@ -631,23 +636,23 @@ export default function Documents() {
               {/* PDF to Word Conversion */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <RefreshCw className="w-5 h-5" />
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                    <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
                     Conversion
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     Convertir PDF vers Word
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     Convertissez vos documents PDF en format Word éditable basé sur l'analyse IA.
                   </p>
 
                   <Button 
                     onClick={() => selectedFile && convertPdfToWord(uploadedFiles.find(f => f.name === selectedFile.name)?.id || '')}
                     disabled={!selectedFile || !analysisResult || converting || !selectedFile?.type.includes('pdf')}
-                    className="w-full"
+                    className="w-full text-sm"
                   >
                     {converting ? 'Conversion en cours...' : 'Convertir PDF → Word'}
                   </Button>
