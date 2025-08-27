@@ -52,50 +52,50 @@ const NewLanding = () => {
   const uniquePoints = [
     {
       icon: Infinity,
-      title: "400+ modèles IA via OpenRouter",
-      description: "GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large, Perplexity et 50+ autres providers"
+      title: "Accès illimité à toutes les IA",
+      description: "Accédez à toutes les IA incluses dans votre plan, sans limites d'utilisation."
     },
     {
-      icon: Image,
-      title: "Outils multimédia intégrés",
-      description: "Génération d'images (DALL-E 3 + Runware), voix, transcription, vision"
+      icon: Sparkles,
+      title: "Création de contenu simplifiée",
+      description: "Images, voix, transcription et ebooks au même endroit pour une création fluide."
     },
     {
       icon: Zap,
-      title: "Auto-router intelligent",
-      description: "Sélection automatique du meilleur modèle selon la tâche"
+      title: "Productivité maximale",
+      description: "Plus de quotas, plus de stress. Concentrez-vous sur votre travail, l'IA s'occupe du reste."
     },
     {
       icon: Globe,
-      title: "Accessible partout",
-      description: "Interface web intuitive et responsive avec API complète"
+      title: "Interface intuitive et accessible",
+      description: "Utilisez Chatelix partout, sur le web et via notre API, avec une interface moderne."
     }
   ];
 
   // Fonctionnalités détaillées
   const detailedFeatures = [
     {
-      icon: MessageSquare,
-      title: "400+ modèles IA via OpenRouter",
-      description: "Accès illimité aux meilleurs modèles : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large, Perplexity et 50+ autres providers. Auto-router intelligent pour optimiser chaque tâche.",
+      icon: Brain,
+      title: "Modèles IA illimités",
+      description: "GPT-5, Claude 3.5, Llama 3.3 pour toutes vos créations et analyses.",
       image: "/lovable-uploads/18559761-9d7a-4f88-b792-3c402d548818.png"
     },
     {
       icon: Image,
-      title: "Génération d'images avancée",
-      description: "Créez des images haute résolution avec OpenAI DALL-E 3 et Runware. Qualité professionnelle garantie avec choix du modèle optimal.",
+      title: "Génération d'images (DALL·E 3)",
+      description: "Créez des images haute qualité pour vos projets marketing, contenus ou designs.",
       image: "/lovable-uploads/4d23475f-fa47-4f1b-bba0-5b597d4be24b.png"
     },
     {
       icon: Volume2,
       title: "Voix Off (Text → Speech)",
-      description: "Conversion texte vers voix avec OpenAI et Google TTS. Plusieurs voix et langues disponibles pour tous vos besoins audio.",
+      description: "Transformez vos textes en voix naturelles avec plusieurs voix disponibles.",
       image: "/lovable-uploads/eb4adb27-683e-42a7-ade3-aa8185079db6.png"
     },
     {
       icon: Mic,
-      title: "Transcription + Vision IA",
-      description: "Reconnaissance vocale avancée et analyse d'images. Précision maximale pour vos interviews, podcasts, vidéos et documents visuels.",
+      title: "Voice-to-Text",
+      description: "Transcription précise pour vos podcasts, interviews et vidéos.",
       image: "/lovable-uploads/ff955a65-24d1-4da4-a5d3-7e518af6492b.png"
     }
   ];
@@ -115,33 +115,37 @@ const NewLanding = () => {
       description: 'Parfait pour débuter avec l\'IA',
       price: 7500,
       features: [
-        'Utilisateurs: 1',
-        'Modèles IA: 400+ modèles via OpenRouter illimité',
-        'Images DALL·E 3: 10 images / mois',
-        'Text-to-Voice: OpenAI Standard TTS uniquement',
-        'Minutes TTS: 100 min inclus',
-        '+50 FCFA/min TTS au-delà, +500 FCFA/image'
+        '👤 1 utilisateur',
+        '🤖 Modèles IA illimités (GPT-5, Claude 3.5, Llama 3.3, etc.)',
+        '🎨 10 images DALL·E 3 / mois (+500 FCFA/supp.)',
+        '🗣 100 min TTS inclus (+50 FCFA/min au-delà)',
+        '🎤 100 min Voice-to-Text/mois',
+        '📚 2 Ebooks Starter inclus/mois',
+        '🔄 1 Conversion de document / jour',
+        '📑 1 Analyse de document / jour'
       ],
       is_active: true,
       popular: false,
-      buttonText: 'Mettre à niveau'
+      buttonText: 'Choisir Starter'
     },
     {
       id: '2', 
       name: 'Pro',
-      description: 'Le plus populaire - Idéal pour les professionnels',
+      description: 'Idéal pour les professionnels',
       price: 22000,
       features: [
-        'Utilisateurs: Jusqu\'à 5',
-        'Modèles IA: 400+ modèles via OpenRouter illimité',
-        'Images DALL·E 3: 50 images / mois',
-        'Text-to-Voice: OpenAI HD TTS + Google WaveNet',
-        'Minutes TTS: 500 min inclus',
-        'Forfait illimité au-delà, images illimitées'
+        '👤 Jusqu\'à 5 utilisateurs',
+        '🤖 Modèles IA illimités (GPT-5, Claude 3.5, Llama 3.3, etc.)',
+        '🎨 50 images DALL·E 3 / mois (illimité au-delà)',
+        '🗣 500 min TTS HD inclus (illimité au-delà)',
+        '🎤 500 min Voice-to-Text/mois',
+        '📚 5 Ebooks Pro inclus/mois',
+        '🔄 Conversions de documents illimitées',
+        '📑 Analyse de documents illimitée'
       ],
       is_active: true,
       popular: true,
-      buttonText: 'Plan actuel'
+      buttonText: 'Choisir Pro'
     },
     {
       id: '3',
@@ -149,12 +153,14 @@ const NewLanding = () => {
       description: 'Pour les équipes et entreprises',
       price: 55000,
       features: [
-        'Utilisateurs: Jusqu\'à 20',
-        'Modèles IA: 400+ modèles via OpenRouter illimité',
-        'Images DALL·E 3: Illimité',
-        'Text-to-Voice: OpenAI HD + Google WaveNet + voix premium',
-        'Minutes TTS: Illimité',
-        'Support prioritaire, gestion équipes'
+        '👤 Jusqu\'à 20 utilisateurs',
+        '🤖 Modèles IA illimités (GPT-5, Claude 3.5, Llama 3.3, etc.)',
+        '🎨 Images DALL·E 3 illimitées',
+        '🗣 Minutes TTS HD illimitées',
+        '🎤 Voice-to-Text illimité',
+        '📚 20 Ebooks Business inclus',
+        '🔄 Conversions de documents illimitées',
+        '📑 Analyse de documents illimitée'
       ],
       is_active: true,
       popular: false,
@@ -304,13 +310,13 @@ const NewLanding = () => {
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-5xl sm:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent leading-tight">
-            Toute la puissance de l'IA… 
-            <span className="bg-gradient-primary bg-clip-text text-transparent">en illimité !</span>
+            Chatelix – Toute la puissance de l'IA, 
+            <span className="bg-gradient-primary bg-clip-text text-transparent">à portée de main</span>
           </h1>
           
           <p className="text-xl sm:text-2xl text-muted-foreground mb-12 max-w-4xl mx-auto leading-relaxed">
-            400+ modèles IA via OpenRouter : GPT-5, Claude 4, Llama 3.1 405B, Gemini Pro, Mistral Large, génération d'images, voix off, transcription… 
-            <span className="font-semibold">Tout en un, sans limites.</span>
+            Accédez à toutes vos IA préférées, sans limites ! Avec Chatelix, utilisez directement les meilleurs modèles IA : GPT-5, Claude 3.5, Llama 3.3 et bien d'autres. 
+            <span className="font-semibold">Plus besoin de multiplier les abonnements : tout est disponible sur une seule plateforme, pour créer, analyser et automatiser vos contenus.</span>
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
