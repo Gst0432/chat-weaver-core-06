@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CodePreview } from "./CodePreview";
 import { WebPreview } from "./WebPreview";
+import { renderMarkdown } from "@/lib/markdown";
 
 interface Message {
   id: string;
@@ -49,16 +50,6 @@ const getModelInfo = (modelId?: string) => {
   return models[modelId as keyof typeof models] || null;
 };
 
-const sanitizeContent = (text: string) => {
-  try {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*\*/g, '')
-      .replace(/(^|\n)#{1,6}\s*/g, '$1');
-  } catch {
-    return text;
-  }
-};
 
 export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
   const isUser = message.role === "user";
@@ -311,6 +302,11 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
                 content={String(message.content)} 
                 isUser={isUser} 
               />
+              {/* Rendu markdown professionnel pour le texte */}
+              <div 
+                className="prose prose-sm max-w-none text-inherit"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(String(message.content)) }}
+              />
               <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2 flex-wrap`}>
                 <Button
                   type="button"
@@ -319,7 +315,7 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
                   aria-label="Copier le message"
                   onClick={async () => {
                     try {
-                      await navigator.clipboard.writeText(sanitizeContent(String(message.content)));
+                      await navigator.clipboard.writeText(String(message.content).replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*\*/g, '').replace(/(^|\n)#{1,6}\s*/g, '$1'));
                       toast({ title: "Copié", description: "Le message a été copié dans le presse‑papiers." });
                     } catch (e) {
                       toast({ title: "Échec de copie", description: "Impossible de copier le message.", variant: "destructive" });

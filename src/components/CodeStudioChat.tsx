@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Code2, Wand2, Bug, Sparkles, Copy, CheckCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { aiService } from "@/services/aiService";
+import { renderMarkdown } from "@/lib/markdown";
 
 interface CodeStudioChatMessage {
   id: string;
@@ -312,7 +313,13 @@ Demande utilisateur: ${message}`;
                       : 'bg-muted text-foreground border border-border'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
+                  <div className="text-sm">
+                    {msg.role === 'assistant' ? (
+                      <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </div>
                   
                   {msg.role === 'assistant' && msg.type === 'code' && (
                     <div className="flex gap-1 mt-2 pt-2 border-t border-border/50">
