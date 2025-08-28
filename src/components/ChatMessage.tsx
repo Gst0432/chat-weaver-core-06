@@ -297,16 +297,31 @@ export const ChatMessage = ({ message, isLoading }: ChatMessageProps) => {
             </div>
           ) : (
             <div className="space-y-3">
-              <WebPreview content={String(message.content)} />
-              <CodePreview 
-                content={String(message.content)} 
-                isUser={isUser} 
-              />
-              {/* Rendu markdown professionnel pour le texte */}
-              <div 
-                className="prose prose-sm max-w-none text-inherit"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(String(message.content)) }}
-              />
+              {(() => {
+                const content = String(message.content);
+                
+                // Check if it's web content (HTML/CSS/JS)
+                const hasWebContent = content.includes('```html') || content.includes('```css') || content.includes('```javascript') || 
+                                    content.includes('```js') || content.includes('<html>') || content.includes('<!DOCTYPE') ||
+                                    (content.includes('<div') || content.includes('<button') || content.includes('<p>'));
+                
+                // Check if it has code blocks
+                const hasCodeBlocks = content.includes('```') || content.includes('`');
+                
+                if (hasWebContent) {
+                  return <WebPreview content={content} />;
+                } else if (hasCodeBlocks) {
+                  return <CodePreview content={content} isUser={isUser} />;
+                } else {
+                  // Render markdown for regular text
+                  return (
+                    <div 
+                      className="prose prose-sm max-w-none text-inherit"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+                    />
+                  );
+                }
+              })()}
               <div className={`flex ${isUser ? "justify-start" : "justify-end"} gap-2 flex-wrap`}>
                 <Button
                   type="button"
