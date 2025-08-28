@@ -250,12 +250,14 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
+              {/* Code Studio temporairement masqué
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => handleNavigation('/code-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Code2 className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Code Studio</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              */}
               
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => handleNavigation('/document-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">

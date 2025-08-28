@@ -7,6 +7,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to clean text content (remove null bytes and control characters)
+const cleanTextContent = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/\u0000/g, '') // Remove null bytes that cause PostgreSQL errors
+    .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '') // Remove other control characters
+    .replace(/\uFFFD/g, '') // Remove replacement characters
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Additional cleanup for binary characters
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+};
+
 // Simple PDF text extraction function
 function extractPdfText(buffer: ArrayBuffer): string {
   const text = new TextDecoder().decode(buffer);
@@ -35,7 +47,7 @@ function extractPdfText(buffer: ArrayBuffer): string {
     });
   }
 
-  return textBlocks.join(' ').substring(0, 2000);
+  return cleanTextContent(textBlocks.join(' ').substring(0, 2000));
 }
 
 // Simple DOCX text extraction function
@@ -65,7 +77,7 @@ function extractDocxText(buffer: ArrayBuffer): string {
     });
   }
 
-  return textBlocks.join(' ').substring(0, 2000);
+  return cleanTextContent(textBlocks.join(' ').substring(0, 2000));
 }
 
 serve(async (req) => {
@@ -127,7 +139,7 @@ serve(async (req) => {
       // Extract text based on file type
       if (file.type === 'text/plain') {
         const decoder = new TextDecoder();
-        extractedText = decoder.decode(fileBuffer);
+        extractedText = cleanTextContent(decoder.decode(fileBuffer));
       } else if (file.type === 'application/pdf') {
         try {
           console.log('Extracting PDF content...');
@@ -164,8 +176,9 @@ serve(async (req) => {
       extractionError = error.message;
     }
 
-    // Generate preview text (first 1000 characters)
-    previewText = extractedText.substring(0, 1000);
+    // Clean and generate preview text (first 1000 characters)
+    const cleanExtractedText = cleanTextContent(extractedText);
+    previewText = cleanExtractedText.substring(0, 1000);
 
     // Save document record with extraction status
     const { data: document, error: dbError } = await supabase
@@ -176,7 +189,7 @@ serve(async (req) => {
         file_type: fileExtension as 'pdf' | 'docx' | 'txt',
         file_size: file.size,
         storage_path: storagePath,
-        extracted_text: extractedText,
+        extracted_text: cleanExtractedText,
         preview_text: previewText,
       })
       .select()
