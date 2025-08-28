@@ -542,7 +542,7 @@ export default function DocumentStudio() {
                   </div>
                 </div>
 
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-4">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-4 flex-1 flex flex-col">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="preview" className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
@@ -557,288 +557,288 @@ export default function DocumentStudio() {
                       Opérations
                     </TabsTrigger>
                   </TabsList>
-                </Tabs>
-              </div>
-
-              {/* Tab Content */}
-              <div className="flex-1">
-                <TabsContent value="preview" className="h-full m-0">
-                  <ScrollArea className="h-full">
-                    <div className="p-6">
-                      {selectedDocument.preview_text ? (
-                        <div className="prose prose-sm max-w-none">
-                          <h3 className="text-lg font-semibold mb-4">Aperçu du contenu</h3>
-                          <div className="bg-secondary/20 p-4 rounded-lg">
-                            <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">
-                              {selectedDocument.preview_text}
-                              {selectedDocument.extracted_text && selectedDocument.extracted_text.length > 1000 && (
-                                <span className="text-muted-foreground">...\n\n[Contenu tronqué - Vectorisez le document pour accéder au contenu complet via le chat]</span>
-                              )}
-                            </pre>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-96 text-center">
-                          <FileText className="w-16 h-16 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">Aucun aperçu disponible</h3>
-                          <p className="text-muted-foreground mb-4 max-w-md">
-                            L'extraction du contenu nécessite un traitement supplémentaire pour les fichiers PDF et DOCX.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-
-                <TabsContent value="chat" className="h-full m-0">
-                  <div className="flex flex-col h-full">
-                    <ScrollArea className="flex-1 p-4">
-                      <div className="space-y-4">
-                        {chatMessages.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Bot className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm">Posez une question sur ce document</p>
-                            <p className="text-xs mt-1">Assurez-vous d'avoir vectorisé le document au préalable</p>
-                          </div>
-                        ) : (
-                          chatMessages.map((message) => (
-                            <div key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`flex gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                  message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'
-                                }`}>
-                                  {message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                                </div>
-                                
-                                <div className={`px-4 py-3 rounded-lg ${
-                                  message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'
-                                }`}>
-                                  <div className="text-sm">
-                                    {message.role === 'assistant' ? (
-                                      <div dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
-                                    ) : (
-                                      message.content
-                                    )}
-                                  </div>
-                                  <div className="text-xs mt-2 opacity-70">
-                                    {new Date(message.timestamp).toLocaleTimeString('fr-FR', {
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </div>
-                                </div>
+                
+                  {/* Tab Content */}
+                  <div className="flex-1">
+                    <TabsContent value="preview" className="h-full m-0">
+                      <ScrollArea className="h-full">
+                        <div className="p-6">
+                          {selectedDocument.preview_text ? (
+                            <div className="prose prose-sm max-w-none">
+                              <h3 className="text-lg font-semibold mb-4">Aperçu du contenu</h3>
+                              <div className="bg-secondary/20 p-4 rounded-lg">
+                                <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">
+                                  {selectedDocument.preview_text}
+                                  {selectedDocument.extracted_text && selectedDocument.extracted_text.length > 1000 && (
+                                    <span className="text-muted-foreground">...\n\n[Contenu tronqué - Vectorisez le document pour accéder au contenu complet via le chat]</span>
+                                  )}
+                                </pre>
                               </div>
                             </div>
-                          ))
-                        )}
-                        
-                        {chatLoading && (
-                          <div className="flex gap-3">
-                            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                              <Bot className="w-4 h-4" />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-96 text-center">
+                              <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+                              <h3 className="text-lg font-semibold mb-2">Aucun aperçu disponible</h3>
+                              <p className="text-muted-foreground mb-4 max-w-md">
+                                L'extraction du contenu nécessite un traitement supplémentaire pour les fichiers PDF et DOCX.
+                              </p>
                             </div>
-                            <div className="bg-secondary px-4 py-3 rounded-lg">
-                              <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 bg-current rounded-full animate-pulse" />
-                                <div className="w-2 h-2 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                                <div className="w-2 h-2 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+
+                    <TabsContent value="chat" className="h-full m-0">
+                      <div className="flex flex-col h-full">
+                        <ScrollArea className="flex-1 p-4">
+                          <div className="space-y-4">
+                            {chatMessages.length === 0 ? (
+                              <div className="text-center py-8 text-muted-foreground">
+                                <Bot className="w-8 h-8 mx-auto mb-2" />
+                                <p className="text-sm">Posez une question sur ce document</p>
+                                <p className="text-xs mt-1">Assurez-vous d'avoir vectorisé le document au préalable</p>
                               </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
-
-                    {/* Chat Input */}
-                    <div className="border-t p-4">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Posez votre question sur ce document..."
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              sendChatMessage();
-                            }
-                          }}
-                          disabled={chatLoading}
-                          className="flex-1"
-                        />
-                        <Button 
-                          onClick={sendChatMessage} 
-                          disabled={!chatInput.trim() || chatLoading}
-                          size="sm"
-                        >
-                          <Send className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="operations" className="h-full m-0">
-                  <ScrollArea className="h-full">
-                    <div className="p-6">
-                      {/* Quick Actions */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <Languages className="w-5 h-5" />
-                              Traduction
-                            </CardTitle>
-                            <CardDescription>Traduire le document dans une autre langue</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <Select onValueChange={startTranslation} disabled={processing === 'translation'}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choisir une langue" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="anglais">Anglais</SelectItem>
-                                <SelectItem value="espagnol">Espagnol</SelectItem>
-                                <SelectItem value="italien">Italien</SelectItem>
-                                <SelectItem value="allemand">Allemand</SelectItem>
-                                <SelectItem value="chinois">Chinois</SelectItem>
-                                <SelectItem value="arabe">Arabe</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </CardContent>
-                        </Card>
-
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <Sparkles className="w-5 h-5" />
-                              Résumé
-                            </CardTitle>
-                            <CardDescription>Créer un résumé du document</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button 
-                                variant="outline" 
-                                onClick={() => startSummarization('detailed', 'simple')}
-                                disabled={processing === 'summary'}
-                              >
-                                Détaillé
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                onClick={() => startSummarization('concise', 'simple')}
-                                disabled={processing === 'summary'}
-                              >
-                                Concis
-                              </Button>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => startSummarization('detailed', 'academic')}
-                                disabled={processing === 'summary'}
-                              >
-                                Académique
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => startSummarization('detailed', 'storytelling')}
-                                disabled={processing === 'summary'}
-                              >
-                                Narratif
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => startSummarization('concise', 'simple')}
-                                disabled={processing === 'summary'}
-                              >
-                                Simple
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-
-                      {/* Operations History */}
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4">Historique des opérations</h3>
-                        
-                        {operations.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Sparkles className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm">Aucune opération effectuée</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {operations.map((operation) => (
-                              <Card key={operation.id}>
-                                <CardContent className="p-4">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                      {getOperationIcon(operation.operation_type)}
-                                      <div>
-                                        <p className="font-medium capitalize">
-                                          {operation.operation_type === 'translation' && 'Traduction'}
-                                          {operation.operation_type === 'summary' && 'Résumé'}
-                                          {operation.operation_type === 'conversion' && 'Conversion'}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                          {new Date(operation.created_at).toLocaleString('fr-FR')}
-                                        </p>
-                                        {operation.operation_params?.target_language && (
-                                          <Badge variant="secondary" className="text-xs mt-1">
-                                            {operation.operation_params.target_language}
-                                          </Badge>
-                                        )}
-                                        {operation.operation_params?.summary_type && (
-                                          <Badge variant="secondary" className="text-xs mt-1 mr-1">
-                                            {operation.operation_params.summary_type}
-                                          </Badge>
-                                        )}
-                                        {operation.operation_params?.style && (
-                                          <Badge variant="secondary" className="text-xs mt-1">
-                                            {operation.operation_params.style}
-                                          </Badge>
-                                        )}
-                                      </div>
+                            ) : (
+                              chatMessages.map((message) => (
+                                <div key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`flex gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                      message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'
+                                    }`}>
+                                      {message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                                     </div>
                                     
-                                    <div className="flex items-center gap-2">
-                                      {getStatusIcon(operation.status)}
-                                      {operation.status === 'completed' && operation.result_storage_path && (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => downloadFile(operation.result_storage_path!, operation.result_filename!)}
-                                        >
-                                          <Download className="w-4 h-4 mr-1" />
-                                          Télécharger
-                                        </Button>
-                                      )}
+                                    <div className={`px-4 py-3 rounded-lg ${
+                                      message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'
+                                    }`}>
+                                      <div className="text-sm">
+                                        {message.role === 'assistant' ? (
+                                          <div dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
+                                        ) : (
+                                          message.content
+                                        )}
+                                      </div>
+                                      <div className="text-xs mt-2 opacity-70">
+                                        {new Date(message.timestamp).toLocaleTimeString('fr-FR', {
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </div>
                                     </div>
                                   </div>
-                                  
-                                  {operation.status === 'processing' && operation.operation_params?.progress && (
-                                    <Progress value={operation.operation_params.progress} className="mt-2" />
-                                  )}
-                                  
-                                  {operation.error_message && (
-                                    <div className="mt-2 p-2 bg-destructive/10 rounded text-sm text-destructive">
-                                      {operation.error_message}
-                                    </div>
-                                  )}
-                                </CardContent>
-                              </Card>
-                            ))}
+                                </div>
+                              ))
+                            )}
+                            
+                            {chatLoading && (
+                              <div className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                                  <Bot className="w-4 h-4" />
+                                </div>
+                                <div className="bg-secondary px-4 py-3 rounded-lg">
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 bg-current rounded-full animate-pulse" />
+                                    <div className="w-2 h-2 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                    <div className="w-2 h-2 bg-current rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </ScrollArea>
+
+                        {/* Chat Input */}
+                        <div className="border-t p-4">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Posez votre question sur ce document..."
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  sendChatMessage();
+                                }
+                              }}
+                              disabled={chatLoading}
+                              className="flex-1"
+                            />
+                            <Button 
+                              onClick={sendChatMessage} 
+                              disabled={!chatInput.trim() || chatLoading}
+                              size="sm"
+                            >
+                              <Send className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
+                    </TabsContent>
+
+                    <TabsContent value="operations" className="h-full m-0">
+                      <ScrollArea className="h-full">
+                        <div className="p-6">
+                          {/* Quick Actions */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                  <Languages className="w-5 h-5" />
+                                  Traduction
+                                </CardTitle>
+                                <CardDescription>Traduire le document dans une autre langue</CardDescription>
+                              </CardHeader>
+                              <CardContent className="space-y-3">
+                                <Select onValueChange={startTranslation} disabled={processing === 'translation'}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Choisir une langue" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="anglais">Anglais</SelectItem>
+                                    <SelectItem value="espagnol">Espagnol</SelectItem>
+                                    <SelectItem value="italien">Italien</SelectItem>
+                                    <SelectItem value="allemand">Allemand</SelectItem>
+                                    <SelectItem value="chinois">Chinois</SelectItem>
+                                    <SelectItem value="arabe">Arabe</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </CardContent>
+                            </Card>
+
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                  <Sparkles className="w-5 h-5" />
+                                  Résumé
+                                </CardTitle>
+                                <CardDescription>Créer un résumé du document</CardDescription>
+                              </CardHeader>
+                              <CardContent className="space-y-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    onClick={() => startSummarization('detailed', 'simple')}
+                                    disabled={processing === 'summary'}
+                                  >
+                                    Détaillé
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    onClick={() => startSummarization('concise', 'simple')}
+                                    disabled={processing === 'summary'}
+                                  >
+                                    Concis
+                                  </Button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => startSummarization('detailed', 'academic')}
+                                    disabled={processing === 'summary'}
+                                  >
+                                    Académique
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => startSummarization('detailed', 'storytelling')}
+                                    disabled={processing === 'summary'}
+                                  >
+                                    Narratif
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => startSummarization('concise', 'simple')}
+                                    disabled={processing === 'summary'}
+                                  >
+                                    Simple
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          {/* Operations History */}
+                          <div>
+                            <h3 className="text-lg font-semibold mb-4">Historique des opérations</h3>
+                            
+                            {operations.length === 0 ? (
+                              <div className="text-center py-8 text-muted-foreground">
+                                <Sparkles className="w-8 h-8 mx-auto mb-2" />
+                                <p className="text-sm">Aucune opération effectuée</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {operations.map((operation) => (
+                                  <Card key={operation.id}>
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                          {getOperationIcon(operation.operation_type)}
+                                          <div>
+                                            <p className="font-medium capitalize">
+                                              {operation.operation_type === 'translation' && 'Traduction'}
+                                              {operation.operation_type === 'summary' && 'Résumé'}
+                                              {operation.operation_type === 'conversion' && 'Conversion'}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                              {new Date(operation.created_at).toLocaleString('fr-FR')}
+                                            </p>
+                                            {operation.operation_params?.target_language && (
+                                              <Badge variant="secondary" className="text-xs mt-1">
+                                                {operation.operation_params.target_language}
+                                              </Badge>
+                                            )}
+                                            {operation.operation_params?.summary_type && (
+                                              <Badge variant="secondary" className="text-xs mt-1 mr-1">
+                                                {operation.operation_params.summary_type}
+                                              </Badge>
+                                            )}
+                                            {operation.operation_params?.style && (
+                                              <Badge variant="secondary" className="text-xs mt-1">
+                                                {operation.operation_params.style}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                          {getStatusIcon(operation.status)}
+                                          {operation.status === 'completed' && operation.result_storage_path && (
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => downloadFile(operation.result_storage_path!, operation.result_filename!)}
+                                            >
+                                              <Download className="w-4 h-4 mr-1" />
+                                              Télécharger
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      {operation.status === 'processing' && operation.operation_params?.progress && (
+                                        <Progress value={operation.operation_params.progress} className="mt-2" />
+                                      )}
+                                      
+                                      {operation.error_message && (
+                                        <div className="mt-2 p-2 bg-destructive/10 rounded text-sm text-destructive">
+                                          {operation.error_message}
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+                  </div>
+                </Tabs>
               </div>
             </>
           ) : (
