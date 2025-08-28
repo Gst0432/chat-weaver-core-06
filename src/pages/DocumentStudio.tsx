@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { renderMarkdown } from '@/lib/markdown';
 
 interface Document {
   id: string;
@@ -57,24 +58,6 @@ interface ChatMessage {
   timestamp: string;
 }
 
-// Fonction pour rendre le markdown simple
-const renderMarkdown = (text: string) => {
-  return text
-    // Headers
-    .replace(/^### (.*$)/gm, '<h3 class="text-base font-semibold mb-2 mt-3">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold mb-2 mt-3">$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1 class="text-xl font-bold mb-2 mt-3">$1</h1>')
-    // Gras
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-    // Italique
-    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-    // Listes
-    .replace(/^- (.*$)/gm, '<li class="ml-4 list-disc list-inside">$1</li>')
-    // Code inline
-    .replace(/`([^`]+)`/g, '<code class="bg-secondary px-1 py-0.5 rounded text-xs font-mono">$1</code>')
-    // Sauts de ligne
-    .replace(/\n/g, '<br/>');
-};
 
 export default function DocumentStudio() {
   const { toast } = useToast();
@@ -875,9 +858,11 @@ export default function DocumentStudio() {
                     className="hidden"
                     disabled={uploading}
                   />
-                  <Button disabled={uploading}>
-                    {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                    {uploading ? 'Upload en cours...' : 'Uploader un document'}
+                  <Button disabled={uploading} asChild>
+                    <span className="cursor-pointer">
+                      {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                      {uploading ? 'Upload en cours...' : 'Uploader un document'}
+                    </span>
                   </Button>
                 </label>
               </div>

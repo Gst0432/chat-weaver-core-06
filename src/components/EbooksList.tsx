@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, Search, Trash2, Download, Edit, FileText, FileImage } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentGeneratorService } from '@/services/documentGeneratorService';
+import { renderMarkdown } from '@/lib/markdown';
 
 interface Ebook {
   id: string;
@@ -156,17 +157,8 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
   };
 
   const convertToHTML = (markdown: string, title: string, author: string): string => {
-    let html = markdown
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/^\- (.+)$/gm, '<li>$1</li>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/^(?!<[h|l])/gm, '<p>')
-      .replace(/$/gm, '</p>');
-
+    const processedMarkdown = renderMarkdown(markdown);
+    
     return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -174,17 +166,32 @@ export function EbooksList({ onEdit, onRefresh }: EbooksListProps) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title}</title>
     <style>
-        body { font-family: Georgia, serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.8; }
-        h1 { color: #2563eb; border-bottom: 3px solid #e5e7eb; padding-bottom: 1rem; }
-        h2 { color: #1e40af; margin-top: 2rem; }
-        h3 { color: #3730a3; }
-        p { margin-bottom: 1rem; text-align: justify; }
-        .author { text-align: center; font-style: italic; color: #6b7280; margin-bottom: 3rem; }
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 { color: #2c3e50; }
+        h1 { font-size: 2.5em; border-bottom: 2px solid #3498db; }
+        h2 { font-size: 2em; margin-top: 2em; }
+        h3 { font-size: 1.5em; }
+        strong { font-weight: bold; }
+        em { font-style: italic; }
+        li { margin-bottom: 0.5em; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+        .cover { text-align: center; margin-bottom: 3em; }
+        .author { font-style: italic; color: #666; }
     </style>
 </head>
 <body>
-    <div class="author">Par ${author}</div>
-    ${html}
+    <div class="cover">
+        <h1>${title}</h1>
+        <p class="author">par ${author}</p>
+    </div>
+    <div>${processedMarkdown}</div>
 </body>
 </html>`;
   };

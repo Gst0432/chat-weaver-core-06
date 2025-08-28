@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Save, Eye, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { renderMarkdown } from '@/lib/markdown';
 
 interface Ebook {
   id: string;
@@ -119,31 +120,12 @@ export function EbookEditor({ ebook, onSave, onCancel }: EbookEditorProps) {
   };
 
   const renderPreview = (markdown: string) => {
-    return markdown
-      .split('\n')
-      .map((line, i) => {
-        if (line.startsWith('# ')) {
-          return <h1 key={i} className="text-2xl font-bold text-primary mb-4">{line.slice(2)}</h1>;
-        }
-        if (line.startsWith('## ')) {
-          return <h2 key={i} className="text-xl font-semibold text-primary mb-3 mt-6">{line.slice(3)}</h2>;
-        }
-        if (line.startsWith('### ')) {
-          return <h3 key={i} className="text-lg font-medium text-primary mb-2 mt-4">{line.slice(4)}</h3>;
-        }
-        if (line.trim() === '') {
-          return <br key={i} />;
-        }
-        
-        // Handle bold and italic
-        let processedLine = line
-          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.+?)\*/g, '<em>$1</em>');
-        
-        return (
-          <p key={i} className="mb-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: processedLine }} />
-        );
-      });
+    return (
+      <div 
+        className="prose prose-sm max-w-none text-foreground"
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }} 
+      />
+    );
   };
 
   return (
