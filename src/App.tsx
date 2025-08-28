@@ -22,6 +22,7 @@ import SpeechToText from "./pages/SpeechToText";
 import CodeStudio from "./pages/CodeStudio";
 import ModernCodeStudio from "./components/modern-code-studio/ModernCodeStudio";
 import Documents from "./pages/Documents";
+import DocumentStudio from "./pages/DocumentStudio";
 
 const App = () => (
   <TooltipProvider>
@@ -45,6 +46,7 @@ const App = () => (
         <Route path="/code-studio" element={<ModernCodeStudio />} />
         <Route path="/code-studio-legacy" element={<CodeStudio />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/document-studio" element={<DocumentStudio />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/super-admin" element={<SuperAdminDashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

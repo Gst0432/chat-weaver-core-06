@@ -26,6 +26,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { DocumentGeneratorService } from '@/services/documentGeneratorService';
 import { supabase } from '@/integrations/supabase/client';
+import { renderMarkdown } from '@/lib/markdown';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,24 +34,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-// Fonction pour rendre le markdown simple
-const renderMarkdown = (text: string) => {
-  return text
-    // Headers
-    .replace(/^### (.*$)/gm, '<h3 class="text-base font-semibold mb-2 mt-3">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold mb-2 mt-3">$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1 class="text-xl font-bold mb-2 mt-3">$1</h1>')
-    // Gras
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-    // Italique
-    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-    // Listes
-    .replace(/^- (.*$)/gm, '<li class="ml-4 list-disc list-inside">$1</li>')
-    // Code inline
-    .replace(/`([^`]+)`/g, '<code class="bg-secondary px-1 py-0.5 rounded text-xs font-mono">$1</code>')
-    // Sauts de ligne
-    .replace(/\n/g, '<br/>');
-};
 
 interface DocumentGeneration {
   id: string;
