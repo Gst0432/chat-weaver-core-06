@@ -23,7 +23,9 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  ArrowLeft
+  ArrowLeft,
+  AlertTriangle,
+  Search
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -72,7 +74,7 @@ export default function DocumentStudio() {
   
   // Loading states
   const [uploading, setUploading] = useState(false);
-  const [vectorizing, setVectorizing] = useState(false);
+  const [isVectorizing, setIsVectorizing] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -203,7 +205,7 @@ export default function DocumentStudio() {
 
   // Vectorize document
   const vectorizeDocument = async (documentId: string) => {
-    setVectorizing(true);
+    setIsVectorizing(true);
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -231,7 +233,7 @@ export default function DocumentStudio() {
         variant: "destructive",
       });
     } finally {
-      setVectorizing(false);
+      setIsVectorizing(false);
     }
   };
 
@@ -534,10 +536,10 @@ export default function DocumentStudio() {
                       variant="outline"
                       size="sm"
                       onClick={() => vectorizeDocument(selectedDocument.id)}
-                      disabled={vectorizing}
+                      disabled={isVectorizing}
                     >
-                      {vectorizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
-                      {vectorizing ? 'Vectorisation...' : 'Vectoriser'}
+                      {isVectorizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+                      {isVectorizing ? 'Vectorisation...' : 'Vectoriser'}
                     </Button>
                   </div>
                 </div>
@@ -574,14 +576,73 @@ export default function DocumentStudio() {
                                   )}
                                 </pre>
                               </div>
+
+                              {/* Show extraction status if there were issues */}
+                              {(selectedDocument.extracted_text?.includes('Impossible d\'extraire') || 
+                                selectedDocument.extracted_text?.includes('semble être vide') ||
+                                selectedDocument.extracted_text?.includes('principalement d\'images')) && (
+                                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                                    <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">
+                                      Extraction partielle ou impossible
+                                    </p>
+                                  </div>
+                                  <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
+                                    {selectedDocument.extracted_text?.includes('protégé') && 'Le document semble être protégé ou composé principalement d\'images.'}
+                                    {selectedDocument.extracted_text?.includes('corrompu') && 'Le document pourrait être corrompu.'}
+                                    {selectedDocument.extracted_text?.includes('vide') && 'Le document semble être vide.'}
+                                  </p>
+                                  <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                                    💡 <strong>Astuce :</strong> Vous pouvez toujours utiliser le chat IA qui analysera le document même sans extraction de texte parfaite.
+                                  </p>
+                                </div>
+                              )}
+
+                              <div className="mt-4">
+                                <Button
+                                  onClick={() => vectorizeDocument(selectedDocument.id)}
+                                  disabled={isVectorizing}
+                                  size="sm"
+                                >
+                                  {isVectorizing ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Vectorisation...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Search className="w-4 h-4 mr-2" />
+                                      Préparer pour le chat IA
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           ) : (
                             <div className="flex flex-col items-center justify-center h-96 text-center">
                               <FileText className="w-16 h-16 text-muted-foreground mb-4" />
                               <h3 className="text-lg font-semibold mb-2">Aucun aperçu disponible</h3>
                               <p className="text-muted-foreground mb-4 max-w-md">
-                                L'extraction du contenu nécessite un traitement supplémentaire pour les fichiers PDF et DOCX.
+                                L'extraction du contenu a échoué ou le document est vide. Vous pouvez toujours utiliser le chat IA avec ce document.
                               </p>
+                              <Button
+                                onClick={() => vectorizeDocument(selectedDocument.id)}
+                                disabled={isVectorizing}
+                                variant="outline"
+                              >
+                                {isVectorizing ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Vectorisation...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Search className="w-4 h-4 mr-2" />
+                                    Vectoriser pour le chat IA
+                                  </>
+                                )}
+                              </Button>
                             </div>
                           )}
                         </div>
