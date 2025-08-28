@@ -239,6 +239,62 @@ export default function DocumentStudio() {
     }
   };
 
+  // Analyze document file
+  const analyzeDocument = async (documentId: string) => {
+    setIsVectorizing(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Non authentifié');
+
+      // First analyze the file to extract proper text content
+      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke('file-analyze', {
+        body: { documentId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (analyzeError) throw analyzeError;
+
+      // Reload documents to show updated preview
+      await loadDocuments();
+      
+      // Update selected document if it's the one we analyzed
+      if (selectedDocument?.id === documentId) {
+        const updatedDoc = documents.find(doc => doc.id === documentId);
+        if (updatedDoc) {
+          setSelectedDocument(updatedDoc);
+        }
+      }
+
+      // Then vectorize the document
+      const { data: vectorizeData, error: vectorizeError } = await supabase.functions.invoke('document-vectorize', {
+        body: { documentId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (vectorizeError) throw vectorizeError;
+
+      toast({
+        title: "Analyse et vectorisation terminées",
+        description: `Document analysé et ${vectorizeData.chunks_processed} sections vectorisées`,
+      });
+      
+    } catch (error) {
+      console.error('Error analyzing document:', error);
+      toast({
+        title: "Erreur d'analyse",
+        description: error.message || "Impossible d'analyser le document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVectorizing(false);
+    }
+  };
+
   // Vectorize document
   const vectorizeDocument = async (documentId: string) => {
     setIsVectorizing(true);
@@ -571,11 +627,11 @@ export default function DocumentStudio() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => vectorizeDocument(selectedDocument.id)}
+                      onClick={() => analyzeDocument(selectedDocument.id)}
                       disabled={isVectorizing}
                     >
                       {isVectorizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
-                      {isVectorizing ? 'Vectorisation...' : 'Vectoriser'}
+                      {isVectorizing ? 'Analyse...' : 'Analyser'}
                     </Button>
                   </div>
                 </div>
@@ -625,19 +681,19 @@ export default function DocumentStudio() {
 
                                   <div className="mt-4">
                                     <Button
-                                      onClick={() => vectorizeDocument(selectedDocument.id)}
+                                      onClick={() => analyzeDocument(selectedDocument.id)}
                                       disabled={isVectorizing}
                                       size="sm"
                                     >
                                       {isVectorizing ? (
                                         <>
                                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                          Vectorisation...
+                                          Analyse...
                                         </>
                                       ) : (
                                         <>
                                           <Search className="w-4 h-4 mr-2" />
-                                          Préparer pour le chat IA
+                                          Analyser et préparer pour le chat IA
                                         </>
                                       )}
                                     </Button>
@@ -677,19 +733,19 @@ export default function DocumentStudio() {
                                   </div>
                                   
                                   <Button
-                                    onClick={() => vectorizeDocument(selectedDocument.id)}
+                                    onClick={() => analyzeDocument(selectedDocument.id)}
                                     disabled={isVectorizing}
                                     variant="outline"
                                   >
                                     {isVectorizing ? (
                                       <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Vectorisation...
+                                        Analyse...
                                       </>
                                     ) : (
                                       <>
                                         <Search className="w-4 h-4 mr-2" />
-                                        Vectoriser pour le chat IA
+                                        Analyser pour le chat IA
                                       </>
                                     )}
                                   </Button>
