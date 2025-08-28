@@ -623,23 +623,11 @@ export const ChatArea = ({ selectedModel, systemPrompt, safeMode, isLandingMode 
             />
           ))}
           {isLoading && (
-            <>
-              <ModelStatusIndicator 
-                selectedModel={selectedModel}
-                isLoading={isLoading}
-                autoRouterChoice={autoRouterChoice}
-              />
-              <ChatMessage 
-                key="loading"
-                message={{
-                  id: "loading",
-                  content: "Génération en cours...",
-                  role: "assistant",
-                  timestamp: new Date(),
-                  model: selectedModel
-                }}
-              />
-            </>
+            <ModelStatusIndicator 
+              selectedModel={selectedModel}
+              isLoading={isLoading}
+              autoRouterChoice={autoRouterChoice}
+            />
           )}
 
           {messages.length === 0 && !isLoading && (
