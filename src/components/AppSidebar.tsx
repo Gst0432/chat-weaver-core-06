@@ -258,7 +258,7 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
               </SidebarMenuItem>
               
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => handleNavigation('/documents')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                <SidebarMenuButton onClick={() => handleNavigation('/document-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <FileText className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Documents</span>}
                 </SidebarMenuButton>
