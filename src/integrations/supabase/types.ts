@@ -137,15 +137,7 @@ export type Database = {
           embedding?: string | null
           id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "document_chunks_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       document_conversations: {
         Row: {
@@ -175,15 +167,7 @@ export type Database = {
           relevant_chunks?: string[] | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "document_conversations_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       document_operations: {
         Row: {
@@ -225,51 +209,46 @@ export type Database = {
           status?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "document_operations_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       documents: {
         Row: {
-          created_at: string
+          created_at: string | null
           extracted_text: string | null
           file_size: number
           file_type: string
           id: string
           original_filename: string
           preview_text: string | null
+          public_url: string | null
           storage_path: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           extracted_text?: string | null
           file_size: number
           file_type: string
           id?: string
           original_filename: string
           preview_text?: string | null
+          public_url?: string | null
           storage_path: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           extracted_text?: string | null
           file_size?: number
           file_type?: string
           id?: string
           original_filename?: string
           preview_text?: string | null
+          public_url?: string | null
           storage_path?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
