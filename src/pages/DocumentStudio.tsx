@@ -125,20 +125,21 @@ export default function DocumentStudio() {
 
       if (error) throw error;
       
-      const messages = data?.map(conv => ([
-        {
+      const messages: ChatMessage[] = [];
+      data?.forEach(conv => {
+        messages.push({
           id: `${conv.id}-q`,
-          role: 'user' as const,
+          role: 'user',
           content: conv.question,
           timestamp: conv.created_at
-        },
-        {
+        });
+        messages.push({
           id: `${conv.id}-a`,
-          role: 'assistant' as const,
+          role: 'assistant',
           content: conv.answer,
           timestamp: conv.created_at
-        }
-      ])).flat() || [];
+        });
+      });
       
       setChatMessages(messages);
     } catch (error) {

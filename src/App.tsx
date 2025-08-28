@@ -44,7 +44,6 @@ const App = () => (
         <Route path="/dalle-studio" element={<DalleStudio />} />
         <Route path="/tts-studio" element={<TTSStudio />} />
         <Route path="/code-studio" element={<ModernCodeStudio />} />
-        <Route path="/code-studio-legacy" element={<CodeStudio />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/document-studio" element={<DocumentStudio />} />
         <Route path="/billing" element={<Billing />} />
