@@ -21,7 +21,8 @@ import {
   User,
   Send,
   MoreHorizontal,
-  FileX
+  FileX,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentGeneratorService } from '@/services/documentGeneratorService';
@@ -33,6 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useNavigate } from 'react-router-dom';
 
 
 interface DocumentGeneration {
@@ -67,6 +69,7 @@ interface ChatMessage {
 
 export default function Documents() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Data state
@@ -368,6 +371,18 @@ export default function Documents() {
               <h1 className="text-xl md:text-2xl font-bold">Documents</h1>
               <p className="text-sm text-muted-foreground">Analysez et discutez avec vos documents</p>
             </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/document-studio')}
+              className="flex items-center gap-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Document Studio Pro
+            </Button>
           </div>
         </div>
       </div>
