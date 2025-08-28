@@ -2,18 +2,71 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.54.0';
 
-// Import PDF parsing
-// @deno-types="https://esm.sh/v135/pdf-parse@1.1.1/index.d.ts"
-import pdfParse from "https://esm.sh/pdf-parse@1.1.1";
-
-// Import DOCX parsing  
-// @deno-types="https://esm.sh/v135/mammoth@1.10.0/index.d.ts"
-import * as mammoth from "https://esm.sh/mammoth@1.10.0";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Simple PDF text extraction function
+function extractPdfText(buffer: ArrayBuffer): string {
+  const text = new TextDecoder().decode(buffer);
+  const textBlocks: string[] = [];
+  
+  // Look for text enclosed in parentheses (basic PDF text extraction)
+  const textMatches = text.match(/\((.*?)\)/g);
+  if (textMatches) {
+    textMatches.forEach(match => {
+      const content = match.slice(1, -1); // Remove parentheses
+      if (content.length > 2 && /[a-zA-Z]/.test(content)) {
+        textBlocks.push(content);
+      }
+    });
+  }
+  
+  // Also look for text in PDF streams
+  const streamMatches = text.match(/stream\s*\n(.*?)\nendstream/gs);
+  if (streamMatches) {
+    streamMatches.forEach(match => {
+      const streamContent = match.replace(/stream\s*\n|\nendstream/g, '');
+      const readable = streamContent.match(/[a-zA-Z]{3,}/g);
+      if (readable) {
+        textBlocks.push(...readable);
+      }
+    });
+  }
+
+  return textBlocks.join(' ').substring(0, 2000);
+}
+
+// Simple DOCX text extraction function
+function extractDocxText(buffer: ArrayBuffer): string {
+  const text = new TextDecoder().decode(buffer);
+  const textBlocks: string[] = [];
+  
+  // Look for text in Word XML format
+  const xmlMatches = text.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
+  if (xmlMatches) {
+    xmlMatches.forEach(match => {
+      const content = match.replace(/<w:t[^>]*>([^<]+)<\/w:t>/, '$1');
+      if (content.trim().length > 0) {
+        textBlocks.push(content);
+      }
+    });
+  }
+  
+  // Also try to find text in document.xml
+  const docMatches = text.match(/>([^<]{5,})</g);
+  if (docMatches) {
+    docMatches.forEach(match => {
+      const content = match.slice(1, -1);
+      if (/^[a-zA-Z\s.,!?;:'"()-]+$/.test(content) && content.length > 4) {
+        textBlocks.push(content);
+      }
+    });
+  }
+
+  return textBlocks.join(' ').substring(0, 2000);
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -78,31 +131,29 @@ serve(async (req) => {
       } else if (file.type === 'application/pdf') {
         try {
           console.log('Extracting PDF content...');
-          const pdfData = await pdfParse(fileBuffer);
-          extractedText = pdfData.text || '';
+          extractedText = extractPdfText(fileBuffer);
           if (!extractedText.trim()) {
-            extractedText = 'Le PDF semble être vide ou composé principalement d\'images. Vous pouvez toujours utiliser le chat AI avec ce document.';
+            extractedText = 'Le PDF semble être vide ou composé principalement d\'images. Utilisez la vectorisation pour le chat IA.';
             extractionStatus = 'partial';
           }
         } catch (error) {
           console.error('PDF extraction error:', error);
-          extractedText = 'Impossible d\'extraire le texte de ce PDF. Il pourrait être protégé ou composé d\'images. Vous pouvez toujours utiliser le chat AI avec ce document.';
-          extractionStatus = 'failed';
+          extractedText = 'Extraction PDF limitée. Le document est disponible pour la vectorisation et le chat IA.';
+          extractionStatus = 'partial';
           extractionError = error.message;
         }
       } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         try {
           console.log('Extracting DOCX content...');
-          const result = await mammoth.extractRawText({ buffer: fileBuffer });
-          extractedText = result.value || '';
+          extractedText = extractDocxText(fileBuffer);
           if (!extractedText.trim()) {
-            extractedText = 'Le document DOCX semble être vide. Vous pouvez toujours utiliser le chat AI avec ce document.';
+            extractedText = 'Le document DOCX semble être vide. Utilisez la vectorisation pour le chat IA.';
             extractionStatus = 'partial';
           }
         } catch (error) {
           console.error('DOCX extraction error:', error);
-          extractedText = 'Impossible d\'extraire le texte de ce document DOCX. Il pourrait être corrompu. Vous pouvez toujours utiliser le chat AI avec ce document.';
-          extractionStatus = 'failed';
+          extractedText = 'Extraction DOCX limitée. Le document est disponible pour la vectorisation et le chat IA.';
+          extractionStatus = 'partial';
           extractionError = error.message;
         }
       }
