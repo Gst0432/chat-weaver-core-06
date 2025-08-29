@@ -336,7 +336,7 @@ function extractDocxFallback(buffer: ArrayBuffer): string {
           paragraphs.push(paragraph);
         }
       }
-    });
+    }
     
     // Method 4: Extract any remaining readable text
     const remainingTextRegex = />([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9\s.,!?;:()\-'"€$%]{10,}[A-Za-zÀ-ÿ0-9.,!?])</g;
