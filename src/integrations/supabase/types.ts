@@ -213,39 +213,48 @@ export type Database = {
       }
       documents: {
         Row: {
+          analysis_status: string | null
           created_at: string | null
           extracted_text: string | null
           file_size: number
           file_type: string
+          filename: string | null
           id: string
           original_filename: string
           preview_text: string | null
+          processed_at: string | null
           public_url: string | null
           storage_path: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          analysis_status?: string | null
           created_at?: string | null
           extracted_text?: string | null
           file_size: number
           file_type: string
+          filename?: string | null
           id?: string
           original_filename: string
           preview_text?: string | null
+          processed_at?: string | null
           public_url?: string | null
           storage_path: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          analysis_status?: string | null
           created_at?: string | null
           extracted_text?: string | null
           file_size?: number
           file_type?: string
+          filename?: string | null
           id?: string
           original_filename?: string
           preview_text?: string | null
+          processed_at?: string | null
           public_url?: string | null
           storage_path?: string
           updated_at?: string | null
