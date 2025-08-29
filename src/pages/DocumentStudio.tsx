@@ -47,6 +47,11 @@ interface Document {
   processed_at?: string;
   filename?: string;
   created_at: string;
+  ai_summary?: string;
+  key_points?: string[];
+  document_type?: string;
+  is_financial?: boolean;
+  structure_info?: any;
 }
 
 interface Operation {
@@ -689,9 +694,9 @@ export default function DocumentStudio() {
 
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-4 flex-1 flex flex-col">
                   <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="preview" className="flex items-center gap-2">
+                    <TabsTrigger value="content" className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      Aperçu
+                      Contenu
                     </TabsTrigger>
                     <TabsTrigger value="chat" className="flex items-center gap-2">
                       <MessageSquare className="w-4 h-4" />
@@ -705,144 +710,11 @@ export default function DocumentStudio() {
                 
                   {/* Tab Content */}
                   <div className="flex-1">
-                    <TabsContent value="preview" className="h-full m-0">
-                      <ScrollArea className="h-full">
-                        <div className="p-6">
-                          {(() => {
-                            const cleanedPreview = selectedDocument.preview_text 
-                              ? cleanPreviewText(selectedDocument.preview_text)
-                              : { isValid: false, cleanedText: '', errorMessage: 'Aucun aperçu disponible' };
-                            
-                            return (
-                              <div className="space-y-4">
-                                {cleanedPreview.isValid && cleanedPreview.cleanedText ? (
-                                  <div className="bg-muted/50 rounded-lg p-4 border">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <h4 className="font-medium text-foreground">Aperçu du contenu</h4>
-                                      {selectedDocument.extracted_text && (
-                                        <div className="flex items-center gap-3 text-xs">
-                                          <div className="flex items-center gap-1 text-muted-foreground">
-                                            <FileText className="h-3 w-3" />
-                                            {selectedDocument.extracted_text.length.toLocaleString()} caractères
-                                          </div>
-                                          {selectedDocument.extracted_text.split(/\s+/).length > 0 && (
-                                            <div className="flex items-center gap-1 text-muted-foreground">
-                                              <span>📝</span>
-                                              {selectedDocument.extracted_text.split(/\s+/).filter(w => w.length > 0).length.toLocaleString()} mots
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="bg-background/50 rounded p-3 max-h-64 overflow-y-auto">
-                                      <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
-                                        {cleanedPreview.cleanedText}
-                                      </p>
-                                    </div>
-                                    {selectedDocument.extracted_text && selectedDocument.extracted_text.length > cleanedPreview.cleanedText.length && (
-                                      <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                                        ✨ Contenu complet disponible pour le chat IA ({selectedDocument.extracted_text.length.toLocaleString()} caractères total)
-                                      </p>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="bg-muted/30 rounded-lg p-6 border border-dashed text-center">
-                                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                                    <div className="space-y-3">
-                                      <div>
-                                        <p className="text-muted-foreground mb-1">
-                                          Aucun aperçu textuel disponible
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          Le contenu n'a pas encore été extrait ou analysé
-                                        </p>
-                                      </div>
-                                      
-                                      {cleanedPreview.errorMessage?.includes('corrompu') && (
-                                        <div className="text-sm bg-warning/10 border border-warning/20 rounded-lg p-3 mt-3">
-                                          <div className="flex items-center gap-2 text-warning-foreground mb-1">
-                                            <AlertTriangle className="h-4 w-4" />
-                                            <span className="font-medium">Contenu corrompu détecté</span>
-                                          </div>
-                                          <p className="text-xs text-muted-foreground">
-                                            Le fichier pourrait être protégé, scanné, ou contenir principalement des images
-                                          </p>
-                                        </div>
-                                      )}
-                                      
-                                      {!isVectorizing ? (
-                                        <div className="space-y-2">
-                                          <Button
-                                            onClick={() => analyzeDocument(selectedDocument.id)}
-                                            variant="outline"
-                                            size="sm"
-                                            className="gap-2"
-                                          >
-                                            <Search className="h-4 w-4" />
-                                            Extraire le contenu
-                                          </Button>
-                                          <p className="text-xs text-muted-foreground">
-                                            🚀 Analyse intelligente pour PDF, DOCX et fichiers texte
-                                          </p>
-                                        </div>
-                                      ) : (
-                                        <div className="space-y-2">
-                                          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                                            Extraction en cours...
-                                          </div>
-                                          <p className="text-xs text-muted-foreground">
-                                            🔍 Analyse du document et extraction intelligente du texte
-                                          </p>
-                                        </div>
-                                      )}
-                                      
-                                      <div className="text-xs text-muted-foreground mt-3 pt-3 border-t">
-                                        💡 Même sans aperçu, le chat IA peut analyser directement le document
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {/* Additional actions */}
-                                <div className="flex gap-2">
-                                  <Button
-                                    onClick={() => analyzeDocument(selectedDocument.id)}
-                                    disabled={isVectorizing}
-                                    size="sm"
-                                    variant={cleanedPreview.isValid ? "outline" : "default"}
-                                    className="gap-2"
-                                  >
-                                    {isVectorizing ? (
-                                      <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Analyse...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Sparkles className="w-4 h-4" />
-                                        {cleanedPreview.isValid ? 'Ré-analyser' : 'Préparer pour le chat IA'}
-                                      </>
-                                    )}
-                                  </Button>
-                                  
-                                  {cleanedPreview.isValid && (
-                                    <Button
-                                      onClick={() => setActiveTab('chat')}
-                                      size="sm"
-                                      variant="outline"
-                                      className="gap-2"
-                                    >
-                                      <MessageSquare className="w-4 h-4" />
-                                      Discuter du document
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </ScrollArea>
+                    <TabsContent value="content" className="h-full m-0">
+                      <DocumentContentViewer 
+                        document={selectedDocument} 
+                        isAnalyzing={isVectorizing}
+                      />
                     </TabsContent>
                     <TabsContent value="chat" className="h-full m-0">
                       <div className="flex flex-col h-full">

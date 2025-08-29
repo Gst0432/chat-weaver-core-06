@@ -213,50 +213,65 @@ export type Database = {
       }
       documents: {
         Row: {
+          ai_summary: string | null
           analysis_status: string | null
           created_at: string | null
+          document_type: string | null
           extracted_text: string | null
           file_size: number
           file_type: string
           filename: string | null
           id: string
+          is_financial: boolean | null
+          key_points: string[] | null
           original_filename: string
           preview_text: string | null
           processed_at: string | null
           public_url: string | null
           storage_path: string
+          structure_info: Json | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          ai_summary?: string | null
           analysis_status?: string | null
           created_at?: string | null
+          document_type?: string | null
           extracted_text?: string | null
           file_size: number
           file_type: string
           filename?: string | null
           id?: string
+          is_financial?: boolean | null
+          key_points?: string[] | null
           original_filename: string
           preview_text?: string | null
           processed_at?: string | null
           public_url?: string | null
           storage_path: string
+          structure_info?: Json | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          ai_summary?: string | null
           analysis_status?: string | null
           created_at?: string | null
+          document_type?: string | null
           extracted_text?: string | null
           file_size?: number
           file_type?: string
           filename?: string | null
           id?: string
+          is_financial?: boolean | null
+          key_points?: string[] | null
           original_filename?: string
           preview_text?: string | null
           processed_at?: string | null
           public_url?: string | null
           storage_path?: string
+          structure_info?: Json | null
           updated_at?: string | null
           user_id?: string
         }

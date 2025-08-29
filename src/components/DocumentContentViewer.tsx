@@ -18,7 +18,11 @@ import {
   Calculator,
   BarChart3,
   Eye,
-  Loader2
+  Loader2,
+  Sparkles,
+  TrendingUp,
+  Users,
+  FileType2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,6 +33,11 @@ interface DocumentContentViewerProps {
     file_type: string;
     extracted_text?: string;
     analysis_status?: string;
+    ai_summary?: string;
+    key_points?: string[];
+    document_type?: string;
+    is_financial?: boolean;
+    structure_info?: any;
   } | null;
   isAnalyzing: boolean;
 }
@@ -264,6 +273,117 @@ export default function DocumentContentViewer({ document, isAnalyzing }: Documen
           </div>
         )}
       </CardHeader>
+
+      {/* AI Analysis Section */}
+      {(document.ai_summary || document.analysis_status === 'ai_processing') && (
+        <div className="px-6 py-4 border-b bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm">Analyse IA</h3>
+                {document.analysis_status === 'ai_processing' ? (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    En cours...
+                  </Badge>
+                ) : (
+                  <Badge variant="default" className="flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Terminée
+                  </Badge>
+                )}
+              </div>
+
+              {document.ai_summary && (
+                <div className="bg-white/70 dark:bg-slate-900/70 rounded-lg p-3 border">
+                  <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                    <FileText className="h-3 w-3" />
+                    Résumé
+                  </h4>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {document.ai_summary}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {document.document_type && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <FileType2 className="h-3 w-3" />
+                    {document.document_type}
+                  </Badge>
+                )}
+                
+                {document.is_financial && (
+                  <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <TrendingUp className="h-3 w-3" />
+                    Document Financier
+                  </Badge>
+                )}
+
+                {document.structure_info?.estimatedPages && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <BookOpen className="h-3 w-3" />
+                    ~{document.structure_info.estimatedPages} pages
+                  </Badge>
+                )}
+
+                {document.structure_info?.hasNumbers && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Calculator className="h-3 w-3" />
+                    Données numériques
+                  </Badge>
+                )}
+
+                {document.structure_info?.hasTables && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <BarChart3 className="h-3 w-3" />
+                    Tableaux détectés
+                  </Badge>
+                )}
+              </div>
+
+              {document.key_points && document.key_points.length > 0 && (
+                <div className="bg-white/70 dark:bg-slate-900/70 rounded-lg p-3 border">
+                  <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                    <Users className="h-3 w-3" />
+                    Points Clés
+                  </h4>
+                  <ul className="space-y-1">
+                    {document.key_points.slice(0, 3).map((point, index) => (
+                      <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-blue-500 font-bold">•</span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {document.key_points.length > 3 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      +{document.key_points.length - 3} autres points
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {document.analysis_status === 'ai_processing' && !document.ai_summary && (
+                <div className="bg-white/70 dark:bg-slate-900/70 rounded-lg p-3 border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                    <span className="text-sm font-medium">Analyse en cours...</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    L'IA analyse le contenu du document pour extraire un résumé, identifier les points clés et catégoriser le document.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <CardContent className="p-0">
         {!hasContent ? (
