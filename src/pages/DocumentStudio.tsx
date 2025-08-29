@@ -25,11 +25,15 @@ import {
   XCircle,
   ArrowLeft,
   AlertTriangle,
-  Search
+  Search,
+  Calculator,
+  BarChart3,
+  BookOpen
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { renderMarkdown } from '@/lib/markdown';
+import DocumentContentViewer from '@/components/DocumentContentViewer';
 
 interface Document {
   id: string;
@@ -39,6 +43,9 @@ interface Document {
   storage_path: string;
   extracted_text?: string;
   preview_text?: string;
+  analysis_status?: string;
+  processed_at?: string;
+  filename?: string;
   created_at: string;
 }
 
@@ -105,7 +112,7 @@ export default function DocumentStudio() {
   const [operations, setOperations] = useState<Operation[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'preview' | 'chat' | 'operations'>('preview');
+  const [activeTab, setActiveTab] = useState<'content' | 'chat' | 'operations'>('content');
   
   // Loading states
   const [uploading, setUploading] = useState(false);
@@ -531,12 +538,17 @@ export default function DocumentStudio() {
     }
   };
 
-  const getFileIcon = (fileType: string) => {
+  // Helper functions
+  const renderFileIcon = (fileType: string) => {
     switch (fileType) {
-      case 'pdf': return '📄';
-      case 'docx': return '📝';
-      case 'txt': return '📃';
-      default: return '📁';
+      case 'pdf':
+        return <FileText className="h-4 w-4 text-red-500" />;
+      case 'docx':
+        return <FileText className="h-4 w-4 text-blue-500" />;
+      case 'txt':
+        return <FileText className="h-4 w-4 text-gray-500" />;
+      default:
+        return <FileText className="h-4 w-4" />;
     }
   };
 
@@ -618,7 +630,7 @@ export default function DocumentStudio() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">{getFileIcon(doc.file_type)}</span>
+                            <span className="text-lg">{renderFileIcon(doc.file_type)}</span>
                             <p className="font-medium truncate text-sm">{doc.original_filename}</p>
                           </div>
                           <div className="flex items-center gap-2 mt-1">
@@ -653,7 +665,7 @@ export default function DocumentStudio() {
                     >
                       <ArrowLeft className="w-4 h-4" />
                     </Button>
-                    <span className="text-lg">{getFileIcon(selectedDocument.file_type)}</span>
+                    <span className="text-lg">{renderFileIcon(selectedDocument.file_type)}</span>
                     <div className="min-w-0">
                       <h2 className="font-semibold truncate">{selectedDocument.original_filename}</h2>
                       <p className="text-sm text-muted-foreground">
