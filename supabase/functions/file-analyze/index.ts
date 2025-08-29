@@ -9,44 +9,110 @@ const corsHeaders = {
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
-// Optimized text extraction for PDF
-function extractPdfTextOptimized(text: string): string {
+// Improved text extraction for PDF using binary analysis
+function extractPdfTextImproved(buffer: Uint8Array): string {
   const textMatches: string[] = [];
   
-  // Extract text within parentheses (most reliable method)
-  const regex = /\(([^)]{2,200})\)/g;
-  let match;
-  while ((match = regex.exec(text)) !== null && textMatches.length < 5000) {
-    const content = match[1].trim();
-    if (content && /[A-Za-zÀ-ÿ]/.test(content)) {
-      textMatches.push(content);
-    }
-  }
-  
-  return textMatches.join(' ').substring(0, 50000); // Limit to 50k chars
-}
-
-// Optimized text extraction for DOCX
-function extractDocxTextOptimized(text: string): string {
-  const textMatches: string[] = [];
-  
-  // Extract Word text elements
-  const patterns = [
-    /<w:t[^>]*>([^<]{1,200})<\/w:t>/gi,
-    />([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9\s.,!?;:()\-'"€$%]{10,100})</g
-  ];
-  
-  patterns.forEach(pattern => {
-    let match;
-    while ((match = pattern.exec(text)) !== null && textMatches.length < 3000) {
-      const content = match[1].trim();
-      if (content && content.length > 3) {
-        textMatches.push(content);
+  try {
+    // Convert buffer to string for pattern matching
+    const text = new TextDecoder('latin1').decode(buffer);
+    
+    // Multiple extraction patterns for PDF text
+    const patterns = [
+      // Text in parentheses with proper escaping
+      /\(([^\)\\]*(\\.[^\)\\]*)*)\)/g,
+      // BT/ET text blocks
+      /BT\s*.*?\s*Tj\s*ET/gs,
+      // Direct text commands
+      /Tj\s*\[(.*?)\]/g,
+      // Simple text strings
+      /\(((?:[^()\\]|\\.)*)\)\s*(?:Tj|TJ)/g
+    ];
+    
+    patterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null && textMatches.length < 3000) {
+        let content = match[1] || match[0];
+        
+        // Clean and decode PDF text
+        content = content
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\(.)/g, '$1')
+          .replace(/[\x00-\x1F\x7F]/g, ' ')
+          .trim();
+        
+        if (content && content.length > 2 && /[A-Za-zÀ-ÿ]/.test(content)) {
+          textMatches.push(content);
+        }
+      }
+    });
+    
+    // Fallback: extract readable text sequences
+    if (textMatches.length < 10) {
+      const readableText = text.match(/[A-Za-zÀ-ÿ0-9\s.,!?;:()\-'"€$%]{15,}/g);
+      if (readableText) {
+        textMatches.push(...readableText.slice(0, 100));
       }
     }
-  });
+    
+  } catch (error) {
+    console.log('PDF extraction error:', error);
+  }
   
-  return textMatches.join(' ').substring(0, 50000); // Limit to 50k chars
+  return textMatches.join(' ').substring(0, 50000);
+}
+
+// Improved text extraction for DOCX using binary analysis  
+function extractDocxTextImproved(buffer: Uint8Array): string {
+  const textMatches: string[] = [];
+  
+  try {
+    // Convert buffer to string for pattern matching
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
+    
+    // Extract Word XML text elements
+    const patterns = [
+      // Standard Word text tags
+      /<w:t[^>]*>([^<]+)<\/w:t>/gi,
+      // Text in run elements
+      /<w:r[^>]*>.*?<w:t[^>]*>([^<]+)<\/w:t>.*?<\/w:r>/gi,
+      // Paragraph text
+      /<w:p[^>]*>.*?<w:t[^>]*>([^<]+)<\/w:t>.*?<\/w:p>/gi
+    ];
+    
+    patterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null && textMatches.length < 3000) {
+        const content = match[1]
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num)))
+          .trim();
+        
+        if (content && content.length > 2 && /[A-Za-zÀ-ÿ]/.test(content)) {
+          textMatches.push(content);
+        }
+      }
+    });
+    
+    // Fallback: extract readable text from XML
+    if (textMatches.length < 10) {
+      const cleanXml = text.replace(/<[^>]+>/g, ' ');
+      const readableText = cleanXml.match(/[A-Za-zÀ-ÿ0-9\s.,!?;:()\-'"€$%]{15,}/g);
+      if (readableText) {
+        textMatches.push(...readableText.slice(0, 100));
+      }
+    }
+    
+  } catch (error) {
+    console.log('DOCX extraction error:', error);
+  }
+  
+  return textMatches.join(' ').substring(0, 50000);
 }
 
 // AI-powered document analysis
@@ -165,6 +231,24 @@ async function processDocumentInBackground(
   }
 }
 
+// Get status message based on analysis status
+function getStatusMessage(status: string, hasOpenAI: boolean): string {
+  switch (status) {
+    case 'text_extracted':
+      return hasOpenAI ? 'Analyse IA en cours...' : 'Texte extrait avec succès';
+    case 'minimal_content':
+      return 'Contenu détecté. Extraction textuelle limitée - utilisez le chat IA pour plus d\'informations';
+    case 'extraction_error':
+      return 'Erreur d\'extraction - le document peut être analysé via le chat IA';
+    case 'unsupported_format':
+      return 'Format non pris en charge - utilisez le chat IA pour analyser le document';
+    case 'ai_processing':
+      return 'Analyse IA en cours...';
+    default:
+      return 'Document traité';
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -207,29 +291,46 @@ serve(async (req) => {
       return new Response('Failed to download file', { status: 500, headers: corsHeaders });
     }
 
-    console.log(`Processing ${document.file_type}: ${document.filename}`);
+    console.log(`Processing ${document.file_type}: ${document.original_filename}`);
     
-    // Quick text extraction
+    // Enhanced text extraction with proper binary handling
     const fileBuffer = await fileData.arrayBuffer();
-    const decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
-    const rawText = decoder.decode(fileBuffer);
+    const uint8Buffer = new Uint8Array(fileBuffer);
     
     let extractedText = '';
-    if (document.file_type === 'pdf') {
-      extractedText = extractPdfTextOptimized(rawText);
-    } else if (document.file_type === 'docx') {
-      extractedText = extractDocxTextOptimized(rawText);
-    } else if (document.file_type === 'txt') {
-      extractedText = rawText.substring(0, 50000);
-    } else {
-      extractedText = 'Type de fichier non pris en charge.';
-    }
+    let analysisStatus = 'text_extracted';
+    
+    try {
+      if (document.file_type === 'pdf') {
+        extractedText = extractPdfTextImproved(uint8Buffer);
+      } else if (document.file_type === 'docx') {
+        extractedText = extractDocxTextImproved(uint8Buffer);
+      } else if (document.file_type === 'txt') {
+        const decoder = new TextDecoder('utf-8', { fatal: false });
+        extractedText = decoder.decode(uint8Buffer).substring(0, 50000);
+      } else {
+        extractedText = '';
+        analysisStatus = 'unsupported_format';
+      }
 
-    // Clean and prepare text
-    extractedText = extractedText
-      .replace(/[\u0000-\u001F\u007F]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+      // Clean and normalize text
+      extractedText = extractedText
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/[^\x20-\x7E\u00A0-\u017F\u0100-\u024F]/g, '')
+        .trim();
+      
+      // Check if extraction was successful
+      if (extractedText.length < 50 || !/[A-Za-zÀ-ÿ]{3,}/.test(extractedText)) {
+        extractedText = 'Contenu du document détecté mais extraction textuelle limitée. Vous pouvez utiliser le chat IA pour analyser le document.';
+        analysisStatus = 'minimal_content';
+      }
+      
+    } catch (error) {
+      console.error('Text extraction error:', error);
+      extractedText = 'Erreur lors de l\'extraction du texte. Le document peut être analysé via le chat IA.';
+      analysisStatus = 'extraction_error';
+    }
 
     const previewText = extractedText.length > 1000 ? 
       extractedText.substring(0, 997) + '...' : 
@@ -243,7 +344,7 @@ serve(async (req) => {
       .update({
         extracted_text: extractedText,
         preview_text: previewText,
-        analysis_status: 'text_extracted',
+        analysis_status: analysisStatus,
         processed_at: new Date().toISOString()
       })
       .eq('id', documentId);
@@ -252,8 +353,14 @@ serve(async (req) => {
       throw new Error('Failed to update document');
     }
 
-    // Start AI analysis in background if OpenAI is available
-    if (openAIApiKey && extractedText.length > 100) {
+    // Start AI analysis in background if OpenAI is available and text extraction was successful
+    if (openAIApiKey && analysisStatus === 'text_extracted' && extractedText.length > 100) {
+      // Update status to indicate AI processing is starting
+      await supabase
+        .from('documents')
+        .update({ analysis_status: 'ai_processing' })
+        .eq('id', documentId);
+        
       EdgeRuntime.waitUntil(
         processDocumentInBackground(supabase, documentId, extractedText, document.file_type)
       );
@@ -269,8 +376,8 @@ serve(async (req) => {
       wordCount,
       file_type: document.file_type,
       filename: document.original_filename,
-      analysis_status: openAIApiKey ? 'ai_processing' : 'text_extracted',
-      message: openAIApiKey ? 'Analyse IA en cours...' : 'Texte extrait avec succès'
+      analysis_status: (openAIApiKey && analysisStatus === 'text_extracted') ? 'ai_processing' : analysisStatus,
+      message: getStatusMessage(analysisStatus, openAIApiKey)
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
