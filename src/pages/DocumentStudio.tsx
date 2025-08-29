@@ -8,7 +8,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import { 
   FileText, 
   Download, 
@@ -16,7 +15,6 @@ import {
   Upload, 
   MessageSquare, 
   Eye, 
-  Globe, 
   RefreshCw,
   Search,
   ArrowLeft,
@@ -29,15 +27,13 @@ import {
   ExternalLink,
   Languages,
   FileType,
-  Calculator,
+  BarChart3,
   GraduationCap,
-  TrendingUp,
   Loader2,
   CheckCircle,
   AlertCircle,
-  FileDown,
-  Sparkles,
-  Zap
+  FileImage,
+  Globe
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -77,12 +73,20 @@ interface ChatMessage {
   timestamp: string;
 }
 
+interface ConversionOperation {
+  id: string;
+  operation_type: string;
+  status: string;
+  progress?: number;
+  result_filename?: string;
+  error_message?: string;
+}
+
 interface AnalysisResult {
-  type: 'financial' | 'academic' | 'legal' | 'technical' | 'general';
-  summary: string;
-  keyPoints: string[];
-  recommendations: string[];
-  confidence: number;
+  type: 'financial' | 'academic' | 'legal' | 'sentiment';
+  title: string;
+  content: string;
+  downloadUrl?: string;
 }
 
 const SUPPORTED_LANGUAGES = {
@@ -92,43 +96,43 @@ const SUPPORTED_LANGUAGES = {
   'it': 'Italien',
   'pt': 'Portugais',
   'zh': 'Chinois',
-  'ja': 'Japonais',
   'ar': 'Arabe',
+  'ja': 'Japonais',
   'ru': 'Russe'
 };
 
 export default function DocumentStudio() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Data state
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [operations, setOperations] = useState<ConversionOperation[]>([]);
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
+  
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('upload');
   const [chatInput, setChatInput] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [conversionFormat, setConversionFormat] = useState<'pdf' | 'docx' | 'txt'>('pdf');
   
   // Loading states
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [converting, setConverting] = useState(false);
-  const [analyzing_financial, setAnalyzingFinancial] = useState(false);
-  const [analyzing_academic, setAnalyzingAcademic] = useState(false);
-  
-  // Translation state
-  const [targetLanguage, setTargetLanguage] = useState('en');
+  const [analyzingDocument, setAnalyzingDocument] = useState(false);
   const [translationProgress, setTranslationProgress] = useState(0);
-  
-  // Analysis results
-  const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
+  const [conversionProgress, setConversionProgress] = useState(0);
 
-  // Load documents on mount
+  // Load data on mount
   useEffect(() => {
     loadDocuments();
   }, []);
@@ -150,40 +154,24 @@ export default function DocumentStudio() {
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Erreur",
-          description: "Vous devez être connecté pour accéder aux documents",
-          variant: "destructive"
-        });
-        return;
-      }
-
       const { data, error } = await supabase
         .from('documents')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading documents:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les documents",
-          variant: "destructive"
-        });
-        return;
-      }
-
+      if (error) throw error;
       setDocuments(data || []);
       
-      // Auto-select first document if none selected
-      if (!selectedDocument && data && data.length > 0) {
+      if (data && data.length > 0 && !selectedDocument) {
         setSelectedDocument(data[0]);
       }
     } catch (error) {
-      console.error('Error in loadDocuments:', error);
+      console.error('Error loading documents:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les documents",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -197,7 +185,7 @@ export default function DocumentStudio() {
       const welcomeMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Bonjour ! Je peux vous aider à analyser ce document et répondre à toutes vos questions sur son contenu. ${selectedDocument?.extracted_text ? 'Le document a été analysé avec succès.' : 'Commencez par analyser le document pour débloquer toutes les fonctionnalités.'}`,
+        content: `Bonjour ! Je peux vous aider à analyser ce document et répondre à toutes vos questions sur son contenu. ${selectedDocument?.ai_summary ? 'Le document a déjà été analysé par l\'IA.' : 'Commencez par poser une question ou demandez une analyse.'}`,
         timestamp: new Date().toISOString()
       };
       setChatMessages([welcomeMessage]);
@@ -219,109 +207,94 @@ export default function DocumentStudio() {
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Type de fichier non supporté",
-        description: "Seuls les fichiers PDF, Word (.docx) et texte sont acceptés",
+        description: "Seuls les fichiers PDF, Word et texte sont acceptés",
         variant: "destructive",
       });
       return;
     }
 
-    // Check file size (max 50MB)
+    // Validate file size (max 50MB)
     if (file.size > 50 * 1024 * 1024) {
       toast({
         title: "Fichier trop volumineux",
-        description: "La taille maximale autorisée est de 50MB",
+        description: "La taille maximale est de 50MB",
         variant: "destructive",
       });
       return;
     }
 
-    setLoading(true);
+    setUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non connecté');
+      // Upload to Supabase Storage
+      const fileName = `${Date.now()}_${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(`${(await supabase.auth.getUser()).data.user?.id}/${fileName}`, file);
 
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('fileName', file.name);
+      if (uploadError) throw uploadError;
 
-      // Upload via edge function
-      const { data, error } = await supabase.functions.invoke('document-upload', {
-        body: formData
+      // Create document record and trigger analysis
+      const { data: documentData, error: documentError } = await supabase.functions.invoke('document-upload', {
+        body: new FormData().append('file', file).append('fileName', file.name)
       });
 
-      if (error) {
-        console.error('Upload error:', error);
-        throw new Error(error.message || 'Erreur lors du téléversement');
+      if (documentError) throw documentError;
+
+      toast({
+        title: "Document téléversé",
+        description: `${file.name} a été téléversé et l'analyse a commencé`,
+      });
+
+      // Reload documents and select the new one
+      await loadDocuments();
+      if (documentData.document) {
+        setSelectedDocument(documentData.document);
+        setActiveTab('preview');
       }
 
-      if (data?.document) {
-        toast({
-          title: "Document téléversé",
-          description: `${file.name} a été téléversé avec succès`,
-        });
-
-        // Reload documents and select the new one
-        await loadDocuments();
-        const newDoc = data.document;
-        setSelectedDocument(newDoc);
-        
-        // Auto-analyze if text was extracted
-        if (newDoc.extracted_text && newDoc.extracted_text.length > 100) {
-          setTimeout(() => analyzeDocument(newDoc.id), 1000);
-        }
-      }
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('Error uploading document:', error);
       toast({
         title: "Erreur de téléversement",
-        description: error instanceof Error ? error.message : "Impossible de téléverser le fichier",
+        description: "Impossible de téléverser le document",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setUploading(false);
+      if (event.target) event.target.value = '';
     }
   };
 
   const analyzeDocument = async (documentId: string) => {
-    const document = documents.find(d => d.id === documentId);
-    if (!document) return;
-
     setAnalyzing(true);
     try {
       const { data, error } = await supabase.functions.invoke('file-analyze', {
         body: { documentId }
       });
 
-      if (error) {
-        console.error('Analysis error:', error);
-        throw new Error(error.message || 'Erreur lors de l\'analyse');
-      }
+      if (error) throw error;
 
-      if (data?.success) {
-        toast({
-          title: "Document analysé",
-          description: `${document.original_filename} a été analysé avec succès`,
-        });
+      toast({
+        title: "Analyse terminée",
+        description: "Le document a été analysé avec succès",
+      });
 
-        // Reload documents to get updated data
-        await loadDocuments();
-        
-        // Update selected document
+      // Reload documents to get updated analysis
+      await loadDocuments();
+      
+      // Update selected document if it's the one being analyzed
+      if (selectedDocument?.id === documentId) {
         const updatedDoc = documents.find(d => d.id === documentId);
         if (updatedDoc) {
           setSelectedDocument(updatedDoc);
         }
       }
+
     } catch (error) {
       console.error('Error analyzing document:', error);
       toast({
         title: "Erreur d'analyse",
-        description: error instanceof Error ? error.message : "Impossible d'analyser le document",
+        description: "Impossible d'analyser le document",
         variant: "destructive",
       });
     } finally {
@@ -345,6 +318,7 @@ export default function DocumentStudio() {
     setChatLoading(true);
 
     try {
+      // Use the existing document-chat edge function
       const { data, error } = await supabase.functions.invoke('document-chat', {
         body: {
           documentId: selectedDocument.id,
@@ -352,14 +326,12 @@ export default function DocumentStudio() {
         }
       });
 
-      if (error) {
-        throw new Error(error.message || 'Erreur lors de la discussion');
-      }
+      if (error) throw error;
 
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data?.answer || 'Désolé, je n\'ai pas pu traiter votre demande.',
+        content: data.answer || 'Désolé, je n\'ai pas pu traiter votre demande.',
         timestamp: new Date().toISOString()
       };
 
@@ -372,7 +344,7 @@ export default function DocumentStudio() {
       const errorMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: 'Désolé, une erreur est survenue. Assurez-vous que le document a été analysé et réessayez.',
+        content: 'Désolé, une erreur est survenue. Veuillez réessayer.',
         timestamp: new Date().toISOString()
       };
       const finalMessages = [...updatedMessages, errorMessage];
@@ -384,95 +356,116 @@ export default function DocumentStudio() {
   };
 
   const translateDocument = async () => {
-    if (!selectedDocument || !selectedDocument.extracted_text) {
-      toast({
-        title: "Erreur",
-        description: "Aucun contenu à traduire. Analysez d'abord le document.",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!selectedDocument) return;
 
     setTranslating(true);
     setTranslationProgress(0);
 
     try {
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setTranslationProgress(prev => Math.min(prev + 10, 90));
+      }, 500);
+
       const { data, error } = await supabase.functions.invoke('document-translate', {
         body: {
           documentId: selectedDocument.id,
-          targetLanguage
+          targetLanguage: selectedLanguage
         }
       });
 
-      if (error) {
-        throw new Error(error.message || 'Erreur lors de la traduction');
-      }
+      clearInterval(progressInterval);
+      setTranslationProgress(100);
 
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setTranslationProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 500);
+      if (error) throw error;
 
-      // Wait for completion
-      setTimeout(() => {
-        clearInterval(progressInterval);
-        setTranslationProgress(100);
-        
-        toast({
-          title: "Traduction terminée",
-          description: `Document traduit en ${SUPPORTED_LANGUAGES[targetLanguage as keyof typeof SUPPORTED_LANGUAGES]}`,
-        });
+      toast({
+        title: "Traduction terminée",
+        description: `Document traduit en ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES]}`,
+      });
 
-        // Auto-download translated file
-        if (data?.filename) {
-          const link = document.createElement('a');
-          link.href = `data:text/plain;charset=utf-8,${encodeURIComponent('Traduction terminée - Fichier disponible')}`;
-          link.download = data.filename;
-          link.click();
+      // Download the translated document
+      if (data.storage_path) {
+        const { data: fileData } = await supabase.storage
+          .from('documents')
+          .download(data.storage_path);
+
+        if (fileData) {
+          const url = URL.createObjectURL(fileData);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = data.filename || `${selectedDocument.original_filename}_${selectedLanguage}.txt`;
+          a.click();
+          URL.revokeObjectURL(url);
         }
-      }, 3000);
+      }
 
     } catch (error) {
       console.error('Error translating document:', error);
       toast({
         title: "Erreur de traduction",
-        description: error instanceof Error ? error.message : "Impossible de traduire le document",
+        description: "Impossible de traduire le document",
         variant: "destructive",
       });
     } finally {
-      setTimeout(() => {
-        setTranslating(false);
-        setTranslationProgress(0);
-      }, 3500);
+      setTranslating(false);
+      setTranslationProgress(0);
     }
   };
 
-  const convertDocument = async (targetFormat: 'pdf' | 'docx' | 'txt') => {
+  const convertDocument = async () => {
     if (!selectedDocument) return;
 
     setConverting(true);
+    setConversionProgress(0);
+
     try {
-      // Simulate conversion process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const convertedFilename = `${selectedDocument.original_filename.split('.')[0]}.${targetFormat}`;
-      
-      toast({
-        title: "Conversion terminée",
-        description: `Document converti en ${targetFormat.toUpperCase()}`,
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setConversionProgress(prev => Math.min(prev + 15, 90));
+      }, 300);
+
+      // Use document generation service for conversion
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          messages: [
+            {
+              role: 'system',
+              content: 'Tu es un expert en conversion de documents. Convertis le contenu fourni dans le format demandé en préservant la structure et la mise en forme.'
+            },
+            {
+              role: 'user',
+              content: `Convertis ce document en format ${conversionFormat.toUpperCase()}:\n\n${selectedDocument.extracted_text || selectedDocument.preview_text}`
+            }
+          ],
+          model: 'gpt-4o-mini'
+        }
       });
 
-      // Auto-download converted file
-      const link = document.createElement('a');
-      link.href = `data:application/octet-stream;charset=utf-8,${encodeURIComponent('Fichier converti - Téléchargement simulé')}`;
-      link.download = convertedFilename;
-      link.click();
+      clearInterval(progressInterval);
+      setConversionProgress(100);
+
+      if (error) throw error;
+
+      // Create downloadable file
+      const convertedContent = data.generatedText || data.message;
+      const blob = new Blob([convertedContent], { 
+        type: conversionFormat === 'pdf' ? 'application/pdf' : 
+              conversionFormat === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 
+              'text/plain' 
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedDocument.original_filename.split('.')[0]}_converted.${conversionFormat}`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Conversion terminée",
+        description: `Document converti en ${conversionFormat.toUpperCase()}`,
+      });
 
     } catch (error) {
       console.error('Error converting document:', error);
@@ -483,123 +476,77 @@ export default function DocumentStudio() {
       });
     } finally {
       setConverting(false);
+      setConversionProgress(0);
     }
   };
 
-  const performFinancialAnalysis = async () => {
-    if (!selectedDocument || !selectedDocument.extracted_text) {
-      toast({
-        title: "Erreur",
-        description: "Analysez d'abord le document pour effectuer une analyse financière",
-        variant: "destructive"
-      });
-      return;
-    }
+  const performAnalysis = async (analysisType: 'financial' | 'academic' | 'legal' | 'sentiment') => {
+    if (!selectedDocument) return;
 
-    setAnalyzingFinancial(true);
+    setAnalyzingDocument(true);
     try {
+      const analysisPrompts = {
+        financial: `Effectue une analyse financière complète de ce document. Identifie les ratios financiers, tendances, points forts et faibles, et fournis des recommandations d'investissement ou de gestion.`,
+        academic: `Effectue une analyse académique de ce document. Évalue la méthodologie, la qualité des sources, la structure argumentative, et fournis une critique constructive selon les standards académiques.`,
+        legal: `Effectue une analyse juridique de ce document. Identifie les clauses importantes, les risques légaux, les obligations contractuelles et fournis des recommandations juridiques.`,
+        sentiment: `Effectue une analyse de sentiment de ce document. Identifie le ton général, les émotions exprimées, les opinions positives/négatives et fournis un rapport détaillé sur l'attitude de l'auteur.`
+      };
+
       const { data, error } = await supabase.functions.invoke('openai-chat', {
         body: {
           messages: [
             {
               role: 'system',
-              content: 'Tu es un expert financier. Analyse ce document et fournis une analyse financière détaillée avec ratios, tendances et recommandations.'
+              content: `Tu es un expert en analyse ${analysisType}. Fournis une analyse détaillée et professionnelle en format Markdown avec des sections claires.`
             },
             {
               role: 'user',
-              content: `Effectue une analyse financière complète de ce document :\n\n${selectedDocument.extracted_text.substring(0, 8000)}`
+              content: `${analysisPrompts[analysisType]}\n\nDocument à analyser:\n\n${selectedDocument.extracted_text || selectedDocument.preview_text}`
             }
           ],
-          model: 'gpt-4o-mini',
-          max_tokens: 2000
+          model: 'gpt-4o'
         }
       });
 
       if (error) throw error;
 
-      const result: AnalysisResult = {
-        type: 'financial',
-        summary: data.generatedText || 'Analyse financière non disponible',
-        keyPoints: ['Ratios financiers analysés', 'Tendances identifiées', 'Recommandations formulées'],
-        recommendations: ['Consulter un expert financier', 'Vérifier les calculs', 'Suivre les tendances'],
-        confidence: 0.85
+      const analysisContent = data.generatedText || data.message;
+      const newAnalysis: AnalysisResult = {
+        type: analysisType,
+        title: `Analyse ${analysisType} - ${selectedDocument.original_filename}`,
+        content: analysisContent
       };
 
-      setAnalysisResults(prev => [...prev.filter(r => r.type !== 'financial'), result]);
-      
+      setAnalysisResults(prev => [...prev, newAnalysis]);
+
       toast({
-        title: "Analyse financière terminée",
-        description: "Rapport d'analyse financière généré avec succès",
+        title: "Analyse terminée",
+        description: `Analyse ${analysisType} effectuée avec succès`,
       });
 
+      // Switch to analysis tab
+      setActiveTab('analysis');
+
     } catch (error) {
-      console.error('Error in financial analysis:', error);
+      console.error('Error performing analysis:', error);
       toast({
-        title: "Erreur d'analyse financière",
-        description: "Impossible d'effectuer l'analyse financière",
+        title: "Erreur d'analyse",
+        description: `Impossible d'effectuer l'analyse ${analysisType}`,
         variant: "destructive",
       });
     } finally {
-      setAnalyzingFinancial(false);
+      setAnalyzingDocument(false);
     }
   };
 
-  const performAcademicAnalysis = async () => {
-    if (!selectedDocument || !selectedDocument.extracted_text) {
-      toast({
-        title: "Erreur",
-        description: "Analysez d'abord le document pour effectuer une analyse académique",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setAnalyzingAcademic(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('openai-chat', {
-        body: {
-          messages: [
-            {
-              role: 'system',
-              content: 'Tu es un expert académique. Analyse ce document selon les critères académiques : méthodologie, sources, qualité scientifique, structure argumentative.'
-            },
-            {
-              role: 'user',
-              content: `Effectue une analyse académique complète de ce document :\n\n${selectedDocument.extracted_text.substring(0, 8000)}`
-            }
-          ],
-          model: 'gpt-4o-mini',
-          max_tokens: 2000
-        }
-      });
-
-      if (error) throw error;
-
-      const result: AnalysisResult = {
-        type: 'academic',
-        summary: data.generatedText || 'Analyse académique non disponible',
-        keyPoints: ['Méthodologie évaluée', 'Sources vérifiées', 'Qualité scientifique analysée'],
-        recommendations: ['Renforcer la méthodologie', 'Ajouter des sources', 'Améliorer la structure'],
-        confidence: 0.80
-      };
-
-      setAnalysisResults(prev => [...prev.filter(r => r.type !== 'academic'), result]);
-      
-      toast({
-        title: "Analyse académique terminée",
-        description: "Rapport d'analyse académique généré avec succès",
-      });
-
-    } catch (error) {
-      console.error('Error in academic analysis:', error);
-      toast({
-        title: "Erreur d'analyse académique",
-        description: "Impossible d'effectuer l'analyse académique",
-        variant: "destructive",
-      });
-    } finally {
-      setAnalyzingAcademic(false);
-    }
+  const downloadAnalysis = (analysis: AnalysisResult) => {
+    const blob = new Blob([analysis.content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${analysis.title.replace(/[^a-zA-Z0-9]/g, '_')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const deleteDocument = async (documentId: string) => {
@@ -618,14 +565,10 @@ export default function DocumentStudio() {
         description: "Le document a été supprimé avec succès",
       });
 
-      // Update local state
-      setDocuments(prev => prev.filter(d => d.id !== documentId));
-      
       if (selectedDocument?.id === documentId) {
-        const remainingDocs = documents.filter(d => d.id !== documentId);
-        setSelectedDocument(remainingDocs[0] || null);
+        setSelectedDocument(null);
       }
-
+      await loadDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
       toast({
@@ -636,47 +579,19 @@ export default function DocumentStudio() {
     }
   };
 
-  const downloadAnalysisReport = (analysis: AnalysisResult) => {
-    const report = `# Rapport d'Analyse ${analysis.type.charAt(0).toUpperCase() + analysis.type.slice(1)}
-
-## Résumé
-${analysis.summary}
-
-## Points Clés
-${analysis.keyPoints.map(point => `- ${point}`).join('\n')}
-
-## Recommandations
-${analysis.recommendations.map(rec => `- ${rec}`).join('\n')}
-
-## Métadonnées
-- Type d'analyse: ${analysis.type}
-- Niveau de confiance: ${(analysis.confidence * 100).toFixed(1)}%
-- Généré le: ${new Date().toLocaleString('fr-FR')}
-- Document source: ${selectedDocument?.original_filename}
-`;
-
-    const blob = new Blob([report], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `analyse_${analysis.type}_${selectedDocument?.original_filename?.split('.')[0]}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const getFileIcon = (type: string) => {
-    if (type === 'pdf') return '📄';
-    if (type === 'docx') return '📝';
-    if (type === 'txt') return '📄';
+    if (type.includes('pdf')) return '📄';
+    if (type.includes('word') || type.includes('document')) return '📝';
     return '📁';
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const getStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'ai_completed': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'ai_processing': return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+      case 'error': return <AlertCircle className="w-4 h-4 text-red-500" />;
+      default: return <FileText className="w-4 h-4 text-muted-foreground" />;
+    }
   };
 
   const filteredDocuments = documents.filter(doc =>
@@ -684,27 +599,22 @@ ${analysis.recommendations.map(rec => `- ${rec}`).join('\n')}
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card/80 backdrop-blur-sm">
+      <div className="border-b bg-card">
         <div className="flex items-center justify-between p-4 max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={() => navigate('/app')}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Document Studio Pro
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Analysez, traduisez et convertissez vos documents avec l'IA
-              </p>
+              <h1 className="text-xl md:text-2xl font-bold">Document Studio Pro</h1>
+              <p className="text-sm text-muted-foreground">Analysez, traduisez et convertissez vos documents avec l'IA</p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <FileText className="w-3 h-3" />
+            <Badge variant="secondary" className="hidden md:flex">
               {documents.length} document{documents.length > 1 ? 's' : ''}
             </Badge>
           </div>
@@ -712,265 +622,222 @@ ${analysis.recommendations.map(rec => `- ${rec}`).join('\n')}
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="upload" className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Upload
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              Aperçu
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Chat IA
-            </TabsTrigger>
-            <TabsTrigger value="translate" className="flex items-center gap-2">
-              <Languages className="w-4 h-4" />
-              Traduire
-            </TabsTrigger>
-            <TabsTrigger value="convert" className="flex items-center gap-2">
-              <FileType className="w-4 h-4" />
-              Convertir
-            </TabsTrigger>
-            <TabsTrigger value="analyze" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Analyser
-            </TabsTrigger>
-          </TabsList>
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)]">
+        {/* Left Panel - Document List */}
+        <div className={`${selectedDocument ? 'hidden lg:flex' : 'flex'} w-full lg:w-80 border-r bg-card flex-col`}>
+          {/* Upload Section */}
+          <div className="p-4 border-b">
+            <label className="block">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={uploading}
+              />
+              <Button 
+                className="w-full" 
+                variant="default"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Téléversement...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ajouter un document
+                  </>
+                )}
+              </Button>
+            </label>
+          </div>
 
-          {/* Upload Tab */}
-          <TabsContent value="upload" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Upload Section */}
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    Téléverser un document
-                  </CardTitle>
-                  <CardDescription>
-                    Formats supportés : PDF, Word (.docx), Texte (.txt)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div 
-                      className="border-2 border-dashed border-muted rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                      onClick={() => fileInputRef.current?.click()}
+          {/* Search */}
+          <div className="p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Document List */}
+          <ScrollArea className="flex-1">
+            <div className="p-2">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              ) : filteredDocuments.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileX className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-sm">
+                    {searchTerm ? 'Aucun document trouvé' : 'Aucun document'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedDocument?.id === doc.id 
+                          ? 'bg-primary/10 border-primary/20 border' 
+                          : 'hover:bg-accent'
+                      }`}
+                      onClick={() => setSelectedDocument(doc)}
                     >
-                      <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-lg font-medium mb-2">
-                        Cliquez ou glissez votre document ici
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        PDF, Word, Texte (max 50MB)
-                      </p>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    
-                    {loading && (
-                      <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                        <span className="text-sm text-blue-800">Téléversement en cours...</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Documents List */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
-                      Mes Documents
-                    </CardTitle>
-                    <Button variant="outline" size="sm" onClick={loadDocuments}>
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Search */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Rechercher un document..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-
-                    {/* Documents Grid */}
-                    <ScrollArea className="h-[400px]">
-                      {filteredDocuments.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <FileX className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p className="text-lg font-medium mb-2">Aucun document</p>
-                          <p className="text-sm">Téléversez votre premier document pour commencer</p>
-                        </div>
-                      ) : (
-                        <div className="grid gap-3">
-                          {filteredDocuments.map((doc) => (
-                            <div
-                              key={doc.id}
-                              className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
-                                selectedDocument?.id === doc.id 
-                                  ? 'bg-primary/10 border-primary/30 shadow-sm' 
-                                  : 'bg-card hover:bg-accent'
-                              }`}
-                              onClick={() => setSelectedDocument(doc)}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3 flex-1 min-w-0">
-                                  <span className="text-2xl flex-shrink-0">{getFileIcon(doc.file_type)}</span>
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="font-medium truncate">{doc.original_filename}</h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Badge variant="outline" className="text-xs">
-                                        {doc.file_type.toUpperCase()}
-                                      </Badge>
-                                      <span className="text-xs text-muted-foreground">
-                                        {formatFileSize(doc.file_size)}
-                                      </span>
-                                      {doc.analysis_status === 'ai_completed' && (
-                                        <Badge variant="default" className="text-xs">
-                                          <Sparkles className="w-3 h-3 mr-1" />
-                                          Analysé
-                                        </Badge>
-                                      )}
-                                      {doc.analysis_status === 'ai_processing' && (
-                                        <Badge variant="secondary" className="text-xs">
-                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                          Analyse...
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {new Date(doc.created_at).toLocaleDateString('fr-FR')}
-                                    </p>
-                                  </div>
-                                </div>
-                                
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <MoreHorizontal className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => analyzeDocument(doc.id)}>
-                                      <Eye className="w-4 h-4 mr-2" />
-                                      Analyser
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      onClick={() => deleteDocument(doc.id)}
-                                      className="text-destructive"
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" />
-                                      Supprimer
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getFileIcon(doc.file_type)}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate text-sm">{doc.original_filename}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-muted-foreground">
+                                  {(doc.file_size / 1024 / 1024).toFixed(1)} MB
+                                </p>
+                                {getStatusIcon(doc.analysis_status)}
+                                {doc.ai_summary && (
+                                  <Badge variant="secondary" className="text-xs">IA</Badge>
+                                )}
                               </div>
                             </div>
-                          ))}
+                          </div>
                         </div>
-                      )}
-                    </ScrollArea>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Preview Tab */}
-          <TabsContent value="preview" className="space-y-6">
-            <DocumentContentViewer 
-              document={selectedDocument} 
-              isAnalyzing={analyzing}
-            />
-          </TabsContent>
-
-          {/* Chat Tab */}
-          <TabsContent value="chat" className="space-y-6">
-            {selectedDocument ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Document Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <span className="text-lg">{getFileIcon(selectedDocument.file_type)}</span>
-                      Document actuel
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="font-medium truncate">{selectedDocument.original_filename}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatFileSize(selectedDocument.file_size)} • {selectedDocument.file_type.toUpperCase()}
-                        </p>
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => analyzeDocument(doc.id)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Analyser
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => deleteDocument(doc.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      
-                      {!selectedDocument.extracted_text && (
-                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                          <p className="text-sm text-orange-800 mb-2">Document non analysé</p>
-                          <Button 
-                            size="sm" 
-                            onClick={() => analyzeDocument(selectedDocument.id)}
-                            disabled={analyzing}
-                            className="w-full"
-                          >
-                            {analyzing ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Analyse...
-                              </>
-                            ) : (
-                              <>
-                                <Zap className="w-4 h-4 mr-2" />
-                                Analyser maintenant
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      )}
-
-                      {selectedDocument.ai_summary && (
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <h4 className="font-medium text-sm mb-2">Résumé IA</h4>
-                          <p className="text-sm text-blue-800">{selectedDocument.ai_summary}</p>
-                        </div>
-                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
 
-                {/* Chat Interface */}
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5" />
-                      Discussion avec l'IA
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col h-[500px]">
-                      <ScrollArea className="flex-1 p-4 border rounded-lg mb-4">
-                        <div className="space-y-4">
+        {/* Right Panel - Document Viewer & Tools */}
+        <div className={`${selectedDocument ? 'flex' : 'hidden lg:flex'} flex-1 flex-col`}>
+          {selectedDocument ? (
+            <>
+              {/* Document Header */}
+              <div className="border-b bg-card p-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setSelectedDocument(null)}
+                      className="lg:hidden flex-shrink-0"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-lg">{getFileIcon(selectedDocument.file_type)}</span>
+                    <div className="min-w-0">
+                      <h2 className="font-semibold truncate">{selectedDocument.original_filename}</h2>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{(selectedDocument.file_size / 1024 / 1024).toFixed(1)} MB</span>
+                        <span>•</span>
+                        <span>{new Date(selectedDocument.created_at).toLocaleDateString('fr-FR')}</span>
+                        {getStatusIcon(selectedDocument.analysis_status)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={selectedDocument.ai_summary ? "secondary" : "default"}
+                      size="sm"
+                      onClick={() => analyzeDocument(selectedDocument.id)}
+                      disabled={analyzing}
+                    >
+                      {analyzing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Analyse...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4 mr-2" />
+                          {selectedDocument.ai_summary ? 'Re-analyser' : 'Analyser'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                <div className="border-b bg-card px-4">
+                  <TabsList className="grid w-full grid-cols-6">
+                    <TabsTrigger value="preview" className="flex items-center gap-1">
+                      <Eye className="w-3 h-3" />
+                      <span className="hidden sm:inline">Aperçu</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="chat" className="flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3" />
+                      <span className="hidden sm:inline">Chat IA</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="translate" className="flex items-center gap-1">
+                      <Languages className="w-3 h-3" />
+                      <span className="hidden sm:inline">Traduire</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="convert" className="flex items-center gap-1">
+                      <FileType className="w-3 h-3" />
+                      <span className="hidden sm:inline">Convertir</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="analysis" className="flex items-center gap-1">
+                      <BarChart3 className="w-3 h-3" />
+                      <span className="hidden sm:inline">Analyses</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="tools" className="flex items-center gap-1">
+                      <Globe className="w-3 h-3" />
+                      <span className="hidden sm:inline">Outils</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                {/* Tab Content */}
+                <div className="flex-1 overflow-hidden">
+                  <TabsContent value="preview" className="h-full m-0">
+                    <DocumentContentViewer 
+                      document={selectedDocument} 
+                      isAnalyzing={analyzing}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="chat" className="h-full m-0">
+                    <div className="flex flex-col h-full">
+                      <ScrollArea className="flex-1 p-4">
+                        <div className="space-y-4 max-w-4xl mx-auto">
                           {chatMessages.map((message) => (
                             <div
                               key={message.id}
@@ -997,7 +864,7 @@ ${analysis.recommendations.map(rec => `- ${rec}`).join('\n')}
                                   <div className="text-sm">
                                     <div dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
                                   </div>
-                                  <div className="text-xs mt-2 opacity-70">
+                                  <div className={`text-xs mt-2 opacity-70`}>
                                     {new Date(message.timestamp).toLocaleTimeString('fr-FR', {
                                       hour: '2-digit',
                                       minute: '2-digit'
@@ -1027,383 +894,351 @@ ${analysis.recommendations.map(rec => `- ${rec}`).join('\n')}
                       </ScrollArea>
 
                       {/* Chat Input */}
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Posez votre question sur ce document..."
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              sendChatMessage();
-                            }
-                          }}
-                          disabled={chatLoading || !selectedDocument?.extracted_text}
-                          className="flex-1"
-                        />
-                        <Button 
-                          onClick={sendChatMessage} 
-                          disabled={!chatInput.trim() || chatLoading || !selectedDocument?.extracted_text}
-                          size="sm"
-                        >
-                          <Send className="w-4 h-4" />
-                        </Button>
+                      <div className="border-t p-4 bg-card">
+                        <div className="flex gap-2 max-w-4xl mx-auto">
+                          <Input
+                            placeholder="Posez votre question sur ce document..."
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                sendChatMessage();
+                              }
+                            }}
+                            disabled={chatLoading}
+                            className="flex-1"
+                          />
+                          <Button 
+                            onClick={sendChatMessage} 
+                            disabled={!chatInput.trim() || chatLoading}
+                            size="sm"
+                          >
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      
-                      {!selectedDocument?.extracted_text && (
-                        <p className="text-xs text-muted-foreground mt-2 text-center">
-                          Analysez d'abord le document pour activer le chat IA
-                        </p>
-                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Aucun document sélectionné</h3>
-                  <p className="text-muted-foreground">
-                    Sélectionnez un document dans l'onglet Upload pour commencer la discussion
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+                  </TabsContent>
 
-          {/* Translate Tab */}
-          <TabsContent value="translate" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Languages className="w-5 h-5" />
-                  Traduction de document
-                </CardTitle>
-                <CardDescription>
-                  Traduisez votre document dans une autre langue avec l'IA
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {selectedDocument ? (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium mb-2">Document source</h4>
-                        <div className="p-3 bg-muted rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">{getFileIcon(selectedDocument.file_type)}</span>
-                            <div>
-                              <p className="font-medium text-sm">{selectedDocument.original_filename}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatFileSize(selectedDocument.file_size)}
-                              </p>
+                  <TabsContent value="translate" className="h-full m-0">
+                    <div className="p-6 max-w-4xl mx-auto">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Languages className="w-5 h-5" />
+                            Traduction de document
+                          </CardTitle>
+                          <CardDescription>
+                            Traduisez votre document dans une autre langue avec l'IA
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">Langue cible</label>
+                            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(SUPPORTED_LANGUAGES).map(([code, name]) => (
+                                  <SelectItem key={code} value={code}>
+                                    {name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {translating && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span>Traduction en cours...</span>
+                                <span>{translationProgress}%</span>
+                              </div>
+                              <Progress value={translationProgress} />
                             </div>
+                          )}
+
+                          <Button 
+                            onClick={translateDocument}
+                            disabled={translating}
+                            className="w-full"
+                          >
+                            {translating ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Traduction en cours...
+                              </>
+                            ) : (
+                              <>
+                                <Languages className="w-4 h-4 mr-2" />
+                                Traduire en {SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES]}
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="convert" className="h-full m-0">
+                    <div className="p-6 max-w-4xl mx-auto">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <FileType className="w-5 h-5" />
+                            Conversion de format
+                          </CardTitle>
+                          <CardDescription>
+                            Convertissez votre document vers un autre format
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">Format de sortie</label>
+                            <Select value={conversionFormat} onValueChange={(value: any) => setConversionFormat(value)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pdf">PDF</SelectItem>
+                                <SelectItem value="docx">Word (DOCX)</SelectItem>
+                                <SelectItem value="txt">Texte simple</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h4 className="font-medium mb-2">Langue cible</h4>
-                        <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(SUPPORTED_LANGUAGES).map(([code, name]) => (
-                              <SelectItem key={code} value={code}>
-                                {name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+
+                          {converting && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span>Conversion en cours...</span>
+                                <span>{conversionProgress}%</span>
+                              </div>
+                              <Progress value={conversionProgress} />
+                            </div>
+                          )}
+
+                          <Button 
+                            onClick={convertDocument}
+                            disabled={converting}
+                            className="w-full"
+                          >
+                            {converting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Conversion en cours...
+                              </>
+                            ) : (
+                              <>
+                                <FileType className="w-4 h-4 mr-2" />
+                                Convertir en {conversionFormat.toUpperCase()}
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
                     </div>
+                  </TabsContent>
 
-                    {translating && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Traduction en cours...</span>
-                          <span className="text-sm text-muted-foreground">{translationProgress}%</span>
-                        </div>
-                        <Progress value={translationProgress} className="w-full" />
-                      </div>
-                    )}
+                  <TabsContent value="analysis" className="h-full m-0">
+                    <div className="p-6 max-w-4xl mx-auto space-y-6">
+                      {/* Analysis Tools */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => performAnalysis('financial')}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-green-100 text-green-600">
+                                <BarChart3 className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold">Analyse Financière</h3>
+                                <p className="text-sm text-muted-foreground">Ratios, tendances, recommandations</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                    <Button 
-                      onClick={translateDocument}
-                      disabled={translating || !selectedDocument.extracted_text}
-                      className="w-full"
-                    >
-                      {translating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Traduction en cours...
-                        </>
-                      ) : (
-                        <>
-                          <Languages className="w-4 h-4 mr-2" />
-                          Traduire en {SUPPORTED_LANGUAGES[targetLanguage as keyof typeof SUPPORTED_LANGUAGES]}
-                        </>
-                      )}
-                    </Button>
+                        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => performAnalysis('academic')}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                                <GraduationCap className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold">Analyse Académique</h3>
+                                <p className="text-sm text-muted-foreground">Méthodologie, sources, qualité</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                    {!selectedDocument.extracted_text && (
-                      <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                        <p className="text-sm text-orange-800">
-                          Le document doit être analysé avant la traduction. Cliquez sur "Analyser" dans l'onglet Upload.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Languages className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Aucun document sélectionné</h3>
-                    <p className="text-muted-foreground">
-                      Sélectionnez un document pour le traduire
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => performAnalysis('legal')}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
+                                <FileText className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold">Analyse Juridique</h3>
+                                <p className="text-sm text-muted-foreground">Clauses, risques, obligations</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
 
-          {/* Convert Tab */}
-          <TabsContent value="convert" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileType className="w-5 h-5" />
-                  Conversion de format
-                </CardTitle>
-                <CardDescription>
-                  Convertissez votre document vers différents formats
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {selectedDocument ? (
-                  <div className="space-y-6">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{getFileIcon(selectedDocument.file_type)}</span>
-                        <div>
-                          <h4 className="font-medium">{selectedDocument.original_filename}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Format actuel : {selectedDocument.file_type.toUpperCase()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => convertDocument('pdf')}
-                        disabled={converting || selectedDocument.file_type === 'pdf'}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        <FileText className="w-6 h-6" />
-                        <span>Convertir en PDF</span>
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={() => convertDocument('docx')}
-                        disabled={converting || selectedDocument.file_type === 'docx'}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        <FileDown className="w-6 h-6" />
-                        <span>Convertir en Word</span>
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={() => convertDocument('txt')}
-                        disabled={converting || selectedDocument.file_type === 'txt'}
-                        className="h-20 flex flex-col gap-2"
-                      >
-                        <FileText className="w-6 h-6" />
-                        <span>Convertir en Texte</span>
-                      </Button>
-                    </div>
-
-                    {converting && (
-                      <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                        <span className="text-sm text-blue-800">Conversion en cours...</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <FileType className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Aucun document sélectionné</h3>
-                    <p className="text-muted-foreground">
-                      Sélectionnez un document pour le convertir
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Analyze Tab */}
-          <TabsContent value="analyze" className="space-y-6">
-            {selectedDocument ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Analysis Tools */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5" />
-                      Outils d'analyse
-                    </CardTitle>
-                    <CardDescription>
-                      Analyses spécialisées avec l'intelligence artificielle
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <Button
-                        onClick={performFinancialAnalysis}
-                        disabled={analyzing_financial || !selectedDocument.extracted_text}
-                        className="w-full h-16 flex items-center gap-3"
-                        variant="outline"
-                      >
-                        <Calculator className="w-6 h-6" />
-                        <div className="text-left">
-                          <div className="font-medium">Analyse Financière</div>
-                          <div className="text-xs text-muted-foreground">
-                            Ratios, tendances, recommandations
-                          </div>
-                        </div>
-                        {analyzing_financial && <Loader2 className="w-4 h-4 animate-spin ml-auto" />}
-                      </Button>
-
-                      <Button
-                        onClick={performAcademicAnalysis}
-                        disabled={analyzing_academic || !selectedDocument.extracted_text}
-                        className="w-full h-16 flex items-center gap-3"
-                        variant="outline"
-                      >
-                        <GraduationCap className="w-6 h-6" />
-                        <div className="text-left">
-                          <div className="font-medium">Analyse Académique</div>
-                          <div className="text-xs text-muted-foreground">
-                            Méthodologie, sources, qualité scientifique
-                          </div>
-                        </div>
-                        {analyzing_academic && <Loader2 className="w-4 h-4 animate-spin ml-auto" />}
-                      </Button>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" disabled className="h-12 flex flex-col gap-1">
-                          <span className="text-xs">Analyse Juridique</span>
-                          <span className="text-xs text-muted-foreground">Bientôt</span>
-                        </Button>
-                        <Button variant="outline" disabled className="h-12 flex flex-col gap-1">
-                          <span className="text-xs">Sentiment</span>
-                          <span className="text-xs text-muted-foreground">Bientôt</span>
-                        </Button>
+                        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => performAnalysis('sentiment')}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+                                <MessageSquare className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold">Analyse de Sentiment</h3>
+                                <p className="text-sm text-muted-foreground">Ton, émotions, opinions</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
 
-                      {!selectedDocument.extracted_text && (
-                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                          <p className="text-sm text-orange-800">
-                            Le document doit être analysé avant les analyses spécialisées.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Analysis Results */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5" />
-                      Résultats d'analyse
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {analysisResults.length === 0 ? (
-                      <div className="text-center py-12">
-                        <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                        <p className="text-muted-foreground">
-                          Aucune analyse effectuée pour le moment
-                        </p>
-                      </div>
-                    ) : (
-                      <ScrollArea className="h-[400px]">
+                      {/* Analysis Results */}
+                      {analysisResults.length > 0 && (
                         <div className="space-y-4">
+                          <h3 className="text-lg font-semibold">Résultats d'analyse</h3>
                           {analysisResults.map((result, index) => (
-                            <div key={index} className="border rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  {result.type === 'financial' ? (
-                                    <Calculator className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <GraduationCap className="w-4 h-4 text-blue-600" />
-                                  )}
-                                  <h4 className="font-medium">
-                                    Analyse {result.type === 'financial' ? 'Financière' : 'Académique'}
-                                  </h4>
-                                  <Badge variant="outline">
-                                    {(result.confidence * 100).toFixed(0)}% confiance
-                                  </Badge>
+                            <Card key={index}>
+                              <CardHeader>
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="text-base">{result.title}</CardTitle>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => downloadAnalysis(result)}
+                                  >
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Télécharger
+                                  </Button>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => downloadAnalysisReport(result)}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              </div>
-                              
-                              <div className="space-y-3">
-                                <div>
-                                  <h5 className="text-sm font-medium mb-1">Résumé</h5>
-                                  <p className="text-sm text-muted-foreground">
-                                    {result.summary.substring(0, 200)}...
-                                  </p>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="prose prose-sm max-w-none">
+                                  <div dangerouslySetInnerHTML={{ __html: renderMarkdown(result.content) }} />
                                 </div>
-                                
-                                <div>
-                                  <h5 className="text-sm font-medium mb-1">Points clés</h5>
-                                  <ul className="text-sm text-muted-foreground space-y-1">
-                                    {result.keyPoints.slice(0, 3).map((point, i) => (
-                                      <li key={i} className="flex items-start gap-2">
-                                        <span className="text-primary">•</span>
-                                        <span>{point}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              </div>
-                            </div>
+                              </CardContent>
+                            </Card>
                           ))}
                         </div>
-                      </ScrollArea>
-                    )}
-                  </CardContent>
-                </Card>
+                      )}
+
+                      {analyzingDocument && (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-center">
+                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">Analyse en cours...</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="tools" className="h-full m-0">
+                    <div className="p-6 max-w-4xl mx-auto">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* PDF Viewer */}
+                        {selectedDocument.file_type === 'pdf' && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2">
+                                <FileImage className="w-5 h-5" />
+                                Aperçu PDF
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="aspect-[3/4] border rounded-lg overflow-hidden bg-muted">
+                                <iframe
+                                  src={`${supabase.storage.from('documents').getPublicUrl(selectedDocument.storage_path).data.publicUrl}#toolbar=0`}
+                                  className="w-full h-full"
+                                  title="PDF Preview"
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Document Info */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <FileText className="w-5 h-5" />
+                              Informations du document
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium">Nom :</span>
+                                <p className="text-muted-foreground">{selectedDocument.original_filename}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Type :</span>
+                                <p className="text-muted-foreground">{selectedDocument.file_type.toUpperCase()}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Taille :</span>
+                                <p className="text-muted-foreground">{(selectedDocument.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Créé :</span>
+                                <p className="text-muted-foreground">{new Date(selectedDocument.created_at).toLocaleDateString('fr-FR')}</p>
+                              </div>
+                            </div>
+
+                            {selectedDocument.ai_summary && (
+                              <div className="pt-3 border-t">
+                                <span className="font-medium">Résumé IA :</span>
+                                <p className="text-sm text-muted-foreground mt-1">{selectedDocument.ai_summary}</p>
+                              </div>
+                            )}
+
+                            {selectedDocument.key_points && selectedDocument.key_points.length > 0 && (
+                              <div className="pt-3 border-t">
+                                <span className="font-medium">Points clés :</span>
+                                <ul className="text-sm text-muted-foreground mt-1 space-y-1">
+                                  {selectedDocument.key_points.slice(0, 3).map((point, index) => (
+                                    <li key={index} className="flex items-start gap-2">
+                                      <span className="text-primary">•</span>
+                                      <span>{point}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </>
+          ) : (
+            // No document selected
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <Upload className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Sélectionnez un document</h3>
+                <p className="text-muted-foreground mb-4">
+                  Téléversez un document PDF, Word ou texte pour commencer l'analyse
+                </p>
+                <Button onClick={() => fileInputRef.current?.click()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter un document
+                </Button>
               </div>
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Aucun document sélectionné</h3>
-                  <p className="text-muted-foreground">
-                    Sélectionnez un document pour effectuer des analyses spécialisées
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
