@@ -125,9 +125,6 @@ export default function DocumentStudio() {
   const [chatLoading, setChatLoading] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
 
-  // State for selected document (separate from uploaded files)
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-
   // Load documents
   const loadDocuments = useCallback(async () => {
     try {
