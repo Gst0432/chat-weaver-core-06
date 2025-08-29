@@ -239,13 +239,15 @@ export default function DocumentStudio() {
     }
   };
 
-  // Analyze document file
+  // Analyze document file with enhanced feedback
   const analyzeDocument = async (documentId: string) => {
     setIsVectorizing(true);
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Non authentifié');
+
+      console.log(`Starting analysis for document: ${documentId}`);
 
       // First analyze the file to extract proper text content
       const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke('file-analyze', {
@@ -257,6 +259,8 @@ export default function DocumentStudio() {
 
       if (analyzeError) throw analyzeError;
 
+      console.log('Analysis result:', analyzeData);
+
       // Reload documents to show updated preview
       await loadDocuments();
       
@@ -267,6 +271,17 @@ export default function DocumentStudio() {
           setSelectedDocument(updatedDoc);
         }
       }
+
+      // Show detailed feedback based on extraction quality
+      const getToastMessage = () => {
+        if (analyzeData?.extraction_quality === 'good') {
+          return `Analyse réussie ! Texte extrait: ${analyzeData.length} caractères`;
+        } else if (analyzeData?.extraction_quality === 'moderate') {
+          return `Texte partiellement extrait (${analyzeData.length} caractères). Le chat IA peut analyser le contenu complet.`;
+        } else {
+          return `Extraction limitée (${analyzeData?.length || 0} caractères). Utilisez le chat IA pour une analyse complète.`;
+        }
+      };
 
       // Then vectorize the document
       const { data: vectorizeData, error: vectorizeError } = await supabase.functions.invoke('document-vectorize', {
@@ -280,7 +295,7 @@ export default function DocumentStudio() {
 
       toast({
         title: "Analyse et vectorisation terminées",
-        description: `Document analysé et ${vectorizeData.chunks_processed} sections vectorisées`,
+        description: getToastMessage(),
       });
       
     } catch (error) {
