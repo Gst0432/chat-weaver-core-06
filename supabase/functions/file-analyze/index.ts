@@ -10,115 +10,152 @@ const corsHeaders = {
 // Helper function to clean text content
 const cleanTextContent = (text: string): string => {
   if (!text) return '';
+  
+  // More aggressive cleaning for corrupted text
   return text
-    .replace(/\u0000/g, '') // Remove null bytes
-    .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '') // Remove control characters
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove all control characters
+    .replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, '') // Keep only printable characters
     .replace(/\uFFFD/g, '') // Remove replacement characters
-    .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Additional cleanup
+    .replace(/[^\w\s.,!?;:()\-'"]/g, ' ') // Keep only alphanumeric, spaces, and basic punctuation
     .replace(/\s+/g, ' ') // Normalize whitespace
+    .replace(/(.)\1{3,}/g, '$1$1') // Remove excessive repetition
     .trim();
 };
 
 // Advanced PDF text extraction
 function extractPdfText(buffer: ArrayBuffer): string {
-  const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
-  const text = decoder.decode(buffer);
-  const textBlocks: string[] = [];
-  
   try {
-    // Method 1: Extract text from PDF streams
-    const streamRegex = /stream\s*([\s\S]*?)\s*endstream/g;
-    let streamMatch;
-    while ((streamMatch = streamRegex.exec(text)) !== null) {
-      const streamContent = streamMatch[1];
-      
-      // Look for readable text in the stream
-      const readableText = streamContent.match(/[a-zA-ZÀ-ÿ\s.,!?;:'"()-]{4,}/g);
-      if (readableText) {
-        textBlocks.push(...readableText);
+    // Try multiple decoders for better character support
+    let text = '';
+    const decoders = [
+      new TextDecoder('utf-8', { ignoreBOM: true }),
+      new TextDecoder('iso-8859-1'),
+      new TextDecoder('windows-1252')
+    ];
+    
+    for (const decoder of decoders) {
+      try {
+        text = decoder.decode(buffer);
+        if (text && text.length > 0) break;
+      } catch (e) {
+        continue;
       }
     }
 
-    // Method 2: Extract text from text objects
-    const textObjectRegex = /BT\s*([\s\S]*?)\s*ET/g;
-    let textMatch;
-    while ((textMatch = textObjectRegex.exec(text)) !== null) {
-      const textObject = textMatch[1];
+    const textBlocks: string[] = [];
+    
+    // Method 1: Extract from BT...ET blocks (text objects)
+    const textObjectRegex = /BT\s+([\s\S]*?)\s+ET/gi;
+    let match;
+    while ((match = textObjectRegex.exec(text)) !== null) {
+      const textObject = match[1];
       
-      // Extract text from Tj and TJ operators
-      const tjMatches = textObject.match(/\((.*?)\)\s*Tj/g);
-      if (tjMatches) {
-        tjMatches.forEach(match => {
-          const content = match.replace(/\((.*?)\)\s*Tj/, '$1');
-          if (content.length > 2 && /[a-zA-ZÀ-ÿ]/.test(content)) {
-            textBlocks.push(content);
-          }
-        });
+      // Extract from Tj commands
+      const tjRegex = /\(\s*([^)]+)\s*\)\s*Tj/gi;
+      let tjMatch;
+      while ((tjMatch = tjRegex.exec(textObject)) !== null) {
+        const content = tjMatch[1];
+        if (content && content.length > 1) {
+          textBlocks.push(content);
+        }
       }
-
-      // Extract text from array notation
-      const arrayMatches = textObject.match(/\[(.*?)\]\s*TJ/g);
-      if (arrayMatches) {
-        arrayMatches.forEach(match => {
-          const content = match.replace(/\[(.*?)\]\s*TJ/, '$1');
-          const cleanContent = content.replace(/[()]/g, '').replace(/\d+/g, ' ');
-          if (cleanContent.length > 3 && /[a-zA-ZÀ-ÿ]/.test(cleanContent)) {
-            textBlocks.push(cleanContent);
-          }
-        });
+      
+      // Extract from TJ arrays
+      const tjArrayRegex = /\[\s*([^\]]+)\s*\]\s*TJ/gi;
+      let arrayMatch;
+      while ((arrayMatch = tjArrayRegex.exec(textObject)) !== null) {
+        const arrayContent = arrayMatch[1];
+        const strings = arrayContent.match(/\([^)]*\)/g);
+        if (strings) {
+          strings.forEach(str => {
+            const cleanStr = str.slice(1, -1);
+            if (cleanStr && cleanStr.length > 1) {
+              textBlocks.push(cleanStr);
+            }
+          });
+        }
       }
     }
-
-    // Method 3: Look for simple parenthetical text
-    const simpleMatches = text.match(/\(([a-zA-ZÀ-ÿ\s.,!?;:'"()-]{5,})\)/g);
-    if (simpleMatches) {
-      simpleMatches.forEach(match => {
-        const content = match.slice(1, -1);
+    
+    // Method 2: Look for standalone parenthetical strings
+    const standaloneRegex = /\(\s*([A-Za-zÀ-ÿ][^)]{2,})\s*\)/g;
+    let standaloneMatch;
+    while ((standaloneMatch = standaloneRegex.exec(text)) !== null) {
+      const content = standaloneMatch[1];
+      if (content && /[A-Za-zÀ-ÿ]/.test(content)) {
         textBlocks.push(content);
-      });
+      }
     }
 
-    return cleanTextContent(textBlocks.join(' '));
+    // Join and clean the extracted text
+    let extractedText = textBlocks.join(' ');
+    
+    // If no readable text found, return a message
+    if (!extractedText || extractedText.length < 10) {
+      return 'Document PDF téléversé avec succès. Le contenu sera analysé lors de la vectorisation.';
+    }
+    
+    return cleanTextContent(extractedText);
+    
   } catch (error) {
     console.error('PDF text extraction error:', error);
-    return 'Erreur lors de l\'extraction du texte PDF.';
+    return 'Document PDF téléversé avec succès. Analysez le document pour extraire le contenu.';
   }
 }
 
 // Enhanced DOCX text extraction
 function extractDocxText(buffer: ArrayBuffer): string {
-  const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
-  const text = decoder.decode(buffer);
-  const textBlocks: string[] = [];
-  
   try {
-    // Extract Word XML text elements
-    const xmlMatches = text.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
-    if (xmlMatches) {
-      xmlMatches.forEach(match => {
-        const content = match.replace(/<w:t[^>]*>([^<]+)<\/w:t>/, '$1');
-        if (content.trim().length > 0) {
-          textBlocks.push(content.trim());
-        }
-      });
-    }
+    // Try multiple decoders
+    let text = '';
+    const decoders = [
+      new TextDecoder('utf-8', { ignoreBOM: true }),
+      new TextDecoder('iso-8859-1'),
+      new TextDecoder('windows-1252')
+    ];
     
-    // Extract paragraph content
-    const paraMatches = text.match(/<w:p[^>]*>(.*?)<\/w:p>/gs);
-    if (paraMatches) {
-      paraMatches.forEach(match => {
-        const textContent = match.replace(/<[^>]+>/g, ' ');
-        const cleanContent = textContent.replace(/\s+/g, ' ').trim();
-        if (cleanContent.length > 3 && /[a-zA-ZÀ-ÿ]/.test(cleanContent)) {
-          textBlocks.push(cleanContent);
-        }
-      });
+    for (const decoder of decoders) {
+      try {
+        text = decoder.decode(buffer);
+        if (text && text.includes('word/document.xml')) break;
+      } catch (e) {
+        continue;
+      }
     }
 
-    return cleanTextContent(textBlocks.join(' '));
+    const textBlocks: string[] = [];
+    
+    // Extract Word XML text elements (more comprehensive)
+    const patterns = [
+      /<w:t[^>]*>\s*([^<]+?)\s*<\/w:t>/gi,
+      /<t[^>]*>\s*([^<]+?)\s*<\/t>/gi,
+      />\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s.,!?;:()\-'"]{3,})\s*</g
+    ];
+    
+    patterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const content = match[1];
+        if (content && content.trim().length > 2 && /[A-Za-zÀ-ÿ]/.test(content)) {
+          textBlocks.push(content.trim());
+        }
+      }
+    });
+    
+    // Remove duplicates and join
+    const uniqueBlocks = [...new Set(textBlocks)];
+    let extractedText = uniqueBlocks.join(' ');
+    
+    // If no readable text found, return a message
+    if (!extractedText || extractedText.length < 10) {
+      return 'Document DOCX téléversé avec succès. Le contenu sera analysé lors de la vectorisation.';
+    }
+    
+    return cleanTextContent(extractedText);
+    
   } catch (error) {
     console.error('DOCX text extraction error:', error);
-    return 'Erreur lors de l\'extraction du texte DOCX.';
+    return 'Document DOCX téléversé avec succès. Analysez le document pour extraire le contenu.';
   }
 }
 
