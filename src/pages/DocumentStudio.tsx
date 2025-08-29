@@ -234,8 +234,12 @@ export default function DocumentStudio() {
       if (uploadError) throw uploadError;
 
       // Create document record and trigger analysis
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', file.name);
+
       const { data: documentData, error: documentError } = await supabase.functions.invoke('document-upload', {
-        body: new FormData().append('file', file).append('fileName', file.name)
+        body: formData
       });
 
       if (documentError) throw documentError;
