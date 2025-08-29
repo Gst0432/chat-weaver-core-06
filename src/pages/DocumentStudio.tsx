@@ -272,27 +272,82 @@ export default function DocumentStudio() {
   const analyzeDocument = async (documentId: string) => {
     setAnalyzing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('file-analyze', {
+      // Try advanced extraction first for complex PDFs
+      const { data, error } = await supabase.functions.invoke('advanced-pdf-extract', {
         body: { documentId }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Advanced extraction failed, trying standard method:', error);
+        // Fallback to standard extraction
+        const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke('file-analyze', {
+          body: { documentId }
+        });
+        
+        if (fallbackError) throw fallbackError;
+        
+        // Update document state with fallback data
+        setDocuments(prev => prev.map(doc => 
+          doc.id === documentId 
+            ? { 
+                ...doc, 
+                extracted_text: fallbackData.extracted_text,
+                analysis_status: 'ai_completed',
+                ai_summary: 'Analyse avec méthode standard - contenu partiellement extrait'
+              }
+            : doc
+        ));
+        
+        if (selectedDocument?.id === documentId) {
+          setSelectedDocument(prev => prev ? {
+            ...prev,
+            extracted_text: fallbackData.extracted_text,
+            analysis_status: 'ai_completed',
+            ai_summary: 'Analyse avec méthode standard - contenu partiellement extrait'
+          } : null);
+        }
+        
+        toast({
+          title: "Analyse terminée (méthode standard)",
+          description: "Document analysé avec extraction partielle",
+        });
+        return;
+      }
 
-      toast({
-        title: "Analyse terminée",
-        description: "Le document a été analysé avec succès",
-      });
+      // Update document state with analysis results
+      setDocuments(prev => prev.map(doc => 
+        doc.id === documentId 
+          ? { 
+              ...doc, 
+              extracted_text: data.extracted_text,
+              analysis_status: 'ai_completed',
+              ai_summary: data.analysis?.summary,
+              key_points: data.analysis?.keyPoints,
+              document_type: data.analysis?.documentType,
+              is_financial: data.analysis?.isFinancial,
+              structure_info: data.analysis?.structure
+            }
+          : doc
+      ));
 
-      // Reload documents to get updated analysis
-      await loadDocuments();
-      
       // Update selected document if it's the one being analyzed
       if (selectedDocument?.id === documentId) {
-        const updatedDoc = documents.find(d => d.id === documentId);
-        if (updatedDoc) {
-          setSelectedDocument(updatedDoc);
-        }
+        setSelectedDocument(prev => prev ? {
+          ...prev,
+          extracted_text: data.extracted_text,
+          analysis_status: 'ai_completed',
+          ai_summary: data.analysis?.summary,
+          key_points: data.analysis?.keyPoints,
+          document_type: data.analysis?.documentType,
+          is_financial: data.analysis?.isFinancial,
+          structure_info: data.analysis?.structure
+        } : null);
       }
+
+      toast({
+        title: "Analyse avancée terminée",
+        description: `${data.analysis?.extractionQuality || 'Document analysé avec succès'}`,
+      });
 
     } catch (error) {
       console.error('Error analyzing document:', error);
@@ -777,7 +832,7 @@ export default function DocumentStudio() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant={selectedDocument.ai_summary ? "secondary" : "default"}
+                      variant={selectedDocument.analysis_status === 'ai_completed' ? "outline" : "default"}
                       size="sm"
                       onClick={() => analyzeDocument(selectedDocument.id)}
                       disabled={analyzing}
@@ -785,15 +840,25 @@ export default function DocumentStudio() {
                       {analyzing ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Analyse...
+                          Analyse avancée...
                         </>
                       ) : (
                         <>
                           <Eye className="w-4 h-4 mr-2" />
-                          {selectedDocument.ai_summary ? 'Re-analyser' : 'Analyser'}
+                          {selectedDocument.analysis_status === 'ai_completed' ? 'Analyser à nouveau' : 'Analyser avec IA'}
                         </>
                       )}
                     </Button>
+                    
+                    {selectedDocument.structure_info?.extractionQuality && (
+                      <Badge variant={
+                        selectedDocument.structure_info.extractionQuality.includes('good') ? 'default' :
+                        selectedDocument.structure_info.extractionQuality.includes('partial') ? 'secondary' : 'outline'
+                      }>
+                        {selectedDocument.structure_info.extractionQuality.includes('good') ? '✅ Extraction complète' :
+                         selectedDocument.structure_info.extractionQuality.includes('partial') ? '⚠️ Extraction partielle' : '❌ Extraction limitée'}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
