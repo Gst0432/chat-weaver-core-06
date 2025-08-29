@@ -300,7 +300,7 @@ function extractDocxFallback(buffer: ArrayBuffer): string {
       if (rowData.length > 0) {
         tableData.push(rowData.join(' | '));
       }
-    });
+    }
     
     // Method 3: Structured paragraph extraction
     const paragraphRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/gi;
