@@ -125,6 +125,9 @@ export default function DocumentStudio() {
   const [chatLoading, setChatLoading] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
 
+  // State for selected document (separate from uploaded files)
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+
   // Load documents
   const loadDocuments = useCallback(async () => {
     try {
@@ -135,6 +138,14 @@ export default function DocumentStudio() {
 
       if (error) throw error;
       setDocuments((data || []) as Document[]);
+      
+      // Update selected document if it exists in the new data
+      if (selectedDocument) {
+        const updatedSelected = (data || []).find(doc => doc.id === selectedDocument.id);
+        if (updatedSelected) {
+          setSelectedDocument(updatedSelected as Document);
+        }
+      }
     } catch (error) {
       console.error('Error loading documents:', error);
       toast({
@@ -278,9 +289,15 @@ export default function DocumentStudio() {
       
       // Update selected document if it's the one we analyzed
       if (selectedDocument?.id === documentId) {
-        const updatedDoc = documents.find(doc => doc.id === documentId);
-        if (updatedDoc) {
-          setSelectedDocument(updatedDoc);
+        // Refresh the selected document data
+        const { data: updatedDoc, error: refreshError } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('id', documentId)
+          .single();
+        
+        if (!refreshError && updatedDoc) {
+          setSelectedDocument(updatedDoc as Document);
         }
       }
 
@@ -630,7 +647,7 @@ export default function DocumentStudio() {
                           ? 'bg-primary/10 border-primary/20 border' 
                           : 'hover:bg-accent'
                       }`}
-                      onClick={() => setSelectedDocument(doc)}
+                      onClick={() => setSelectedDocument(doc as Document)}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
