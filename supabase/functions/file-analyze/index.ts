@@ -351,19 +351,41 @@ serve(async (req) => {
       extractedText = 'Type de fichier non pris en charge pour l\'extraction de texte automatique.';
     }
 
-    // Update document with extracted text and detailed metadata
+    // Enhanced quality assessment and metadata
     const previewText = extractedText.length > 1000 ? 
       extractedText.substring(0, 997) + '...' : 
       extractedText;
     
+    const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+    const sentenceCount = extractedText.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+    const paragraphCount = extractedText.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+    
+    const qualityMetrics = {
+      excellent: extractedText.length > 2000 && wordCount > 300,
+      good: extractedText.length > 1000 && wordCount > 150,
+      moderate: extractedText.length > 500 && wordCount > 75,
+      basic: extractedText.length > 100 && wordCount > 15,
+      poor: extractedText.length <= 100
+    };
+    
+    let quality = 'poor';
+    if (qualityMetrics.excellent) quality = 'excellent';
+    else if (qualityMetrics.good) quality = 'good';
+    else if (qualityMetrics.moderate) quality = 'moderate';
+    else if (qualityMetrics.basic) quality = 'basic';
+    
+    const analysisStatus = quality === 'poor' ? 'minimal_content' : 'completed';
+    
     const updateData = {
       extracted_text: extractedText,
       preview_text: previewText,
-      analysis_status: extractedText.length > 50 ? 'completed' : 'minimal_content',
-      processed_at: new Date().toISOString()
+      analysis_status: analysisStatus,
+      processed_at: new Date().toISOString(),
+      filename: document.original_filename // Ensure filename is set
     };
     
     console.log(`Updating document with extracted text length: ${extractedText.length}`);
+    console.log('Quality assessment:', { quality, wordCount, sentenceCount, paragraphCount });
     
     const { error: updateError } = await supabase
       .from('documents')
@@ -372,6 +394,10 @@ serve(async (req) => {
     
     if (updateError) {
       console.error('Error updating document:', updateError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to update document analysis', details: updateError }),
+        { status: 500, headers: corsHeaders }
+      );
     }
 
     const responseData = {
@@ -379,18 +405,22 @@ serve(async (req) => {
       extracted_text: extractedText,
       preview_text: previewText,
       length: extractedText.length,
+      wordCount,
+      sentenceCount,
+      paragraphCount,
       file_type: document.file_type,
-      filename: document.filename,
-      analysis_status: updateData.analysis_status,
+      filename: document.original_filename,
+      analysis_status: analysisStatus,
       encoding_detected: detectEncoding(fileBuffer),
-      extraction_quality: extractedText.length > 500 ? 'good' : 
-                          extractedText.length > 100 ? 'moderate' : 'minimal'
+      quality,
+      readability_score: sentenceCount > 0 ? Math.min(100, Math.round((wordCount / sentenceCount) * 10)) : 0
     };
     
     console.log('Analysis completed successfully:', {
       length: extractedText.length,
-      status: updateData.analysis_status,
-      quality: responseData.extraction_quality
+      status: analysisStatus,
+      quality: quality,
+      wordCount: wordCount
     });
 
     return new Response(JSON.stringify(responseData), {

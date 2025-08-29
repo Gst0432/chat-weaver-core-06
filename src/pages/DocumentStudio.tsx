@@ -239,7 +239,7 @@ export default function DocumentStudio() {
     }
   };
 
-  // Analyze document file with enhanced feedback
+  // Enhanced document analysis with intelligent feedback 
   const analyzeDocument = async (documentId: string) => {
     setIsVectorizing(true);
     
@@ -272,18 +272,30 @@ export default function DocumentStudio() {
         }
       }
 
-      // Show detailed feedback based on extraction quality
-      const getToastMessage = () => {
-        if (analyzeData?.extraction_quality === 'good') {
-          return `Analyse réussie ! Texte extrait: ${analyzeData.length} caractères`;
-        } else if (analyzeData?.extraction_quality === 'moderate') {
-          return `Texte partiellement extrait (${analyzeData.length} caractères). Le chat IA peut analyser le contenu complet.`;
-        } else {
-          return `Extraction limitée (${analyzeData?.length || 0} caractères). Utilisez le chat IA pour une analyse complète.`;
-        }
+      // Enhanced quality-based feedback
+      const getQualityMessage = (quality: string, length: number, wordCount: number) => {
+        const qualityMessages = {
+          excellent: `✨ Analyse excellente ! ${length.toLocaleString()} caractères et ${wordCount.toLocaleString()} mots extraits`,
+          good: `✅ Bonne extraction ! ${length.toLocaleString()} caractères et ${wordCount.toLocaleString()} mots récupérés`,
+          moderate: `⚠️ Extraction modérée (${length.toLocaleString()} caractères). Le chat IA peut analyser davantage`,
+          basic: `🔍 Extraction basique (${length.toLocaleString()} caractères). Essayez la conversion en texte`,
+          poor: `❌ Extraction limitée. Document peut-être scanné ou protégé`
+        };
+        return qualityMessages[quality] || 'Document analysé';
       };
 
-      // Then vectorize the document
+      const qualityTips = {
+        excellent: null,
+        good: null,
+        moderate: 'Pour une meilleure extraction, essayez de convertir le document en format texte',
+        basic: 'Le document pourrait être scanné ou utiliser des polices complexes',
+        poor: 'Essayez de convertir en PDF texte ou utilisez un OCR externe'
+      };
+
+      const message = getQualityMessage(analyzeData?.quality, analyzeData?.length || 0, analyzeData?.wordCount || 0);
+      const tip = qualityTips[analyzeData?.quality];
+
+      // Then vectorize the document for AI chat
       const { data: vectorizeData, error: vectorizeError } = await supabase.functions.invoke('document-vectorize', {
         body: { documentId },
         headers: {
@@ -293,10 +305,22 @@ export default function DocumentStudio() {
 
       if (vectorizeError) throw vectorizeError;
 
+      // Show success toast with quality info
       toast({
         title: "Analyse et vectorisation terminées",
-        description: getToastMessage(),
+        description: message,
       });
+
+      // Show additional tip if needed
+      if (tip) {
+        setTimeout(() => {
+          toast({
+            title: "💡 Conseil",
+            description: tip,
+            variant: "default",
+          });
+        }, 2000);
+      }
       
     } catch (error) {
       console.error('Error analyzing document:', error);
@@ -673,139 +697,141 @@ export default function DocumentStudio() {
                       <ScrollArea className="h-full">
                         <div className="p-6">
                           {(() => {
-                            const previewResult = selectedDocument.preview_text 
+                            const cleanedPreview = selectedDocument.preview_text 
                               ? cleanPreviewText(selectedDocument.preview_text)
                               : { isValid: false, cleanedText: '', errorMessage: 'Aucun aperçu disponible' };
                             
-                            if (previewResult.isValid && previewResult.cleanedText) {
-                              return (
-                                <div className="prose prose-sm max-w-none">
-                                  <h3 className="text-lg font-semibold mb-4">Aperçu du contenu</h3>
-                                  <div className="bg-secondary/20 p-4 rounded-lg border">
-                                    <div className="text-sm leading-relaxed whitespace-pre-wrap font-sans">
-                                      {previewResult.cleanedText}
-                                      {selectedDocument.extracted_text && selectedDocument.extracted_text.length > 1000 && (
-                                        <div className="text-muted-foreground mt-4 pt-4 border-t border-border">
-                                          <p className="text-xs">
-                                            📄 <strong>Aperçu tronqué</strong> - Vectorisez le document pour accéder au contenu complet via le chat IA
-                                          </p>
+                            return (
+                              <div className="space-y-4">
+                                {cleanedPreview.isValid && cleanedPreview.cleanedText ? (
+                                  <div className="bg-muted/50 rounded-lg p-4 border">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h4 className="font-medium text-foreground">Aperçu du contenu</h4>
+                                      {selectedDocument.extracted_text && (
+                                        <div className="flex items-center gap-3 text-xs">
+                                          <div className="flex items-center gap-1 text-muted-foreground">
+                                            <FileText className="h-3 w-3" />
+                                            {selectedDocument.extracted_text.length.toLocaleString()} caractères
+                                          </div>
+                                          {selectedDocument.extracted_text.split(/\s+/).length > 0 && (
+                                            <div className="flex items-center gap-1 text-muted-foreground">
+                                              <span>📝</span>
+                                              {selectedDocument.extracted_text.split(/\s+/).filter(w => w.length > 0).length.toLocaleString()} mots
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
-                                  </div>
-
-                                  <div className="mt-4">
-                                    <Button
-                                      onClick={() => analyzeDocument(selectedDocument.id)}
-                                      disabled={isVectorizing}
-                                      size="sm"
-                                    >
-                                      {isVectorizing ? (
-                                        <>
-                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                          Analyse...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Search className="w-4 h-4 mr-2" />
-                                          Analyser et préparer pour le chat IA
-                                        </>
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              );
-                            } else {
-                              return (
-                                <div className="flex flex-col items-center justify-center h-96 text-center">
-                                  <div className="mb-6">
-                                    {previewResult.errorMessage?.includes('corrompu') ? (
-                                      <XCircle className="w-16 h-16 text-destructive mb-4 mx-auto" />
-                                    ) : (
-                                      <FileText className="w-16 h-16 text-muted-foreground mb-4 mx-auto" />
+                                    <div className="bg-background/50 rounded p-3 max-h-64 overflow-y-auto">
+                                      <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
+                                        {cleanedPreview.cleanedText}
+                                      </p>
+                                    </div>
+                                    {selectedDocument.extracted_text && selectedDocument.extracted_text.length > cleanedPreview.cleanedText.length && (
+                                      <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                                        ✨ Contenu complet disponible pour le chat IA ({selectedDocument.extracted_text.length.toLocaleString()} caractères total)
+                                      </p>
                                     )}
                                   </div>
-                                  
-                                  <h3 className="text-lg font-semibold mb-2">
-                                    {previewResult.errorMessage?.includes('corrompu') ? 
-                                      'Contenu corrompu détecté' : 
-                                      'Aucun aperçu disponible'
-                                    }
-                                  </h3>
-                                  
-                                  <div className="text-muted-foreground mb-6 max-w-md">
-                                    <p className="mb-2">{previewResult.errorMessage}</p>
-                                    {previewResult.errorMessage?.includes('corrompu') && (
-                                      <div className="text-sm bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mt-3">
-                                        <p className="text-yellow-700 dark:text-yellow-300">
-                                          <strong>💡 Possible cause :</strong> Le fichier pourrait être protégé, corrompu, ou contenir principalement des images/graphiques.
+                                ) : (
+                                  <div className="bg-muted/30 rounded-lg p-6 border border-dashed text-center">
+                                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                                    <div className="space-y-3">
+                                      <div>
+                                        <p className="text-muted-foreground mb-1">
+                                          Aucun aperçu textuel disponible
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          Le contenu n'a pas encore été extrait ou analysé
                                         </p>
                                       </div>
-                                    )}
-                                    <p className="text-xs mt-3 text-muted-foreground/80">
-                                      Vous pouvez toujours utiliser le chat IA qui analysera le document directement.
-                                    </p>
+                                      
+                                      {cleanedPreview.errorMessage?.includes('corrompu') && (
+                                        <div className="text-sm bg-warning/10 border border-warning/20 rounded-lg p-3 mt-3">
+                                          <div className="flex items-center gap-2 text-warning-foreground mb-1">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <span className="font-medium">Contenu corrompu détecté</span>
+                                          </div>
+                                          <p className="text-xs text-muted-foreground">
+                                            Le fichier pourrait être protégé, scanné, ou contenir principalement des images
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {!isVectorizing ? (
+                                        <div className="space-y-2">
+                                          <Button
+                                            onClick={() => analyzeDocument(selectedDocument.id)}
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2"
+                                          >
+                                            <Search className="h-4 w-4" />
+                                            Extraire le contenu
+                                          </Button>
+                                          <p className="text-xs text-muted-foreground">
+                                            🚀 Analyse intelligente pour PDF, DOCX et fichiers texte
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-2">
+                                          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                            Extraction en cours...
+                                          </div>
+                                          <p className="text-xs text-muted-foreground">
+                                            🔍 Analyse du document et extraction intelligente du texte
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      <div className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                                        💡 Même sans aperçu, le chat IA peut analyser directement le document
+                                      </div>
+                                    </div>
                                   </div>
-                                  
+                                )}
+                                
+                                {/* Additional actions */}
+                                <div className="flex gap-2">
                                   <Button
                                     onClick={() => analyzeDocument(selectedDocument.id)}
                                     disabled={isVectorizing}
-                                    variant="outline"
+                                    size="sm"
+                                    variant={cleanedPreview.isValid ? "outline" : "default"}
+                                    className="gap-2"
                                   >
                                     {isVectorizing ? (
                                       <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        <Loader2 className="w-4 h-4 animate-spin" />
                                         Analyse...
                                       </>
                                     ) : (
                                       <>
-                                        <Search className="w-4 h-4 mr-2" />
-                                        Analyser pour le chat IA
+                                        <Sparkles className="w-4 h-4" />
+                                        {cleanedPreview.isValid ? 'Ré-analyser' : 'Préparer pour le chat IA'}
                                       </>
                                     )}
                                   </Button>
-                                </div>
-                              );
-                            }
-                          })()}
-
-                          {/* Show extraction status if there were issues */}
-                          {(selectedDocument.extracted_text?.includes('Impossible d\'extraire') || 
-                            selectedDocument.extracted_text?.includes('semble être vide') ||
-                            selectedDocument.extracted_text?.includes('principalement d\'images') ||
-                            selectedDocument.extracted_text?.includes('Extraction') && selectedDocument.extracted_text?.includes('limitée')) && (
-                            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                              <div className="flex items-start space-x-2">
-                                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium mb-1">
-                                    Extraction partielle ou impossible
-                                  </p>
-                                  <div className="text-sm text-yellow-600 dark:text-yellow-400 space-y-1">
-                                    {selectedDocument.extracted_text?.includes('protégé') && (
-                                      <p>• Le document semble être protégé ou composé principalement d'images</p>
-                                    )}
-                                    {selectedDocument.extracted_text?.includes('corrompu') && (
-                                      <p>• Le document pourrait être corrompu</p>
-                                    )}
-                                    {selectedDocument.extracted_text?.includes('vide') && (
-                                      <p>• Le document semble être vide ou sans texte</p>
-                                    )}
-                                    {selectedDocument.extracted_text?.includes('limitée') && (
-                                      <p>• Extraction limitée - certains éléments n'ont pas pu être traités</p>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-3 bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded">
-                                    💡 <strong>Conseil :</strong> Le chat IA peut analyser le document même sans extraction parfaite. Vectorisez-le et posez vos questions !
-                                  </p>
+                                  
+                                  {cleanedPreview.isValid && (
+                                    <Button
+                                      onClick={() => setActiveTab('chat')}
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-2"
+                                    >
+                                      <MessageSquare className="w-4 h-4" />
+                                      Discuter du document
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       </ScrollArea>
                     </TabsContent>
-
                     <TabsContent value="chat" className="h-full m-0">
                       <div className="flex flex-col h-full">
                         <ScrollArea className="flex-1 p-4">
