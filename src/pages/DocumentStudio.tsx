@@ -272,47 +272,12 @@ export default function DocumentStudio() {
   const analyzeDocument = async (documentId: string) => {
     setAnalyzing(true);
     try {
-      // Try advanced extraction first for complex PDFs
-      const { data, error } = await supabase.functions.invoke('advanced-pdf-extract', {
+      // Use the improved file-analyze function with advanced extraction
+      const { data, error } = await supabase.functions.invoke('file-analyze', {
         body: { documentId }
       });
 
-      if (error) {
-        console.warn('Advanced extraction failed, trying standard method:', error);
-        // Fallback to standard extraction
-        const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke('file-analyze', {
-          body: { documentId }
-        });
-        
-        if (fallbackError) throw fallbackError;
-        
-        // Update document state with fallback data
-        setDocuments(prev => prev.map(doc => 
-          doc.id === documentId 
-            ? { 
-                ...doc, 
-                extracted_text: fallbackData.extracted_text,
-                analysis_status: 'ai_completed',
-                ai_summary: 'Analyse avec méthode standard - contenu partiellement extrait'
-              }
-            : doc
-        ));
-        
-        if (selectedDocument?.id === documentId) {
-          setSelectedDocument(prev => prev ? {
-            ...prev,
-            extracted_text: fallbackData.extracted_text,
-            analysis_status: 'ai_completed',
-            ai_summary: 'Analyse avec méthode standard - contenu partiellement extrait'
-          } : null);
-        }
-        
-        toast({
-          title: "Analyse terminée (méthode standard)",
-          description: "Document analysé avec extraction partielle",
-        });
-        return;
-      }
+      if (error) throw error;
 
       // Update document state with analysis results
       setDocuments(prev => prev.map(doc => 
@@ -320,7 +285,7 @@ export default function DocumentStudio() {
           ? { 
               ...doc, 
               extracted_text: data.extracted_text,
-              analysis_status: 'ai_completed',
+              analysis_status: data.analysis_status || 'ai_completed',
               ai_summary: data.analysis?.summary,
               key_points: data.analysis?.keyPoints,
               document_type: data.analysis?.documentType,
@@ -335,7 +300,7 @@ export default function DocumentStudio() {
         setSelectedDocument(prev => prev ? {
           ...prev,
           extracted_text: data.extracted_text,
-          analysis_status: 'ai_completed',
+          analysis_status: data.analysis_status || 'ai_completed',
           ai_summary: data.analysis?.summary,
           key_points: data.analysis?.keyPoints,
           document_type: data.analysis?.documentType,
@@ -345,8 +310,8 @@ export default function DocumentStudio() {
       }
 
       toast({
-        title: "Analyse avancée terminée",
-        description: `${data.analysis?.extractionQuality || 'Document analysé avec succès'}`,
+        title: "Analyse terminée",
+        description: data.message || "Document analysé avec succès",
       });
 
     } catch (error) {
