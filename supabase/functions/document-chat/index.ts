@@ -64,25 +64,40 @@ serve(async (req) => {
       return new Response('Document not found', { status: 404, headers: corsHeaders });
     }
 
-    // Get question embedding
-    const questionEmbedding = await getEmbedding(question);
+    // Try to get vectorized chunks first, fallback to extracted text
+    let context = '';
+    let chunksCount = 0;
+    
+    try {
+      // Get question embedding
+      const questionEmbedding = await getEmbedding(question);
 
-    // Search for relevant chunks using the database function
-    const { data: chunks, error: searchError } = await supabase
-      .rpc('search_document_chunks', {
-        doc_id: documentId,
-        query_embedding: JSON.stringify(questionEmbedding),
-        similarity_threshold: 0.7,
-        match_count: 5
-      });
+      // Search for relevant chunks using the database function
+      const { data: chunks, error: searchError } = await supabase
+        .rpc('search_document_chunks', {
+          doc_id: documentId,
+          query_embedding: JSON.stringify(questionEmbedding),
+          similarity_threshold: 0.7,
+          match_count: 5
+        });
 
-    if (searchError) {
-      console.error('Search error:', searchError);
-      return new Response('Failed to search document', { status: 500, headers: corsHeaders });
+      if (!searchError && chunks && chunks.length > 0) {
+        // Use vectorized chunks if available
+        context = chunks.map((chunk: any) => chunk.chunk_text).join('\n\n');
+        chunksCount = chunks.length;
+        console.log(`Using ${chunksCount} vectorized chunks for document ${documentId}`);
+      } else {
+        // Fallback to extracted text
+        console.log(`No vectorized chunks found for document ${documentId}, using extracted text`);
+        context = document.extracted_text || '';
+        chunksCount = context ? 1 : 0;
+      }
+    } catch (error) {
+      console.error('Error getting embeddings or chunks:', error);
+      // Fallback to extracted text
+      context = document.extracted_text || '';
+      chunksCount = context ? 1 : 0;
     }
-
-    // Prepare context from relevant chunks
-    const context = chunks?.map((chunk: any) => chunk.chunk_text).join('\n\n') || '';
     
     // Generate answer using GPT
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -130,7 +145,7 @@ Répondez en vous basant uniquement sur le contexte fourni.`
         user_id: user.id,
         question,
         answer,
-        relevant_chunks: chunks?.map((c: any) => c.chunk_text) || []
+        relevant_chunks: context ? [context] : []
       });
 
     if (saveError) {
@@ -139,7 +154,7 @@ Répondez en vous basant uniquement sur le contexte fourni.`
 
     return new Response(JSON.stringify({ 
       answer,
-      relevant_chunks_count: chunks?.length || 0,
+      relevant_chunks_count: chunksCount,
       success: true 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
