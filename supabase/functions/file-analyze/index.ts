@@ -9,92 +9,87 @@ const corsHeaders = {
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
-// Advanced PDF text extraction with FlateDecode handling
+// Advanced PDF text extraction with better encoding handling
 function extractPdfTextAdvanced(buffer: Uint8Array): string {
   const textBlocks: string[] = [];
   
   try {
-    // Convert to string for pattern matching
-    const pdfString = new TextDecoder('latin1').decode(buffer);
-    
-    // Extract compressed streams with FlateDecode
-    const streamPattern = /stream\s*([\s\S]*?)\s*endstream/g;
-    let streamMatch;
-    
-    while ((streamMatch = streamPattern.exec(pdfString)) !== null) {
-      const streamData = streamMatch[1];
-      
-      try {
-        // Try to decompress FlateDecode streams
-        if (pdfString.includes('/Filter/FlateDecode')) {
-          const decompressed = decompressFlateDecode(streamData);
-          if (decompressed) {
-            const extractedText = extractTextFromDecompressed(decompressed);
-            if (extractedText) {
-              textBlocks.push(extractedText);
-            }
-          }
-        }
-      } catch (error) {
-        console.log('Stream decompression failed:', error);
-      }
+    // Try UTF-8 first, then fallback to latin1 if needed
+    let pdfString: string;
+    try {
+      pdfString = new TextDecoder('utf-8').decode(buffer);
+    } catch {
+      pdfString = new TextDecoder('latin1').decode(buffer);
     }
     
-    // Enhanced fallback: Extract text using multiple robust patterns
-    if (textBlocks.length === 0) {
-      // Pattern 1: Text in parentheses with Tj operator
-      const tjPattern = /\(([^)]{3,})\)\s*Tj/g;
-      let tjMatch;
-      while ((tjMatch = tjPattern.exec(pdfString)) !== null) {
-        const text = tjMatch[1]
+    // Look for text content patterns, avoiding binary structures
+    const patterns = [
+      // Text in parentheses with text operators (most reliable)
+      /\(([^)]{2,})\)\s*(?:Tj|TJ|'|")/g,
+      
+      // Text arrays (handle spaced text)
+      /\[([^\]]*)\]\s*TJ/g,
+      
+      // BT/ET blocks containing actual text
+      /BT[\s\S]*?\(([^)]{2,})\)[\s\S]*?ET/g
+    ];
+    
+    patterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(pdfString)) !== null && textBlocks.length < 1000) {
+        let text = match[1];
+        
+        if (!text || text.length < 2) continue;
+        
+        // Clean escape sequences
+        text = text
           .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '\r')
+          .replace(/\\r/g, '\r') 
           .replace(/\\t/g, '\t')
           .replace(/\\(.)/g, '$1');
         
-        if (text.length > 2 && /[A-Za-zÀ-ÿ]/.test(text)) {
+        // Only keep text that looks like actual content
+        if (/[a-zA-ZÀ-ÿ]{2,}/.test(text) && !/^[\d\s\-.,]+$/.test(text)) {
           textBlocks.push(text);
         }
       }
+    });
+    
+    // Handle text arrays specially for TJ operator
+    const tjArrayPattern = /\[([^\]]+)\]\s*TJ/g;
+    let tjMatch;
+    while ((tjMatch = tjArrayPattern.exec(pdfString)) !== null && textBlocks.length < 1000) {
+      const arrayContent = tjMatch[1];
+      const textParts = arrayContent.match(/\(([^)]+)\)/g);
       
-      // Pattern 2: Text arrays with TJ operator
-      const tjArrayPattern = /\[(.*?)\]\s*TJ/g;
-      let tjArrayMatch;
-      while ((tjArrayMatch = tjArrayPattern.exec(pdfString)) !== null) {
-        const arrayContent = tjArrayMatch[1];
-        const textMatches = arrayContent.match(/\(([^)]+)\)/g);
-        if (textMatches) {
-          textMatches.forEach(match => {
-            const text = match.slice(1, -1);
-            if (text.length > 2 && /[A-Za-zÀ-ÿ]/.test(text)) {
-              textBlocks.push(text);
-            }
-          });
-        }
-      }
-      
-      // Pattern 3: BT/ET text blocks
-      const btEtPattern = /BT\s*([\s\S]*?)\s*ET/g;
-      let btEtMatch;
-      while ((btEtMatch = btEtPattern.exec(pdfString)) !== null) {
-        const textBlock = btEtMatch[1];
-        const textInBlock = textBlock.match(/\(([^)]+)\)/g);
-        if (textInBlock) {
-          textInBlock.forEach(match => {
-            const text = match.slice(1, -1);
-            if (text.length > 2 && /[A-Za-zÀ-ÿ]/.test(text)) {
-              textBlocks.push(text);
-            }
-          });
+      if (textParts && textParts.length > 0) {
+        let combinedText = '';
+        textParts.forEach(part => {
+          const cleanPart = part.slice(1, -1).replace(/\\(.)/g, '$1');
+          if (/[a-zA-ZÀ-ÿ]/.test(cleanPart)) {
+            combinedText += cleanPart + ' ';
+          }
+        });
+        
+        if (combinedText.trim().length > 2) {
+          textBlocks.push(combinedText.trim());
         }
       }
     }
     
-    return cleanTextContent(textBlocks.join(' '));
+    const extractedText = textBlocks.join(' ');
+    const cleanedText = cleanTextContent(extractedText);
+    
+    // Validate the extracted text
+    if (!isTextReadable(cleanedText)) {
+      throw new Error('Extracted text appears to be corrupted or binary data');
+    }
+    
+    return cleanedText;
     
   } catch (error) {
     console.error('Advanced PDF extraction error:', error);
-    return 'Erreur lors de l\'extraction avancée du PDF';
+    throw error; // Re-throw to trigger fallback handling
   }
 }
 
@@ -194,13 +189,46 @@ function cleanTextContent(text: string): string {
   if (!text) return '';
   
   return text
-    .replace(/\u0000/g, '') // Remove null bytes
-    .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '') // Remove control characters
+    // Remove null bytes and control characters
+    .replace(/\u0000/g, '')
+    .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '')
     .replace(/\uFFFD/g, '') // Remove replacement characters
-    .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Additional cleanup for binary chars
-    .replace(/[^\x20-\x7E\u00A0-\u017F\u0100-\u024F\u1E00-\u1EFF\u2000-\u206F]/g, '') // Keep only readable chars
-    .replace(/\s+/g, ' ') // Normalize whitespace
+    
+    // Remove common PDF binary patterns that leak through
+    .replace(/endobj|obj|stream|endstream|xref|trailer|startxref/g, '')
+    .replace(/<<.*?>>/g, '')
+    .replace(/\[\d+\s+\d+\s+R\]/g, '')
+    
+    // Remove sequences of non-printable characters (corrupted binary data)
+    .replace(/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F\u1E00-\u1EFF\s]{3,}/g, '')
+    
+    // Keep only readable characters (printable ASCII + extended Latin + common punctuation)
+    .replace(/[^\x20-\x7E\u00A0-\u017F\u0100-\u024F\u1E00-\u1EFF\u2000-\u206F\u2C00-\u2C5F]/g, ' ')
+    
+    // Normalize whitespace
+    .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Validate if extracted text is readable and not corrupted
+function isTextReadable(text: string): boolean {
+  if (!text || text.length < 10) return false;
+  
+  // Count readable characters (letters, numbers, common punctuation)
+  const readableChars = (text.match(/[a-zA-ZÀ-ÿ0-9\s.,;:!?'"()\-]/g) || []).length;
+  const totalChars = text.length;
+  
+  // Text should be at least 70% readable characters
+  const readabilityRatio = readableChars / totalChars;
+  
+  // Should contain actual words (sequences of 3+ letters)
+  const hasWords = /[a-zA-ZÀ-ÿ]{3,}/.test(text);
+  
+  // Should not be mostly repetitive patterns
+  const uniqueChars = new Set(text.toLowerCase().split('')).size;
+  const hasVariety = uniqueChars > 10;
+  
+  return readabilityRatio > 0.7 && hasWords && hasVariety;
 }
 
 // AI-powered document analysis
@@ -401,35 +429,46 @@ serve(async (req) => {
         analysisStatus = 'unsupported_format';
       }
 
-      // Validate extraction quality with stricter checks
-      if (extractedText.length < 100 || !/[A-Za-zÀ-ÿ]{10,}/.test(extractedText)) {
-        extractedText = `Document ${document.file_type} complexe détecté. L'extraction textuelle directe est limitée en raison de la compression, d'images intégrées ou d'un encodage spécialisé. 
-
-Le document contient probablement :
-- Texte compressé avec FlateDecode
-- Images ou graphiques intégrés
-- Mise en forme complexe
-- Polices personnalisées
-
-Utilisez le chat IA pour une analyse approfondie du contenu, même sans extraction textuelle complète.`;
-        analysisStatus = 'complex_format';
-      } else {
-        // Additional cleaning for successful extractions
-        extractedText = cleanTextContent(extractedText);
-        analysisStatus = 'text_extracted';
+      // Enhanced validation - check if text is actually readable
+      if (!extractedText || extractedText.length < 50) {
+        throw new Error('No text extracted from document');
       }
       
+      if (!isTextReadable(extractedText)) {
+        throw new Error('Extracted text appears corrupted or contains mostly binary data');
+      }
+      
+      // Additional cleaning for successful extractions
+      extractedText = cleanTextContent(extractedText);
+      
+      // Final validation after cleaning
+      if (extractedText.length < 50 || !isTextReadable(extractedText)) {
+        throw new Error('Text became unreadable after cleaning');
+      }
+      
+      analysisStatus = 'text_extracted';
+      console.log(`Successfully extracted ${extractedText.length} characters of readable text`);
+      
     } catch (error) {
-      console.error('Advanced extraction error:', error);
-      extractedText = `Erreur lors de l'extraction avancée. Le document ${document.file_type} utilise un format complexe ou est protégé. 
+      console.error('Text extraction failed:', error.message);
+      
+      // Provide a proper fallback message for complex documents
+      extractedText = `Extraction de texte limitée pour ce document ${document.file_type.toUpperCase()}.
 
-Vous pouvez toujours :
-- Utiliser le chat IA pour analyser le document
-- Télécharger le document original
-- Essayer une conversion de format
+Ce document utilise probablement :
+• Compression avancée (FlateDecode, LZW)
+• Polices intégrées ou personnalisées  
+• Images et graphiques complexes
+• Protection ou chiffrement partiel
 
-Le chat IA peut souvent analyser des documents même sans extraction textuelle complète.`;
-      analysisStatus = 'extraction_error';
+💡 Solutions disponibles :
+• Utilisez le chat IA pour analyser le contenu
+• Le système peut traiter les documents même sans extraction complète
+• Convertissez le document dans un format plus simple si nécessaire
+
+Le chat IA peut souvent comprendre le contenu même quand l'extraction automatique échoue.`;
+      
+      analysisStatus = 'extraction_limited';
     }
 
     const previewText = extractedText.length > 1000 ? 
