@@ -24,16 +24,22 @@ function extractPdfTextAdvanced(buffer: Uint8Array): string {
     
     console.log('PDF extraction starting, buffer size:', buffer.length);
     
-    // Ultra-strict patterns - require minimum 3 characters and proper text structure
+    // Ultra-strict patterns - require minimum 2 characters for better extraction
     const patterns = [
-      // Text in parentheses with text operators - STRICT: minimum 3 chars, must contain letters
-      /\(([^)]{3,})\)\s*(?:Tj|TJ|'|")/g,
+      // Text in parentheses with text operators - LESS STRICT: minimum 2 chars
+      /\(([^)]{2,})\)\s*(?:Tj|TJ|'|")/g,
       
-      // Text arrays (handle spaced text) - only if contains meaningful text
-      /\[([^\]]{5,})\]\s*TJ/g,
+      // Text arrays (handle spaced text) - reduced minimum requirement
+      /\[([^\]]{3,})\]\s*TJ/g,
       
-      // BT/ET blocks containing actual text - strict validation
-      /BT[\s\S]*?\(([^)]{3,})\)[\s\S]*?ET/g
+      // BT/ET blocks containing actual text - less strict validation
+      /BT[\s\S]*?\(([^)]{2,})\)[\s\S]*?ET/g,
+      
+      // Direct text content with show operators
+      /\(([^)]{2,})\)\s*Tj/g,
+      
+      // Text in angle brackets (hexadecimal text)
+      /<([0-9A-Fa-f\s]{4,})>\s*(?:Tj|TJ)/g
     ];
     
     patterns.forEach((pattern, index) => {
@@ -41,7 +47,23 @@ function extractPdfTextAdvanced(buffer: Uint8Array): string {
       while ((match = pattern.exec(pdfString)) !== null && textBlocks.length < 500) {
         let text = match[1];
         
-        if (!text || text.length < 3) continue;
+        if (!text || text.length < 2) continue;
+        
+        // Handle hexadecimal text (from angle brackets)
+        if (match[0].includes('<') && match[0].includes('>')) {
+          // Convert hex to text if it looks like hex
+          if (/^[0-9A-Fa-f\s]+$/.test(text)) {
+            try {
+              const hexBytes = text.replace(/\s/g, '').match(/.{2}/g);
+              if (hexBytes) {
+                text = String.fromCharCode(...hexBytes.map(byte => parseInt(byte, 16)));
+              }
+            } catch (e) {
+              // If conversion fails, skip
+              continue;
+            }
+          }
+        }
         
         // Clean escape sequences
         text = text
@@ -50,11 +72,11 @@ function extractPdfTextAdvanced(buffer: Uint8Array): string {
           .replace(/\\t/g, '\t')
           .replace(/\\(.)/g, '$1');
         
-        // ULTRA-STRICT validation: must have at least 3 consecutive letters and not be mostly symbols/numbers
-        const hasLetters = /[a-zA-ZÀ-ÿ]{3,}/.test(text);
+        // LESS STRICT validation: allow shorter words and more symbols
+        const hasLetters = /[a-zA-ZÀ-ÿ]{2,}/.test(text);
         const isNotOnlyNumbers = !/^[\d\s\-.,\/\\]+$/.test(text);
-        const isNotBinary = !/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F\u1E00-\u1EFF\s]{2,}/.test(text);
-        const hasRealWords = /\b[a-zA-ZÀ-ÿ]{3,}\b/.test(text);
+        const isNotBinary = !/[^\x00-\x7F\u00C0-\u017F\u0100-\u024F\u1E00-\u1EFF\s]{3,}/.test(text);
+        const hasRealWords = /\b[a-zA-ZÀ-ÿ]{2,}\b/.test(text);
         
         if (hasLetters && isNotOnlyNumbers && isNotBinary && hasRealWords) {
           console.log(`Pattern ${index} extracted: "${text.substring(0, 50)}..."`);
@@ -63,24 +85,24 @@ function extractPdfTextAdvanced(buffer: Uint8Array): string {
       }
     });
     
-    // Handle text arrays specially for TJ operator with ultra-strict validation
-    const tjArrayPattern = /\[([^\]]{10,})\]\s*TJ/g;
+    // Handle text arrays specially for TJ operator with less strict validation
+    const tjArrayPattern = /\[([^\]]{6,})\]\s*TJ/g;
     let tjMatch;
     while ((tjMatch = tjArrayPattern.exec(pdfString)) !== null && textBlocks.length < 500) {
       const arrayContent = tjMatch[1];
-      const textParts = arrayContent.match(/\(([^)]{3,})\)/g);
+      const textParts = arrayContent.match(/\(([^)]{2,})\)/g);
       
       if (textParts && textParts.length > 0) {
         let combinedText = '';
         textParts.forEach(part => {
           const cleanPart = part.slice(1, -1).replace(/\\(.)/g, '$1');
-          // Only add parts that contain real words
-          if (/\b[a-zA-ZÀ-ÿ]{3,}\b/.test(cleanPart)) {
+          // Only add parts that contain real words (relaxed)
+          if (/\b[a-zA-ZÀ-ÿ]{2,}\b/.test(cleanPart)) {
             combinedText += cleanPart + ' ';
           }
         });
         
-        if (combinedText.trim().length > 5 && /[a-zA-ZÀ-ÿ]{3,}/.test(combinedText)) {
+        if (combinedText.trim().length > 3 && /[a-zA-ZÀ-ÿ]{2,}/.test(combinedText)) {
           textBlocks.push(combinedText.trim());
         }
       }

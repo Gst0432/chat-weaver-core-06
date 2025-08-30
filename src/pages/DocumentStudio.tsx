@@ -202,12 +202,23 @@ export default function DocumentStudio() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
-    if (!allowedTypes.includes(file.type)) {
+    // Validate file type - more permissive for Word files
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword', // .doc files
+      'text/plain'
+    ];
+    
+    const fileName = file.name.toLowerCase();
+    const isWordFile = fileName.endsWith('.docx') || fileName.endsWith('.doc');
+    const isPdfFile = fileName.endsWith('.pdf');
+    const isTxtFile = fileName.endsWith('.txt');
+    
+    if (!allowedTypes.includes(file.type) && !isWordFile && !isPdfFile && !isTxtFile) {
       toast({
         title: "Type de fichier non supporté",
-        description: "Seuls les fichiers PDF, Word et texte sont acceptés",
+        description: "Seuls les fichiers PDF (.pdf), Word (.docx, .doc) et texte (.txt) sont acceptés",
         variant: "destructive",
       });
       return;
