@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
-// Advanced PDF text extraction with better encoding handling
+// Advanced PDF text extraction with ultra-strict validation
 function extractPdfTextAdvanced(buffer: Uint8Array): string {
   const textBlocks: string[] = [];
   
@@ -22,24 +22,26 @@ function extractPdfTextAdvanced(buffer: Uint8Array): string {
       pdfString = new TextDecoder('latin1').decode(buffer);
     }
     
-    // Look for text content patterns, avoiding binary structures
+    console.log('PDF extraction starting, buffer size:', buffer.length);
+    
+    // Ultra-strict patterns - require minimum 3 characters and proper text structure
     const patterns = [
-      // Text in parentheses with text operators (most reliable)
-      /\(([^)]{2,})\)\s*(?:Tj|TJ|'|")/g,
+      // Text in parentheses with text operators - STRICT: minimum 3 chars, must contain letters
+      /\(([^)]{3,})\)\s*(?:Tj|TJ|'|")/g,
       
-      // Text arrays (handle spaced text)
-      /\[([^\]]*)\]\s*TJ/g,
+      // Text arrays (handle spaced text) - only if contains meaningful text
+      /\[([^\]]{5,})\]\s*TJ/g,
       
-      // BT/ET blocks containing actual text
-      /BT[\s\S]*?\(([^)]{2,})\)[\s\S]*?ET/g
+      // BT/ET blocks containing actual text - strict validation
+      /BT[\s\S]*?\(([^)]{3,})\)[\s\S]*?ET/g
     ];
     
-    patterns.forEach(pattern => {
+    patterns.forEach((pattern, index) => {
       let match;
-      while ((match = pattern.exec(pdfString)) !== null && textBlocks.length < 1000) {
+      while ((match = pattern.exec(pdfString)) !== null && textBlocks.length < 500) {
         let text = match[1];
         
-        if (!text || text.length < 2) continue;
+        if (!text || text.length < 3) continue;
         
         // Clean escape sequences
         text = text
@@ -48,40 +50,52 @@ function extractPdfTextAdvanced(buffer: Uint8Array): string {
           .replace(/\\t/g, '\t')
           .replace(/\\(.)/g, '$1');
         
-        // Only keep text that looks like actual content
-        if (/[a-zA-ZÀ-ÿ]{2,}/.test(text) && !/^[\d\s\-.,]+$/.test(text)) {
+        // ULTRA-STRICT validation: must have at least 3 consecutive letters and not be mostly symbols/numbers
+        const hasLetters = /[a-zA-ZÀ-ÿ]{3,}/.test(text);
+        const isNotOnlyNumbers = !/^[\d\s\-.,\/\\]+$/.test(text);
+        const isNotBinary = !/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F\u1E00-\u1EFF\s]{2,}/.test(text);
+        const hasRealWords = /\b[a-zA-ZÀ-ÿ]{3,}\b/.test(text);
+        
+        if (hasLetters && isNotOnlyNumbers && isNotBinary && hasRealWords) {
+          console.log(`Pattern ${index} extracted: "${text.substring(0, 50)}..."`);
           textBlocks.push(text);
         }
       }
     });
     
-    // Handle text arrays specially for TJ operator
-    const tjArrayPattern = /\[([^\]]+)\]\s*TJ/g;
+    // Handle text arrays specially for TJ operator with ultra-strict validation
+    const tjArrayPattern = /\[([^\]]{10,})\]\s*TJ/g;
     let tjMatch;
-    while ((tjMatch = tjArrayPattern.exec(pdfString)) !== null && textBlocks.length < 1000) {
+    while ((tjMatch = tjArrayPattern.exec(pdfString)) !== null && textBlocks.length < 500) {
       const arrayContent = tjMatch[1];
-      const textParts = arrayContent.match(/\(([^)]+)\)/g);
+      const textParts = arrayContent.match(/\(([^)]{3,})\)/g);
       
       if (textParts && textParts.length > 0) {
         let combinedText = '';
         textParts.forEach(part => {
           const cleanPart = part.slice(1, -1).replace(/\\(.)/g, '$1');
-          if (/[a-zA-ZÀ-ÿ]/.test(cleanPart)) {
+          // Only add parts that contain real words
+          if (/\b[a-zA-ZÀ-ÿ]{3,}\b/.test(cleanPart)) {
             combinedText += cleanPart + ' ';
           }
         });
         
-        if (combinedText.trim().length > 2) {
+        if (combinedText.trim().length > 5 && /[a-zA-ZÀ-ÿ]{3,}/.test(combinedText)) {
           textBlocks.push(combinedText.trim());
         }
       }
     }
     
+    console.log(`Extracted ${textBlocks.length} text blocks before cleaning`);
+    
     const extractedText = textBlocks.join(' ');
     const cleanedText = cleanTextContent(extractedText);
     
-    // Validate the extracted text
+    console.log(`Cleaned text length: ${cleanedText.length}`);
+    
+    // Ultra-strict validation of the final result
     if (!isTextReadable(cleanedText)) {
+      console.log('Text failed readability test');
       throw new Error('Extracted text appears to be corrupted or binary data');
     }
     
@@ -184,51 +198,80 @@ function extractDocxTextAdvanced(buffer: Uint8Array): string {
   }
 }
 
-// Clean and normalize extracted text to remove corrupted characters
+// Ultra-aggressive text cleaning to eliminate all corrupted characters
 function cleanTextContent(text: string): string {
   if (!text) return '';
   
+  console.log('Cleaning text, original length:', text.length);
+  
   return text
-    // Remove null bytes and control characters
+    // Remove null bytes and all control characters
     .replace(/\u0000/g, '')
     .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '')
     .replace(/\uFFFD/g, '') // Remove replacement characters
     
-    // Remove common PDF binary patterns that leak through
-    .replace(/endobj|obj|stream|endstream|xref|trailer|startxref/g, '')
-    .replace(/<<.*?>>/g, '')
-    .replace(/\[\d+\s+\d+\s+R\]/g, '')
+    // Remove ALL PDF binary patterns that leak through (more aggressive)
+    .replace(/endobj|obj|stream|endstream|xref|trailer|startxref|<<|>>/g, ' ')
+    .replace(/\[\d+\s+\d+\s+R\]/g, ' ')
+    .replace(/\/[A-Z][A-Za-z]+/g, ' ') // Remove PDF commands like /Font, /Type, etc.
     
-    // Remove sequences of non-printable characters (corrupted binary data)
-    .replace(/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F\u1E00-\u1EFF\s]{3,}/g, '')
+    // Ultra-aggressive: Remove any sequence of 2+ non-standard characters
+    .replace(/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F\u1E00-\u1EFF\s]{2,}/g, ' ')
     
-    // Keep only readable characters (printable ASCII + extended Latin + common punctuation)
-    .replace(/[^\x20-\x7E\u00A0-\u017F\u0100-\u024F\u1E00-\u1EFF\u2000-\u206F\u2C00-\u2C5F]/g, ' ')
+    // Remove single random non-printable characters scattered in text
+    .replace(/[^\x20-\x7E\u00A0-\u017F\u0100-\u024F\u1E00-\u1EFF\u2000-\u206F\u2C00-\u2C5F\s]/g, ' ')
     
-    // Normalize whitespace
+    // Remove sequences that look like hex or encoded data
+    .replace(/[0-9A-Fa-f]{10,}/g, ' ')
+    .replace(/[!@#$%^&*+={}|\\:";'<>?,./]{5,}/g, ' ')
+    
+    // Remove sequences with too many uppercase letters (often PDF artifacts)
+    .replace(/[A-Z]{8,}/g, ' ')
+    
+    // Clean up whitespace and weird character combinations
+    .replace(/[_\-~`]{3,}/g, ' ')
+    .replace(/[\[\](){}]{3,}/g, ' ')
+    
+    // Final whitespace normalization
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-// Validate if extracted text is readable and not corrupted
+// Ultra-strict validation for readable text (80% threshold)
 function isTextReadable(text: string): boolean {
-  if (!text || text.length < 10) return false;
+  if (!text || text.length < 20) {
+    console.log('Text too short:', text.length);
+    return false;
+  }
   
-  // Count readable characters (letters, numbers, common punctuation)
+  // Count truly readable characters (letters, numbers, basic punctuation)
   const readableChars = (text.match(/[a-zA-ZÀ-ÿ0-9\s.,;:!?'"()\-]/g) || []).length;
   const totalChars = text.length;
   
-  // Text should be at least 70% readable characters
+  // ULTRA-STRICT: Text should be at least 80% readable characters (raised from 70%)
   const readabilityRatio = readableChars / totalChars;
   
-  // Should contain actual words (sequences of 3+ letters)
-  const hasWords = /[a-zA-ZÀ-ÿ]{3,}/.test(text);
+  // Must contain actual words (sequences of 3+ letters) - at least 5 real words
+  const words = (text.match(/\b[a-zA-ZÀ-ÿ]{3,}\b/g) || []);
+  const hasEnoughWords = words.length >= 5;
   
   // Should not be mostly repetitive patterns
   const uniqueChars = new Set(text.toLowerCase().split('')).size;
-  const hasVariety = uniqueChars > 10;
+  const hasVariety = uniqueChars > 15; // Increased from 10
   
-  return readabilityRatio > 0.7 && hasWords && hasVariety;
+  // Check for common corrupted patterns
+  const hasCorruptedPatterns = /[!@#$%^&*+={}|\\:";'<>?,./]{5,}|[A-Z]{10,}|[0-9A-Fa-f]{15,}/.test(text);
+  
+  console.log('Text validation:', {
+    length: text.length,
+    readabilityRatio: readabilityRatio.toFixed(2),
+    wordsFound: words.length,
+    uniqueChars,
+    hasCorruptedPatterns,
+    sample: text.substring(0, 100)
+  });
+  
+  return readabilityRatio > 0.8 && hasEnoughWords && hasVariety && !hasCorruptedPatterns;
 }
 
 // AI-powered document analysis
