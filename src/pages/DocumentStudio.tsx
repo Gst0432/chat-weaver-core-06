@@ -225,15 +225,7 @@ export default function DocumentStudio() {
 
     setUploading(true);
     try {
-      // Upload to Supabase Storage
-      const fileName = `${Date.now()}_${file.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(`${(await supabase.auth.getUser()).data.user?.id}/${fileName}`, file);
-
-      if (uploadError) throw uploadError;
-
-      // Create document record and trigger analysis
+      // Create FormData and send to document-upload edge function
       const formData = new FormData();
       formData.append('file', file);
       formData.append('fileName', file.name);
@@ -246,7 +238,7 @@ export default function DocumentStudio() {
 
       toast({
         title: "Document téléversé",
-        description: `${file.name} a été téléversé et l'analyse a commencé`,
+        description: `${file.name} a été téléversé et l'extraction a commencé`,
       });
 
       // Reload documents and select the new one
