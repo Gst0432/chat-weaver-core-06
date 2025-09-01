@@ -250,19 +250,31 @@ export function AppSidebar({ isLandingMode = false, onAuthRequired }: AppSidebar
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
-              {/* Code Studio temporairement masqué
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => handleNavigation('/code-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
                   <Code2 className="w-4 h-4" />
                   {!isCollapsed && <span className="ml-2">Code Studio</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              */}
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/documents')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <FileText className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Mes Documents</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => handleNavigation('/document-studio')} className="w-full justify-start text-muted-foreground hover:text-foreground">
-                  <FileText className="w-4 h-4" />
-                  {!isCollapsed && <span className="ml-2">Documents</span>}
+                  <Sparkles className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Document Studio</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => handleNavigation('/team')} className="w-full justify-start text-muted-foreground hover:text-foreground">
+                  <Users className="w-4 h-4" />
+                  {!isCollapsed && <span className="ml-2">Équipe</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
